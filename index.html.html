@@ -1,0 +1,976 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editor de Fotos · HESED Todomotos</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet">
+<script>
+(function(){
+  var HF_URL = 'https://tmhesed-ia-todomotos.hf.space';
+
+  var CDNS = [
+    {
+      mod: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/browser/index.mjs',
+      pub: 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/browser/'
+    },
+    {
+      mod: 'https://unpkg.com/@imgly/background-removal@1.4.5/dist/browser/index.mjs',
+      pub: 'https://unpkg.com/@imgly/background-removal@1.4.5/dist/browser/'
+    },
+    {
+      mod: 'https://esm.sh/@imgly/background-removal@1.4.5/dist/browser/index.mjs',
+      pub: 'https://esm.sh/@imgly/background-removal@1.4.5/dist/browser/'
+    }
+  ];
+  var cdnIdx = 0;
+
+  function init(){
+    var el  = document.getElementById('aiSt');
+    var btn = document.getElementById('btnRun');
+    el.textContent = '⏳ Buscando IA...';
+    el.style.color = '#f0a023';
+
+    // 1. Intenta servidor local, luego nube HF, luego CDN
+    function tryServer(url, next){
+      var ctrl = new AbortController();
+      var tid  = setTimeout(function(){ ctrl.abort(); }, 2000);
+      fetch(url + '/health', {signal: ctrl.signal})
+        .then(function(r){ clearTimeout(tid); r.ok ? setupLocal(el, btn, url) : next(); })
+        .catch(function(){ clearTimeout(tid); next(); });
+    }
+    tryServer('http://localhost:5000', function(){
+      tryServer(HF_URL, function(){ tryCDN(el, btn); });
+    });
+  }
+
+  function setupLocal(el, btn, baseUrl){
+    baseUrl = baseUrl || 'http://localhost:5000';
+    window._removeBg = function(blob){
+      return new Promise(function(res, rej){
+        var reader = new FileReader();
+        reader.onload = function(e){
+          fetch(baseUrl + '/remove-bg', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({image: e.target.result})
+          })
+          .then(function(r){ return r.json(); })
+          .then(function(json){
+            var bin = atob(json.image.split(',')[1]);
+            var arr = new Uint8Array(bin.length);
+            for(var i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+            res(new Blob([arr], {type:'image/png'}));
+          })
+          .catch(rej);
+        };
+        reader.readAsDataURL(blob);
+      });
+    };
+    window._bgPub  = null;
+    window._iaLocal = true;
+    el.textContent = baseUrl.includes('localhost') ? '✅ IA local activa' : '✅ IA nube activa';
+    el.style.color = '#25d366';
+    btn.disabled   = false;
+    btn.textContent = '✂️ Quitar fondo + Procesar todas';
+    if(window._pendingRun){ window._pendingRun = false; runAll(); }
+  }
+
+  function tryCDN(el, btn){
+    if(cdnIdx >= CDNS.length){
+      el.innerHTML = '⚠️ Sin IA &nbsp;<a href="#" id="retryAi" style="color:#f0a023;text-decoration:underline">Reintentar</a> &nbsp;<a href="#" id="helpAi" style="color:#4fa3f5;text-decoration:underline">?</a>';
+      document.getElementById('retryAi').onclick = function(e){
+        e.preventDefault(); cdnIdx=0;
+        el.textContent='⏳ Reintentando...'; el.style.color='#f0a023';
+        setTimeout(function(){ tryCDN(el,btn); },100);
+      };
+      document.getElementById('helpAi').onclick = function(e){
+        e.preventDefault();
+        alert('Para quitar fondos con IA:\n\n1. Abre la carpeta donde esta procesar-fotos.html\n2. Haz doble clic en "instalar_ia.bat"\n3. Espera que instale (solo primera vez)\n4. Recarga esta pagina\n\nMientras tanto puedes procesar fotos sin quitar fondo.');
+      };
+      btn.disabled    = false;
+      btn.textContent = 'Procesar (sin quitar fondo)';
+      return;
+    }
+    var cdn = CDNS[cdnIdx];
+    el.textContent = '⏳ CDN ' + (cdnIdx+1) + '/' + CDNS.length + '...';
+    import(cdn.mod)
+      .then(function(m){
+        window._removeBg = m.removeBackground;
+        window._bgPub    = cdn.pub;
+        el.textContent   = '✅ IA lista';
+        el.style.color   = '#25d366';
+        btn.disabled     = false;
+        btn.textContent  = '✂️ Quitar fondo + Procesar todas';
+        if(window._pendingRun){ window._pendingRun = false; runAll(); }
+      })
+      .catch(function(){ cdnIdx++; tryCDN(el, btn); });
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+<style>
+:root{--or:#f04e23;--dark:#0a0a0a;--card:#141414;--bor:#252525;--tx:#e8e8e8;--mu:#666;--gr:#25d366;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--dark);color:var(--tx);font-family:'Barlow',sans-serif;min-height:100vh;}
+
+.header{background:#111;border-bottom:1px solid var(--bor);padding:.75rem 1.2rem;display:flex;align-items:center;justify-content:space-between;gap:.5rem;flex-wrap:wrap;position:sticky;top:0;z-index:100;}
+.logo{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:1.4rem;letter-spacing:.04em;}
+.logo span{color:var(--or);}
+#aiSt{font-size:.7rem;color:var(--mu);}
+
+.layout{display:flex;min-height:calc(100vh - 50px);}
+
+.sidebar{width:295px;min-width:295px;background:var(--card);border-right:1px solid var(--bor);overflow-y:auto;max-height:calc(100vh - 50px);position:sticky;top:50px;flex-shrink:0;}
+
+.sec{border-bottom:1px solid var(--bor);}
+.sec-hd{padding:.7rem 1rem;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--or);cursor:pointer;display:flex;align-items:center;justify-content:space-between;user-select:none;}
+.sec-hd:hover{background:rgba(255,255,255,.02);}
+.arr{font-size:.6rem;transition:transform .2s;display:inline-block;}
+.sec.open .arr{transform:rotate(180deg);}
+.sec-bd{display:none;padding:.75rem 1rem;flex-direction:column;gap:.6rem;}
+.sec.open .sec-bd{display:flex;}
+
+label{font-size:.67rem;color:var(--mu);letter-spacing:.07em;text-transform:uppercase;display:block;margin-bottom:.18rem;}
+.val{color:var(--or);text-transform:none;letter-spacing:0;}
+input[type=text],select{width:100%;background:#1a1a1a;border:1px solid var(--bor);border-radius:4px;padding:.48rem .7rem;color:var(--tx);font-family:'Barlow',sans-serif;font-size:.82rem;outline:none;}
+input[type=text]:focus,select:focus{border-color:var(--or);}
+input[type=range]{width:100%;accent-color:var(--or);cursor:pointer;margin-top:.1rem;}
+input[type=color]{width:28px;height:28px;border:2px solid #333;border-radius:4px;cursor:pointer;padding:2px;background:#1a1a1a;vertical-align:middle;}
+input[type=checkbox]{width:17px;height:17px;accent-color:var(--or);cursor:pointer;flex-shrink:0;}
+.row2{display:flex;align-items:center;justify-content:space-between;gap:.5rem;}
+
+.swatches{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.25rem;align-items:center;}
+.sw{width:26px;height:26px;border-radius:4px;border:2px solid transparent;cursor:pointer;transition:transform .1s;flex-shrink:0;}
+.sw:hover{transform:scale(1.12);}
+.sw.on{border-color:var(--or);box-shadow:0 0 0 1px var(--or);}
+.sw-cus{display:flex;align-items:center;justify-content:center;background:#1a1a1a;border:2px dashed #444;color:#777;font-size:.85rem;}
+
+.drop{border:2px dashed var(--bor);border-radius:6px;padding:1.4rem .7rem;text-align:center;cursor:pointer;position:relative;background:#0d0d0d;transition:all .2s;}
+.drop:hover,.drop.drag{border-color:var(--or);background:rgba(240,78,35,.04);}
+.drop input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+.drop-ico{font-size:1.7rem;}
+.drop p{font-size:.73rem;color:var(--mu);line-height:1.5;margin-top:.25rem;}
+.drop p strong{color:var(--or);}
+
+.prog-bar{height:5px;background:#1a1a1a;border-radius:3px;overflow:hidden;margin-bottom:.25rem;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--or),#ff9d6b);border-radius:3px;transition:width .3s;width:0;}
+.prog-txt{font-size:.67rem;color:var(--mu);text-align:center;}
+
+.actions{padding:.75rem 1rem;display:flex;flex-direction:column;gap:.45rem;}
+.btn{width:100%;padding:.62rem;border:none;border-radius:5px;font-family:'Barlow',sans-serif;font-size:.83rem;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.02em;}
+.btn-main{background:var(--or);color:#fff;}
+.btn-main:hover:not(:disabled){background:#ff6040;}
+.btn-apply{background:#1a4a7a;color:#fff;}
+.btn-apply:hover:not(:disabled){background:#2262a8;}
+.btn-dl{background:var(--gr);color:#fff;}
+.btn-dl:hover:not(:disabled){background:#1db954;}
+.btn-sec{background:#1c1c1c;color:var(--tx);border:1px solid var(--bor);}
+.btn-sec:hover{background:#252525;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+
+.log{padding:0 1rem .6rem;font-size:.67rem;font-family:monospace;color:var(--mu);max-height:75px;overflow-y:auto;display:none;}
+.log.show{display:block;}
+.log .ok{color:var(--gr);}.log .er{color:var(--or);}.log .inf{color:#4fa3f5;}
+
+.results{flex:1;padding:1rem;overflow-y:auto;}
+.res-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.85rem;padding-bottom:.5rem;border-bottom:1px solid var(--bor);}
+.res-title{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.73rem;letter-spacing:.14em;text-transform:uppercase;color:var(--or);}
+.res-meta{font-size:.7rem;color:var(--mu);}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:.7rem;}
+.empty{padding:3rem 1rem;text-align:center;color:var(--mu);font-size:.8rem;line-height:1.7;}
+.empty strong{color:var(--or);}
+
+.icard{background:#0e0e0e;border:1px solid var(--bor);border-radius:7px;overflow:hidden;position:relative;transition:transform .15s,border-color .15s;}
+.icard:hover{transform:translateY(-2px);border-color:rgba(240,78,35,.35);}
+.icard canvas,.icard img{width:100%;display:block;}
+.icard-foot{padding:.38rem .5rem;display:flex;align-items:center;gap:.3rem;}
+.icard-name{flex:1;font-size:.6rem;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.dl-btn{background:var(--or);color:#fff;border:none;border-radius:3px;padding:.22rem .48rem;font-size:.63rem;font-weight:700;cursor:pointer;white-space:nowrap;}
+.dl-btn:hover{background:#ff6040;}
+.rm-btn{background:#2a2a2a;color:#888;border:none;border-radius:3px;padding:.22rem .42rem;font-size:.63rem;cursor:pointer;}
+.rm-btn:hover{color:var(--or);}
+.overlay{position:absolute;inset:0;background:rgba(0,0,0,.86);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35rem;font-size:.67rem;color:var(--or);font-weight:600;z-index:5;}
+.spin{width:15px;height:15px;border:2px solid #222;border-top-color:var(--or);border-radius:50%;animation:sp .6s linear infinite;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.tag-ok{position:absolute;top:5px;right:5px;background:var(--gr);color:#fff;border-radius:10px;padding:.1rem .38rem;font-size:.57rem;font-weight:700;z-index:4;}
+.card-info{padding:.28rem .5rem .4rem;display:flex;flex-direction:column;gap:.2rem;border-top:1px solid #1a1a1a;}
+.cod-inp{width:100%;background:#0d0d0d;border:1px solid #222;border-radius:3px;padding:.2rem .42rem;color:#e8e8e8;font-size:.62rem;font-family:'Barlow',sans-serif;outline:none;}
+.cod-inp:focus{border-color:var(--or);}
+.cod-inp::placeholder{color:#3a3a3a;}
+
+@media(max-width:767px){
+  .layout{flex-direction:column;}
+  .sidebar{width:100%;min-width:0;max-height:none;position:static;border-right:none;border-bottom:1px solid var(--bor);}
+  .results{padding:.75rem;}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:.55rem;}
+  .header{padding:.6rem 1rem;}
+  .logo{font-size:1.2rem;}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">TODO<span>MOTOS</span> &middot; Editor de Fotos</div>
+  <div id="aiSt" style="font-size:.7rem;color:#666">&#9203; Cargando IA gratis...</div>
+</div>
+
+<div class="layout">
+
+<aside class="sidebar">
+
+  <!-- CARGAR -->
+  <div class="sec open" id="secUp">
+    <div class="sec-hd" onclick="toggleSec('secUp')">&#128193; Cargar fotos <span class="arr">&#9662;</span></div>
+    <div class="sec-bd">
+      <div class="drop" id="dz">
+        <input type="file" id="fi" accept="image/*" multiple>
+        <div class="drop-ico">&#128444;&#65039;</div>
+        <p>Arrastra o <strong>selecciona fotos</strong><br>JPG &middot; PNG &middot; WebP &middot; multiples</p>
+      </div>
+      <div id="progWrap" style="display:none">
+        <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+        <div class="prog-txt" id="progTxt"></div>
+      </div>
+      <div class="row2">
+        <label style="margin:0">Vista previa en vivo</label>
+        <input type="checkbox" id="autoPreview" checked>
+      </div>
+    </div>
+  </div>
+
+  <!-- FONDO -->
+  <div class="sec open" id="secBg">
+    <div class="sec-hd" onclick="toggleSec('secBg')">&#127912; Fondo <span class="arr">&#9662;</span></div>
+    <div class="sec-bd">
+      <div>
+        <label>Color</label>
+        <div class="swatches">
+          <div class="sw on" data-c="#111111" style="background:#111" onclick="setSw(this)" title="Negro"></div>
+          <div class="sw" data-c="#ffffff" style="background:#fff" onclick="setSw(this)" title="Blanco"></div>
+          <div class="sw" data-c="#f04e23" style="background:#f04e23" onclick="setSw(this)" title="Naranja"></div>
+          <div class="sw" data-c="#0d1b2a" style="background:#0d1b2a" onclick="setSw(this)" title="Azul"></div>
+          <div class="sw" data-c="#1c1c1c" style="background:#1c1c1c" onclick="setSw(this)" title="Carbon"></div>
+          <div class="sw" data-c="#2d1b4e" style="background:#2d1b4e" onclick="setSw(this)" title="Morado"></div>
+          <div class="sw" data-c="#0a2a1a" style="background:#0a2a1a" onclick="setSw(this)" title="Verde"></div>
+          <div class="sw sw-cus" id="swCus" onclick="document.getElementById('bgPick').click()" title="Personalizado">+</div>
+          <input type="color" id="bgPick" style="display:none" value="#111111" oninput="setCustomBg(this.value)">
+        </div>
+      </div>
+      <div class="row2">
+        <label style="margin:0">Gradiente de profundidad</label>
+        <input type="checkbox" id="bgGrad" checked onchange="liveApply()">
+      </div>
+    </div>
+  </div>
+
+  <!-- PRODUCTO -->
+  <div class="sec open" id="secProd">
+    <div class="sec-hd" onclick="toggleSec('secProd')">&#128208; Producto <span class="arr">&#9662;</span></div>
+    <div class="sec-bd">
+      <div>
+        <label>Tamano <span id="scaleV" class="val">86%</span></label>
+        <input type="range" id="scale" min="30" max="100" value="86" oninput="upV('scaleV',this.value,'%');liveApply()">
+      </div>
+      <div>
+        <label>Posicion vertical <span id="offYV" class="val">0</span></label>
+        <input type="range" id="offY" min="-25" max="25" value="0" oninput="upV('offYV',this.value,'');liveApply()">
+      </div>
+      <div>
+        <label>Brillo <span id="brightV" class="val">108%</span></label>
+        <input type="range" id="bright" min="60" max="170" value="108" oninput="upV('brightV',this.value,'%');liveApply()">
+      </div>
+      <div>
+        <label>Contraste <span id="contrastV" class="val">112%</span></label>
+        <input type="range" id="contrast" min="60" max="180" value="112" oninput="upV('contrastV',this.value,'%');liveApply()">
+      </div>
+      <div>
+        <label>Saturacion <span id="satV" class="val">125%</span></label>
+        <input type="range" id="sat" min="0" max="200" value="125" oninput="upV('satV',this.value,'%');liveApply()">
+      </div>
+    </div>
+  </div>
+
+  <!-- SOMBRA -->
+  <div class="sec open" id="secShadow">
+    <div class="sec-hd" onclick="toggleSec('secShadow')">&#10024; Sombra <span class="arr">&#9662;</span></div>
+    <div class="sec-bd">
+      <div class="row2">
+        <label style="margin:0">Sombra difusa (drop shadow)</label>
+        <input type="checkbox" id="dropShadow" checked onchange="liveApply()">
+      </div>
+      <div>
+        <label>Blur difusa <span id="dropBlurV" class="val">28px</span></label>
+        <input type="range" id="dropBlur" min="0" max="80" value="28" oninput="upV('dropBlurV',this.value,'px');liveApply()">
+      </div>
+      <div>
+        <label>Opacidad difusa <span id="dropOpV" class="val">70%</span></label>
+        <input type="range" id="dropOp" min="0" max="100" value="70" oninput="upV('dropOpV',this.value,'%');liveApply()">
+      </div>
+      <div>
+        <label>Offset Y difusa <span id="dropOYV" class="val">15px</span></label>
+        <input type="range" id="dropOY" min="-30" max="60" value="15" oninput="upV('dropOYV',this.value,'px');liveApply()">
+      </div>
+      <div class="row2" style="margin-top:.2rem">
+        <label style="margin:0">Sombra de suelo (elipse)</label>
+        <input type="checkbox" id="groundShadow" checked onchange="liveApply()">
+      </div>
+      <div>
+        <label>Opacidad suelo <span id="groundOpV" class="val">45%</span></label>
+        <input type="range" id="groundOp" min="0" max="100" value="45" oninput="upV('groundOpV',this.value,'%');liveApply()">
+      </div>
+      <div>
+        <label>Radio suelo <span id="groundSzV" class="val">40%</span></label>
+        <input type="range" id="groundSz" min="5" max="80" value="40" oninput="upV('groundSzV',this.value,'%');liveApply()">
+      </div>
+      <div>
+        <label>Color de sombra</label>
+        <div class="swatches">
+          <div class="sw on" data-sh="#000000" style="background:#000" onclick="setShSw(this)" title="Negro"></div>
+          <div class="sw" data-sh="#f04e23" style="background:#f04e23" onclick="setShSw(this)" title="Naranja"></div>
+          <div class="sw" data-sh="#0033aa" style="background:#0033aa" onclick="setShSw(this)" title="Azul"></div>
+          <div class="sw" data-sh="#6600cc" style="background:#6600cc" onclick="setShSw(this)" title="Morado"></div>
+          <input type="color" id="shPick" value="#000000" title="Personalizado" oninput="shadowCol=this.value;liveApply()">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MARCA DE AGUA -->
+  <div class="sec open" id="secWm">
+    <div class="sec-hd" onclick="toggleSec('secWm')">&#128167; Marca de Agua <span class="arr">&#9662;</span></div>
+    <div class="sec-bd">
+      <div>
+        <label>Texto</label>
+        <input type="text" id="wm" value="TODOMOTOS · HESED" oninput="liveApply()">
+      </div>
+      <div>
+        <label>Opacidad <span id="wmOpV" class="val">12%</span></label>
+        <input type="range" id="wmOp" min="3" max="60" value="12" oninput="upV('wmOpV',this.value,'%');liveApply()">
+      </div>
+      <div>
+        <label>Tamano <span id="wmSzV" class="val">46px</span></label>
+        <input type="range" id="wmSz" min="16" max="90" value="46" oninput="upV('wmSzV',this.value,'px');liveApply()">
+      </div>
+      <div>
+        <label>Estilo / posicion</label>
+        <select id="wmStyle" onchange="liveApply()">
+          <option value="diagonal">Diagonal repetido</option>
+          <option value="br">Esquina inferior derecha</option>
+          <option value="bl">Esquina inferior izquierda</option>
+          <option value="tr">Esquina superior derecha</option>
+          <option value="center">Centro grande</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- BANNER -->
+  <div class="sec" id="secBanner">
+    <div class="sec-hd" onclick="toggleSec('secBanner')">&#127991;&#65039; Banner de texto <span class="arr">&#9662;</span></div>
+    <div class="sec-bd">
+      <div class="row2">
+        <label style="margin:0">Activar banner</label>
+        <input type="checkbox" id="bannerOn" onchange="liveApply()">
+      </div>
+      <div>
+        <label>Texto del banner</label>
+        <input type="text" id="bannerTxt" value="HESED · Todomotos" placeholder="ej: OFERTA · 50% OFF" oninput="liveApply()">
+      </div>
+      <div>
+        <label>Posicion</label>
+        <select id="bannerPos" onchange="liveApply()">
+          <option value="bottom">Abajo</option>
+          <option value="top">Arriba</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- CÓDIGO / DESCRIPCIÓN -->
+  <div class="sec" id="secCod">
+    <div class="sec-hd" onclick="toggleSec('secCod')">&#127991; Codigo / Descripcion <span class="arr">&#9662;</span></div>
+    <div class="sec-bd">
+      <div class="row2">
+        <label style="margin:0">Mostrar en imagen</label>
+        <input type="checkbox" id="codOn" checked onchange="liveApply()">
+      </div>
+      <div>
+        <label>Posicion del badge</label>
+        <select id="codPos" onchange="liveApply()">
+          <option value="bl">Inferior izquierda</option>
+          <option value="br">Inferior derecha</option>
+          <option value="tl">Superior izquierda</option>
+          <option value="tr">Superior derecha</option>
+        </select>
+      </div>
+      <div>
+        <label>Tamano codigo <span id="codSzV" class="val">26px</span></label>
+        <input type="range" id="codSz" min="12" max="60" value="26" oninput="upV('codSzV',this.value,'px');liveApply()">
+      </div>
+      <p style="font-size:.63rem;color:#555;line-height:1.5;margin-top:.1rem">Escribe el codigo y descripcion en cada foto abajo</p>
+    </div>
+  </div>
+
+  <!-- EXPORTAR -->
+  <div class="sec open" id="secOut">
+    <div class="sec-hd" onclick="toggleSec('secOut')">&#128190; Exportar <span class="arr">&#9662;</span></div>
+    <div class="sec-bd">
+      <div>
+        <label>Resolucion</label>
+        <select id="outSize" onchange="liveApply()">
+          <option value="600">600 x 600 px</option>
+          <option value="800" selected>800 x 800 px</option>
+          <option value="1080">1080 x 1080 px</option>
+          <option value="1200">1200 x 1200 px</option>
+        </select>
+      </div>
+      <div>
+        <label>Calidad IA (primer uso descarga el modelo)</label>
+        <select id="aiQual">
+          <option value="small" selected>Rapido · small (~40 MB)</option>
+          <option value="medium">Preciso · medium (~100 MB)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACCIONES -->
+  <div class="actions">
+    <button class="btn btn-main" id="btnRun" onclick="runAll()" disabled style="opacity:.5">&#9203; Cargando IA... espera</button>
+    <button class="btn btn-apply" id="btnApply" onclick="applyAll()" disabled>&#128260; Re-aplicar ajustes a todas</button>
+    <button class="btn btn-dl"    id="btnDl"    onclick="downloadAll()" disabled>&#11015;&#65039; Descargar todas</button>
+    <button class="btn btn-sec"   onclick="clearAll()">&#128465;&#65039; Limpiar todo</button>
+  </div>
+
+  <div class="log" id="log"></div>
+
+</aside>
+
+<!-- RESULTADOS -->
+<main class="results">
+  <div class="res-hd">
+    <span class="res-title">Fotos procesadas</span>
+    <span class="res-meta" id="resMeta">0 fotos</span>
+  </div>
+  <div class="grid" id="grid">
+    <div class="empty" style="grid-column:1/-1">
+      <div style="font-size:3rem;opacity:.12;margin-bottom:.5rem">&#128444;&#65039;</div>
+      <p>Carga tus fotos y pulsa<br><strong>Quitar fondo + Procesar todas</strong><br><br>
+      <span style="font-size:.72rem;opacity:.6">IA corre en tu navegador &middot; 100% gratis &middot; funciona en celular</span></p>
+    </div>
+  </div>
+</main>
+
+</div>
+
+<script>
+var entries   = [];
+var bgCol     = '#111111';
+var shadowCol = '#000000';
+var running   = false;
+var liveTimer = null;
+
+// DROP / FILE
+document.getElementById('fi').addEventListener('change', function(e){
+  addFiles(Array.from(e.target.files));
+  e.target.value = '';
+});
+var dz = document.getElementById('dz');
+dz.addEventListener('dragover',  function(e){ e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', function(){ dz.classList.remove('drag'); });
+dz.addEventListener('drop', function(e){
+  e.preventDefault(); dz.classList.remove('drag');
+  addFiles(Array.from(e.dataTransfer.files).filter(function(f){ return f.type.startsWith('image/'); }));
+});
+
+function addFiles(files){
+  files.forEach(function(file){
+    var r = new FileReader();
+    r.onload = function(ev){
+      var img = new Image();
+      img.onload = function(){
+        var entry = {file:file, img:img, imgNoBg:null, canvas:null};
+        entries.push(entry);
+        buildCard(entry, entries.length - 1);
+        updateMeta();
+      };
+      img.src = ev.target.result;
+    };
+    r.readAsDataURL(file);
+  });
+}
+
+// PROCESAR TODAS
+async function runAll(){
+  if(!entries.length){ alert('Primero carga tus fotos.'); return; }
+  if(running) return;
+
+  // Si IA todavia carga, encolar y avisar en boton (sin popup)
+  if(!window._removeBg){
+    window._pendingRun = true;
+    document.getElementById('btnRun').textContent = '⏳ Esperando IA... se iniciara solo';
+    logMsg('inf', 'Esperando modelo IA, se procesara automaticamente cuando este listo...');
+    document.getElementById('log').classList.add('show');
+    return;
+  }
+
+  running = true;
+  document.getElementById('btnRun').disabled   = true;
+  document.getElementById('btnRun').textContent = 'Procesando...';
+  document.getElementById('progWrap').style.display = 'block';
+  document.getElementById('log').classList.add('show');
+
+  var qual    = document.getElementById('aiQual').value;
+  var pub     = window._bgPub || 'https://unpkg.com/@imgly/background-removal@1.4.5/dist/browser/';
+  var removeFn = window._removeBg;
+  var activeI  = 0; // para el progress callback
+
+  for(var i = 0; i < entries.length; i++){
+    var entry = entries[i];
+    if(!entry) continue;
+    activeI = i;
+    setProgress(i, entries.length, 'Quitando fondo ' + (i+1) + '/' + entries.length + '...');
+    showOverlay(i, 'Analizando imagen...');
+    logMsg('inf', '[' + (i+1) + '/' + entries.length + '] ' + entry.file.name);
+
+    try{
+      var blob = await toBlob(entry.img, 1024);
+      var rb;
+      if(window._iaLocal){
+        showOverlay(i, 'Servidor IA local...');
+        rb = await removeFn(blob);
+      } else {
+        rb = await removeFn(blob, {
+          publicPath: pub,
+          debug: false,
+          model: qual,
+          progress: (function(ii){ return function(key, cur, total){
+            if(total > 0 && key === 'compute:inference'){
+              var pct = Math.round((cur/total)*100);
+              showOverlay(ii, 'Quitando fondo ' + pct + '%');
+            }
+          }; })(i)
+        });
+      }
+      var noBg = new Image();
+      await new Promise(function(res){ noBg.onload = res; noBg.src = URL.createObjectURL(rb); });
+      entry.imgNoBg = noBg;
+      logMsg('ok', '  ok Fondo eliminado');
+    } catch(err){
+      logMsg('er', '  error ' + err.message);
+    }
+
+    showOverlay(i, 'Aplicando diseno...');
+    renderEntry(entry, i);
+    hideOverlay(i);
+    markDone(i);
+  }
+
+  setProgress(entries.length, entries.length, entries.length + ' fotos listas');
+  logMsg('ok', '=== Completado ===');
+  document.getElementById('btnRun').textContent  = 'Volver a procesar';
+  document.getElementById('btnRun').disabled     = false;
+  document.getElementById('btnApply').disabled   = false;
+  document.getElementById('btnDl').disabled      = false;
+  running = false;
+}
+
+// Re-aplicar ajustes sin volver a quitar fondo
+function applyAll(){
+  var n = 0;
+  entries.forEach(function(e, i){
+    if(e && (e.canvas || e.imgNoBg)){ renderEntry(e, i); n++; }
+  });
+  logMsg('inf', 'Ajustes re-aplicados a ' + n + ' fotos');
+}
+
+// Vista previa en vivo debounced
+function liveApply(){
+  if(!document.getElementById('autoPreview').checked) return;
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(function(){
+    entries.forEach(function(e, i){ if(e && e.canvas) renderEntry(e, i); });
+  }, 220);
+}
+
+// RENDER
+function renderEntry(entry, idx){
+  var s   = getS();
+  var src = entry.imgNoBg || entry.img;
+  var sz  = s.outSize;
+  var c   = document.createElement('canvas');
+  c.width = sz; c.height = sz;
+  var ctx = c.getContext('2d');
+
+  // Fondo
+  ctx.fillStyle = s.bgColor;
+  ctx.fillRect(0, 0, sz, sz);
+  if(s.bgGrad){
+    var light = isLight(s.bgColor);
+    var rg = ctx.createRadialGradient(sz/2, sz*0.4, 0, sz/2, sz/2, sz*0.8);
+    rg.addColorStop(0, light ? 'rgba(255,255,255,0.1)'  : 'rgba(255,255,255,0.05)');
+    rg.addColorStop(1, light ? 'rgba(0,0,0,0.18)'       : 'rgba(0,0,0,0.3)');
+    ctx.fillStyle = rg; ctx.fillRect(0, 0, sz, sz);
+  }
+
+  // Calcular posicion producto
+  var iw  = src.naturalWidth  || src.width;
+  var ih  = src.naturalHeight || src.height;
+  var md  = sz * s.scale / 100;
+  var sc2 = Math.min(md/iw, md/ih);
+  var pw  = iw * sc2;
+  var ph  = ih * sc2;
+  var px  = (sz - pw) / 2;
+  var py  = (sz - ph) / 2 + (s.offsetY / 100) * sz;
+
+  // Sombra de suelo (antes del producto)
+  if(s.groundShadow && entry.imgNoBg){
+    var gcx = px + pw/2;
+    var gcy = py + ph + sz * 0.008;
+    var gr  = pw * (s.groundSz / 100);
+    var gop = s.groundOp / 100;
+    var gg  = ctx.createRadialGradient(gcx, gcy, 0, gcx, gcy, gr);
+    gg.addColorStop(0, 'rgba(' + rgb(s.shadowCol) + ',' + gop + ')');
+    gg.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save();
+    ctx.fillStyle = gg;
+    ctx.fillRect(gcx - gr, gcy - gr * 0.18, gr * 2, gr * 0.36);
+    ctx.restore();
+  }
+
+  // Producto con drop shadow y filtros
+  ctx.save();
+  if(s.dropShadow && entry.imgNoBg){
+    ctx.shadowColor   = 'rgba(' + rgb(s.shadowCol) + ',' + (s.dropOp / 100) + ')';
+    ctx.shadowBlur    = s.dropBlur;
+    ctx.shadowOffsetY = s.dropOffY;
+    ctx.shadowOffsetX = 0;
+  }
+  ctx.filter = 'brightness(' + s.bright + '%) contrast(' + s.contrast + '%) saturate(' + s.sat + '%)';
+  ctx.drawImage(src, px, py, pw, ph);
+  ctx.restore();
+
+  // Marca de agua (siempre presente)
+  drawWm(ctx, sz, s);
+
+  // Banner opcional
+  if(s.bannerOn && s.bannerTxt) drawBanner(ctx, sz, s);
+
+  // Badge codigo/descripcion por imagen
+  if(s.codOn) drawProductInfo(ctx, sz, s, entry);
+
+  // Borde naranja
+  ctx.strokeStyle = 'rgba(240,78,35,0.22)';
+  ctx.lineWidth   = 2;
+  ctx.strokeRect(1, 1, sz-2, sz-2);
+
+  entry.canvas = c;
+  c.className  = 'card-canvas';
+  var card = document.getElementById('card-' + idx);
+  if(card){
+    var old = card.querySelector('.card-canvas, img');
+    if(old) old.replaceWith(c); else card.insertBefore(c, card.firstChild);
+  }
+}
+
+function drawWm(ctx, sz, s){
+  var op = s.wmOp / 100;
+  var fs = Math.round(s.wmSz * sz / 600);
+  ctx.save();
+  ctx.globalAlpha  = op;
+  ctx.font         = 'bold ' + fs + 'px Barlow Condensed,Arial,sans-serif';
+  ctx.fillStyle    = isLight(s.bgColor) ? '#000' : '#fff';
+  ctx.textBaseline = 'middle';
+
+  if(s.wmStyle === 'diagonal'){
+    ctx.textAlign = 'center';
+    var sp = sz / 3.2;
+    for(var r = -1; r <= 5; r++){
+      for(var cc = -1; cc <= 5; cc++){
+        ctx.save();
+        ctx.translate(sp*cc - sz*0.1, sp*r - sz*0.1);
+        ctx.rotate(-Math.PI/6);
+        ctx.fillText(s.wmText, 0, 0);
+        ctx.restore();
+      }
+    }
+  } else {
+    var pad = sz * 0.04;
+    if(s.wmStyle === 'br'){ ctx.textAlign='right';  ctx.fillText(s.wmText, sz-pad, sz-pad); }
+    if(s.wmStyle === 'bl'){ ctx.textAlign='left';   ctx.fillText(s.wmText, pad, sz-pad); }
+    if(s.wmStyle === 'tr'){ ctx.textAlign='right';  ctx.textBaseline='top'; ctx.fillText(s.wmText, sz-pad, pad); }
+    if(s.wmStyle === 'center'){ ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(s.wmText, sz/2, sz/2); }
+  }
+  ctx.restore();
+}
+
+function drawBanner(ctx, sz, s){
+  var bh = Math.round(sz * 0.13);
+  var by = s.bannerPos === 'bottom' ? sz - bh : 0;
+  var gd;
+  if(s.bannerPos === 'bottom'){
+    gd = ctx.createLinearGradient(0, by, 0, by+bh);
+    gd.addColorStop(0, 'rgba(0,0,0,0)');
+    gd.addColorStop(0.3, 'rgba(4,4,4,0.93)');
+    gd.addColorStop(1, 'rgba(4,4,4,0.97)');
+  } else {
+    gd = ctx.createLinearGradient(0, by+bh, 0, by);
+    gd.addColorStop(0, 'rgba(0,0,0,0)');
+    gd.addColorStop(0.3, 'rgba(4,4,4,0.93)');
+    gd.addColorStop(1, 'rgba(4,4,4,0.97)');
+  }
+  ctx.fillStyle = gd; ctx.fillRect(0, by, sz, bh);
+  ctx.fillStyle = '#f04e23';
+  ctx.fillRect(0, s.bannerPos === 'bottom' ? by : by+bh-3, sz, 3);
+  ctx.font         = 'bold ' + Math.round(sz*0.052) + 'px Barlow Condensed,Arial,sans-serif';
+  ctx.fillStyle    = '#fff';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(s.bannerTxt, sz/2, by + bh/2);
+}
+
+function drawProductInfo(ctx, sz, s, entry){
+  var code = (entry.code || '').trim();
+  var desc = (entry.desc || '').trim();
+  if(!code && !desc) return;
+
+  var pad  = sz * 0.028;
+  var fs   = Math.round(s.codSz * sz / 600);
+  var dfs  = Math.round(fs * 0.72);
+  var lhC  = fs  * 1.35;
+  var lhD  = dfs * 1.3;
+  var totalH = pad * 1.4 + (code ? lhC : 0) + (desc ? lhD : 0);
+
+  ctx.save();
+  var maxW = pad * 2 + 6;
+  if(code){ ctx.font='bold '+fs+'px Barlow Condensed,Arial,sans-serif'; maxW=Math.max(maxW, ctx.measureText(code).width + pad*2+6); }
+  if(desc){ ctx.font=dfs+'px Barlow Condensed,Arial,sans-serif';         maxW=Math.max(maxW, ctx.measureText(desc).width  + pad*2+6); }
+
+  var pos = s.codPos;
+  var bx  = (pos==='br'||pos==='tr') ? sz - maxW - pad*0.5 : pad*0.5;
+  var by  = (pos==='bl'||pos==='br') ? sz - totalH - pad*0.5 : pad*0.5;
+
+  // Fondo
+  ctx.fillStyle = 'rgba(0,0,0,0.76)';
+  ctx.beginPath();
+  if(ctx.roundRect){ ctx.roundRect(bx, by, maxW, totalH, 5); }
+  else { ctx.rect(bx, by, maxW, totalH); }
+  ctx.fill();
+
+  // Barra naranja izquierda
+  ctx.fillStyle = '#f04e23';
+  ctx.fillRect(bx, by, 4, totalH);
+
+  var ty = by + pad * 0.7;
+  if(code){
+    ctx.font='bold '+fs+'px Barlow Condensed,Arial,sans-serif';
+    ctx.fillStyle='#f04e23'; ctx.textAlign='left'; ctx.textBaseline='top';
+    ctx.fillText(code, bx+pad+4, ty);
+    ty += lhC;
+  }
+  if(desc){
+    ctx.font=dfs+'px Barlow Condensed,Arial,sans-serif';
+    ctx.fillStyle='#e8e8e8'; ctx.textAlign='left'; ctx.textBaseline='top';
+    ctx.fillText(desc, bx+pad+4, ty);
+  }
+  ctx.restore();
+}
+
+// LEER CONTROLES
+function getS(){
+  return {
+    bgColor:      bgCol,
+    bgGrad:       g('bgGrad').checked,
+    scale:        +g('scale').value,
+    offsetY:      +g('offY').value,
+    bright:       +g('bright').value,
+    contrast:     +g('contrast').value,
+    sat:          +g('sat').value,
+    dropShadow:   g('dropShadow').checked,
+    dropBlur:     +g('dropBlur').value,
+    dropOp:       +g('dropOp').value,
+    dropOffY:     +g('dropOY').value,
+    groundShadow: g('groundShadow').checked,
+    groundOp:     +g('groundOp').value,
+    groundSz:     +g('groundSz').value,
+    shadowCol:    shadowCol,
+    wmText:       g('wm').value.trim() || 'TODOMOTOS',
+    wmOp:         +g('wmOp').value,
+    wmSz:         +g('wmSz').value,
+    wmStyle:      g('wmStyle').value,
+    bannerOn:     g('bannerOn').checked,
+    bannerTxt:    g('bannerTxt').value.trim(),
+    bannerPos:    g('bannerPos').value,
+    codOn:        g('codOn').checked,
+    codPos:       g('codPos').value,
+    codSz:        +g('codSz').value,
+    outSize:      +g('outSize').value
+  };
+}
+
+// UI HELPERS
+function g(id){ return document.getElementById(id); }
+function upV(id, v, suf){ g(id).textContent = v + suf; }
+
+function toggleSec(id){ g(id).classList.toggle('open'); }
+
+function setSw(el){
+  document.querySelectorAll('.sw[data-c]').forEach(function(s){ s.classList.remove('on'); });
+  el.classList.add('on');
+  bgCol = el.dataset.c;
+  liveApply();
+}
+function setCustomBg(val){
+  bgCol = val;
+  var sw = g('swCus');
+  sw.style.background = val;
+  sw.dataset.c = val;
+  document.querySelectorAll('.sw[data-c]').forEach(function(s){ s.classList.remove('on'); });
+  sw.classList.add('on');
+  liveApply();
+}
+function setShSw(el){
+  el.closest('.swatches').querySelectorAll('.sw[data-sh]').forEach(function(s){ s.classList.remove('on'); });
+  el.classList.add('on');
+  shadowCol = el.dataset.sh;
+  g('shPick').value = shadowCol;
+  liveApply();
+}
+
+// CARDS
+function buildCard(entry, idx){
+  var grid = g('grid');
+  var em = grid.querySelector('.empty'); if(em) grid.removeChild(em);
+
+  var card = document.createElement('div');
+  card.className = 'icard'; card.id = 'card-' + idx;
+
+  var img = document.createElement('img');
+  img.src = entry.img.src;
+  card.appendChild(img);
+
+  var foot = document.createElement('div'); foot.className = 'icard-foot';
+  var name = document.createElement('div'); name.className = 'icard-name';
+  name.title = entry.file.name;
+  name.textContent = entry.file.name.replace(/\.[^.]+$/, '');
+
+  var dl = document.createElement('button'); dl.className = 'dl-btn'; dl.textContent = 'DL';
+  dl.onclick = function(){ if(entry.canvas) dlOne(entry); };
+
+  var rm = document.createElement('button'); rm.className = 'rm-btn'; rm.textContent = 'x';
+  rm.onclick = function(){ removeEntry(idx); };
+
+  foot.appendChild(name); foot.appendChild(dl); foot.appendChild(rm);
+  card.appendChild(foot);
+
+  var info = document.createElement('div'); info.className = 'card-info';
+  var inpCod  = document.createElement('input'); inpCod.className='cod-inp'; inpCod.type='text'; inpCod.placeholder='Codigo  ej: HLM-001';
+  var inpDesc = document.createElement('input'); inpDesc.className='cod-inp'; inpDesc.type='text'; inpDesc.placeholder='Descripcion  ej: Casco Integral Negro';
+  inpCod.oninput  = function(){ entry.code = this.value; if(entry.canvas) renderEntry(entry, idx); };
+  inpDesc.oninput = function(){ entry.desc = this.value; if(entry.canvas) renderEntry(entry, idx); };
+  info.appendChild(inpCod); info.appendChild(inpDesc);
+  card.appendChild(info);
+  grid.appendChild(card);
+}
+
+function removeEntry(idx){
+  entries[idx] = null;
+  var card = g('card-' + idx); if(card) card.remove();
+  entries = entries.filter(function(e){ return e !== null; });
+  Array.from(g('grid').querySelectorAll('.icard')).forEach(function(c, i){ c.id = 'card-' + i; });
+  updateMeta();
+}
+
+function showOverlay(idx, msg){
+  var card = g('card-' + idx); if(!card) return;
+  var old = card.querySelector('.overlay'); if(old) old.remove();
+  var ov = document.createElement('div'); ov.className = 'overlay';
+  ov.innerHTML = '<div class="spin"></div>' + msg;
+  card.appendChild(ov);
+}
+function hideOverlay(idx){
+  var card = g('card-' + idx); if(!card) return;
+  var ov = card.querySelector('.overlay'); if(ov) ov.remove();
+}
+function markDone(idx){
+  var card = g('card-' + idx);
+  if(!card || card.querySelector('.tag-ok')) return;
+  var t = document.createElement('div'); t.className = 'tag-ok'; t.textContent = 'ok';
+  card.appendChild(t);
+}
+
+// DESCARGA
+function dlOne(entry){
+  var a    = document.createElement('a');
+  var name = entry.file.name.replace(/\.[^.]+$/, '');
+  a.download = name + '_HESED.jpg';
+  a.href     = entry.canvas.toDataURL('image/jpeg', 0.93);
+  a.click();
+}
+function downloadAll(){
+  var ready = entries.filter(function(e){ return e && e.canvas; });
+  if(!ready.length){ alert('Primero procesa las fotos.'); return; }
+  ready.forEach(function(e, i){ setTimeout(function(){ dlOne(e); }, i * 400); });
+}
+
+// LIMPIAR
+function clearAll(){
+  entries = [];
+  g('grid').innerHTML = '<div class="empty" style="grid-column:1/-1"><div style="font-size:3rem;opacity:.12;margin-bottom:.5rem">&#128444;&#65039;</div><p>Carga tus fotos y pulsa<br><strong>Quitar fondo + Procesar todas</strong></p></div>';
+  g('btnDl').disabled    = true;
+  g('btnApply').disabled = true;
+  g('progWrap').style.display = 'none';
+  g('log').classList.remove('show');
+  g('log').innerHTML = '';
+  updateMeta();
+}
+function updateMeta(){
+  var n = entries.filter(function(e){ return e; }).length;
+  g('resMeta').textContent = n + ' foto' + (n !== 1 ? 's' : '');
+}
+function setProgress(done, total, msg){
+  g('progFill').style.width = Math.round((done / total) * 100) + '%';
+  g('progTxt').textContent  = msg;
+}
+function logMsg(type, msg){
+  var log  = g('log');
+  var line = document.createElement('div'); line.className = type; line.textContent = msg;
+  log.appendChild(line); log.scrollTop = log.scrollHeight;
+}
+
+// UTILS
+function toBlob(img, maxPx){
+  return new Promise(function(res){
+    var c   = document.createElement('canvas');
+    var iw  = img.naturalWidth || img.width;
+    var ih  = img.naturalHeight || img.height;
+    // Reducir resolucion para inferencia mas rapida (sin perder calidad visible)
+    var sc  = maxPx ? Math.min(1, maxPx/iw, maxPx/ih) : 1;
+    c.width  = Math.round(iw * sc);
+    c.height = Math.round(ih * sc);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    c.toBlob(res, 'image/png');
+  });
+}
+function rgb(hex){
+  if(!hex || hex.length < 7) return '0,0,0';
+  return parseInt(hex.slice(1,3),16)+','+parseInt(hex.slice(3,5),16)+','+parseInt(hex.slice(5,7),16);
+}
+function isLight(hex){
+  if(!hex || hex === 'transparent') return false;
+  var r = parseInt(hex.slice(1,3),16);
+  var gv = parseInt(hex.slice(3,5),16);
+  var b  = parseInt(hex.slice(5,7),16);
+  return (r*0.299 + gv*0.587 + b*0.114) > 145;
+}
+</script>
+</body>
+</html>
