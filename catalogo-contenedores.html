@@ -404,32 +404,40 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
 
 <!-- ===== Importación masiva ===== -->
 <dialog id="dlgBulk" class="wide">
-  <form method="dialog" onsubmit="return false">
+  <form method="dialog" novalidate onsubmit="return false">
     <div class="mod-head"><h2>⚡ Importar lista completa</h2><button class="x" onclick="dlgBulk.close()" aria-label="Cerrar">✕</button></div>
     <div class="mod-body">
       <div id="bulkStepIn">
+        <div class="hint-box" style="margin-bottom:12px">
+          🚢 <b>Sube directamente tu proforma Excel (.xlsx)</b> — la app saca sola los códigos, descripciones,
+          modelos, cantidades, precios <b>y hasta las fotos que vienen dentro del archivo</b>, ya editadas estilo estudio.
+        </div>
         <p style="margin:0 0 10px; color:var(--muted); font-size:13.5px">
-          Pega aquí la lista del contenedor <b>copiada directo desde Excel</b> (o desde la factura / packing list),
-          o sube el archivo CSV. La app detecta sola los códigos, nombres, precios y cantidades.
+          O pega aquí la lista <b>copiada directo desde Excel</b> / factura / packing list:
         </p>
         <textarea id="bulkText" placeholder="CÓDIGO&#9;PRODUCTO&#9;PRECIO&#9;CANT&#10;C07-001&#9;Kit de arrastre 428H&#9;35.50&#9;12&#10;C07-002&#9;Foco LED H4&#9;18.00&#9;30&#10;…"></textarea>
         <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap">
-          <button class="btn" onclick="bulkFile.click()">📄 Subir archivo CSV / TXT</button>
-          <input type="file" id="bulkFile" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none">
+          <button class="btn primary" onclick="bulkFile.click()">🚢 Subir proforma (.xlsx / CSV)</button>
+          <input type="file" id="bulkFile" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none">
           <button class="btn" id="bulkAiBtn" style="display:none" onclick="aiParseBulk()">🤖 Detectar con IA (texto desordenado)</button>
           <span class="spacer" style="flex:1"></span>
-          <button class="btn primary" onclick="analyzeBulk()">Analizar lista →</button>
+          <button class="btn" onclick="analyzeBulk()">Analizar lo pegado →</button>
         </div>
       </div>
       <div id="bulkStepMap" style="display:none">
         <p style="margin:0 0 8px; color:var(--muted); font-size:13.5px">Revisa qué es cada columna — la app ya hizo su mejor intento:</p>
         <div class="map-grid" id="bulkMapGrid"></div>
         <label style="display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:13px; text-transform:none; letter-spacing:0; color:var(--text)">
-          <input type="checkbox" id="bulkSkipDup" checked style="width:auto" onchange="if(bulk.rows.length) buildBulkItems()"> Omitir códigos que ya están registrados en este contenedor
+          <input type="checkbox" id="bulkSkipDup" checked style="width:auto" onchange="refreshBulkFactor()"> Omitir códigos que ya están registrados en este contenedor
         </label>
       </div>
       <div id="bulkStepPrev" style="display:none">
-        <p style="margin:0 0 8px; font-size:14px">Se importarán <span class="imp-count" id="bulkCount">0</span> productos:</p>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin:14px 0 10px; font-size:13.5px">
+          <span style="color:var(--muted)">💰 Si la lista trae el <b>costo</b> (ej. USD de proforma), calcula tu precio de venta:</span>
+          <span>precio venta = precio de la lista ×</span>
+          <input id="bulkFactor" type="number" step="0.1" min="0.01" value="1" style="width:84px; padding:6px 8px" onchange="refreshBulkFactor()">
+        </div>
+        <p style="margin:0 0 8px; font-size:14px">Se importarán <span class="imp-count" id="bulkCount">0</span> productos<span id="bulkPhotoCount"></span>:</p>
         <div class="prev-wrap"><table id="bulkPrevTable"></table></div>
       </div>
     </div>
@@ -444,13 +452,17 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
 
 <!-- ===== Fotos en lote ===== -->
 <dialog id="dlgPhotos" class="wide">
-  <form method="dialog" onsubmit="return false">
+  <form method="dialog" novalidate onsubmit="return false">
     <div class="mod-head"><h2>📸 Fotos en lote</h2><button class="x" onclick="dlgPhotos.close()" aria-label="Cerrar">✕</button></div>
     <div class="mod-body">
       <div class="hint-box">
         💡 <b>Truco para que se asignen solas:</b> nombra cada foto con el código del producto
         (ej: <span class="mono">C07-014.jpg</span>). Las que no coincidan las asignas a mano aquí mismo.
       </div>
+      <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer">
+        <input type="checkbox" id="photosStudio" checked onchange="setStudio(this.checked)" style="width:auto">
+        ✨ Editar como foto de estudio (recortar fondo, fondo blanco profesional y sombra)
+      </label>
       <label class="drop" id="photosDrop">
         <span class="big">📸</span>
         <b>Arrastra todas las fotos aquí</b> o haz clic para elegirlas
@@ -469,7 +481,7 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
 
 <!-- ===== Container modal ===== -->
 <dialog id="dlgCont">
-  <form method="dialog" onsubmit="return false">
+  <form method="dialog" novalidate onsubmit="return false">
     <div class="mod-head"><h2 id="dlgContTitle">Nuevo contenedor</h2><button class="x" onclick="dlgCont.close()" aria-label="Cerrar">✕</button></div>
     <div class="mod-body">
       <div>
@@ -508,7 +520,7 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
 
 <!-- ===== Product edit modal ===== -->
 <dialog id="dlgProd">
-  <form method="dialog" onsubmit="return false">
+  <form method="dialog" novalidate onsubmit="return false">
     <div class="mod-head"><h2>Editar producto</h2><button class="x" onclick="dlgProd.close()" aria-label="Cerrar">✕</button></div>
     <div class="mod-body">
       <div class="mod-photo">
@@ -588,7 +600,7 @@ function save(){
 }
 
 /* ================= ESTADO ================= */
-const CATEGORIES = ["Motor","Frenos","Transmisión","Suspensión","Eléctrico","Luces","Carenados","Llantas y aros","Cascos","Accesorios","Lubricantes","Herramientas","Otros"];
+const CATEGORIES = ["Motor","Frenos","Transmisión","Suspensión","Escapes","Eléctrico","Luces","Carenados","Llantas y aros","Cascos","Accesorios","Lubricantes","Herramientas","Otros"];
 let state = {
   containers: [],       // {id,name,date,expected,prefix,currency}
   products: [],         // {id,containerId,code,name,desc,category,compat,price,mayor,qty,photo,created}
@@ -728,6 +740,10 @@ function wizFieldHTML(s){
         <b>Arrastra la foto aquí</b> o haz clic para elegirla<br>
         <span style="font-size:12.5px">En el celular puedes tomarla con la cámara</span>
         <input type="file" id="wizPhotoFile" accept="image/*">
+      </label>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13.5px; cursor:pointer">
+        <input type="checkbox" ${studioOn() ? "checked" : ""} onchange="setStudio(this.checked)" style="width:auto">
+        ✨ Editar como foto de estudio (recortar fondo, fondo blanco profesional y sombra)
       </label>`;
     case "code":
       return `<input id="wizIn" class="mono" placeholder="${esc(suggestCode())}" value="${esc(d.code||"")}"
@@ -870,24 +886,141 @@ function finishProduct(){
   render();
 }
 
-/* ================= FOTOS (compresión) ================= */
+/* ================= FOTOS (compresión + estilo estudio) ================= */
+function loadImgEl(src){
+  return new Promise((res, rej)=>{ const im = new Image(); im.onload = ()=>res(im); im.onerror = rej; im.src = src; });
+}
+function studioOn(){ return state.studioPref !== false; }
+function setStudio(v){ state.studioPref = !!v; save(); }
 function loadPhoto(file, cb){
-  if(!file.type.startsWith("image/")){ toast("El archivo no es una imagen"); return; }
-  const img = new Image();
-  const url = URL.createObjectURL(file);
-  img.onload = ()=>{
-    const MAX = 900;
+  photoFromBlob(file).then(cb).catch(()=> toast("No se pudo leer la imagen"));
+}
+async function photoFromBlob(blob){
+  if(!blob.type.startsWith("image/")) throw new Error("no es imagen");
+  const url = URL.createObjectURL(blob);
+  try{
+    const img = await loadImgEl(url);
+    const MAX = 1000;
     let w = img.width, h = img.height;
     if(Math.max(w,h) > MAX){ const k = MAX/Math.max(w,h); w = Math.round(w*k); h = Math.round(h*k); }
-    const cv = document.createElement("canvas"); cv.width=w; cv.height=h;
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
     const cx = cv.getContext("2d");
-    cx.fillStyle = "#ffffff"; cx.fillRect(0,0,w,h);
+    const isPng = blob.type === "image/png";
+    if(!isPng){ cx.fillStyle = "#ffffff"; cx.fillRect(0,0,w,h); }
     cx.drawImage(img, 0, 0, w, h);
-    URL.revokeObjectURL(url);
-    cb(cv.toDataURL("image/jpeg", 0.78));
-  };
-  img.onerror = ()=>{ URL.revokeObjectURL(url); toast("No se pudo leer la imagen"); };
-  img.src = url;
+    const raw = isPng ? cv.toDataURL("image/png") : cv.toDataURL("image/jpeg", 0.8);
+    return studioOn() ? await processStudio(raw) : raw;
+  } finally { URL.revokeObjectURL(url); }
+}
+
+/* Convierte cualquier foto en una toma "de estudio": recorta el fondo
+   (usando la transparencia si existe, o detectando el fondo liso desde los
+   bordes), y centra el producto sobre un fondo blanco degradado con sombra. */
+async function processStudio(src){
+  try{
+    const img = await loadImgEl(src);
+    let w = img.naturalWidth, h = img.naturalHeight;
+    const k = Math.min(1, 1000/Math.max(w,h));
+    w = Math.max(2, Math.round(w*k)); h = Math.max(2, Math.round(h*k));
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    const cx = cv.getContext("2d", {willReadFrequently:true});
+    cx.drawImage(img, 0, 0, w, h);
+    const id = cx.getImageData(0, 0, w, h), d = id.data, N = w*h;
+
+    let mask = null;
+    let hasAlpha = false;
+    for(let i=3; i<d.length; i+=4){ if(d[i] < 245){ hasAlpha = true; break; } }
+    if(hasAlpha){
+      mask = new Uint8Array(N);
+      for(let p=0; p<N; p++) mask[p] = d[p*4+3] > 60 ? 255 : 0;
+    }else{
+      // color del fondo = mediana de los bordes; si el borde es homogéneo, inundar desde los bordes
+      const border = [];
+      const grab = (x,y)=>{ const i=(y*w+x)*4; border.push([d[i], d[i+1], d[i+2]]); };
+      for(let x=0; x<w; x+=2){ grab(x,0); grab(x,h-1); }
+      for(let y=0; y<h; y+=2){ grab(0,y); grab(w-1,y); }
+      const n = border.length;
+      const mean = [0,1,2].map(c => border.reduce((a,p)=>a+p[c], 0)/n);
+      const sd = Math.sqrt([0,1,2].map(c => border.reduce((a,p)=>a+(p[c]-mean[c])**2, 0)/n).reduce((a,b)=>a+b)/3);
+      if(sd < 42){
+        const tol = Math.max(40, sd*2.6);
+        const bg = new Uint8Array(N); const stack = [];
+        const tryP = p => {
+          if(bg[p]) return;
+          const i = p*4, dr = d[i]-mean[0], dg = d[i+1]-mean[1], db = d[i+2]-mean[2];
+          if(Math.sqrt((dr*dr+dg*dg+db*db)/3) < tol){ bg[p] = 1; stack.push(p); }
+        };
+        for(let x=0; x<w; x++){ tryP(x); tryP((h-1)*w + x); }
+        for(let y=0; y<h; y++){ tryP(y*w); tryP(y*w + w - 1); }
+        while(stack.length){
+          const p = stack.pop(), x = p % w, y = (p/w)|0;
+          if(x > 0) tryP(p-1); if(x < w-1) tryP(p+1);
+          if(y > 0) tryP(p-w); if(y < h-1) tryP(p+w);
+        }
+        let fg = 0; for(let p=0; p<N; p++) if(!bg[p]) fg++;
+        if(fg > N*0.02 && fg < N*0.97){
+          mask = new Uint8Array(N);
+          for(let p=0; p<N; p++) mask[p] = bg[p] ? 0 : 255;
+        }
+      }
+    }
+
+    const OUT = 1000;
+    const out = document.createElement("canvas"); out.width = OUT; out.height = OUT;
+    const ox = out.getContext("2d");
+    const g = ox.createRadialGradient(OUT/2, OUT*0.40, OUT*0.12, OUT/2, OUT*0.55, OUT*0.9);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#eaecef");
+    ox.fillStyle = g; ox.fillRect(0, 0, OUT, OUT);
+
+    if(mask){
+      featherMask(mask, w, h);
+      for(let p=0; p<N; p++) d[p*4+3] = mask[p];
+      cx.putImageData(id, 0, 0);
+      let minX = w, minY = h, maxX = -1, maxY = -1;
+      for(let y=0; y<h; y++) for(let x=0; x<w; x++){
+        if(mask[y*w+x] > 90){
+          if(x < minX) minX = x; if(x > maxX) maxX = x;
+          if(y < minY) minY = y; if(y > maxY) maxY = y;
+        }
+      }
+      if(maxX < 0) return src;
+      const bw = maxX-minX+1, bh = maxY-minY+1;
+      const scale = Math.min(OUT*0.78/bw, OUT*0.70/bh);
+      const dw = bw*scale, dh = bh*scale;
+      const dx = (OUT-dw)/2, dy = (OUT-dh)/2 - OUT*0.015;
+      // sombra suave en el piso (degradado radial achatado)
+      const scx = OUT/2, scy = dy + dh + OUT*0.03, srx = Math.max(60, dw*0.44), sry = Math.max(12, dh*0.055);
+      const sg = ox.createRadialGradient(scx, scy, 0, scx, scy, srx);
+      sg.addColorStop(0, "rgba(22,24,32,.22)"); sg.addColorStop(0.7, "rgba(22,24,32,.08)"); sg.addColorStop(1, "rgba(22,24,32,0)");
+      ox.save(); ox.translate(scx, scy); ox.scale(1, sry/srx); ox.translate(-scx, -scy);
+      ox.fillStyle = sg; ox.beginPath(); ox.arc(scx, scy, srx, 0, Math.PI*2); ox.fill(); ox.restore();
+      ox.drawImage(cv, minX, minY, bw, bh, dx, dy, dw, dh);
+    }else{
+      // fondo complejo: encuadre limpio centrado sobre el fondo de estudio
+      const scale = Math.min(OUT*0.86/w, OUT*0.86/h);
+      const dw = w*scale, dh = h*scale;
+      ox.drawImage(cv, (OUT-dw)/2, (OUT-dh)/2, dw, dh);
+    }
+    return out.toDataURL("image/jpeg", 0.82);
+  }catch(e){ return src; }
+}
+function featherMask(mask, w, h){
+  const out = new Uint8Array(mask.length);
+  for(let y=0; y<h; y++){
+    for(let x=0; x<w; x++){
+      let s = 0, c = 0;
+      for(let dy=-2; dy<=2; dy++){
+        const yy = y+dy; if(yy < 0 || yy >= h) continue;
+        const base = yy*w;
+        for(let dx=-2; dx<=2; dx++){
+          const xx = x+dx; if(xx < 0 || xx >= w) continue;
+          s += mask[base+xx]; c++;
+        }
+      }
+      out[y*w+x] = s/c;
+    }
+  }
+  mask.set(out);
 }
 
 /* ================= CATÁLOGO ================= */
@@ -1158,14 +1291,14 @@ const FIELD_OPTS = [
   ["mayor","Precio mayor"], ["qty","Cantidad"]
 ];
 const HEADER_HINTS = [
-  [/^(c[oó]d|cod\.?$|ref|sku|item|art[ií]?c?|referencia|codigo)/i, "code"],
+  [/^(c[oó]d|cod\.?$|ref|sku|item\s*n|art[ií]?c|referencia|codigo)/i, "code"],
   [/^(nombre|producto|art[ií]culo)/i, "name"],
   [/^(desc|detalle|especif)/i, "desc"],
   [/^(categ|tipo|l[ií]nea|familia|secci[oó]n|grupo)/i, "category"],
-  [/^(compat|moto|modelo|aplicaci[oó]n|marca)/i, "compat"],
+  [/^(compat|moto|modelo|aplicaci[oó]n)|model/i, "compat"],
   [/mayor|whole|may\.?$/i, "mayor"],
-  [/^(precio|pvp|venta|price|valor|unit)/i, "price"],
-  [/^(cant|qty|unid|und|pcs|piezas|stock)/i, "qty"]
+  [/^(usd|precio|pvp|venta|price|valor|fob)|unit\s*price|p\.?\s*unit/i, "price"],
+  [/^(cant|qty|unid|und$|pcs\s*$|piezas|stock)/i, "qty"]
 ];
 const CAT_KEYWORDS = [
   [/foco|luz|luces|led|faro|direccional|stop|halog/i, "Luces"],
@@ -1174,13 +1307,14 @@ const CAT_KEYWORDS = [
   [/amortiguad|suspensi|telesc[oó]p/i, "Suspensión"],
   [/cdi|bobina|estator|regulador|bater[ií]a|switch|arranque|el[eé]ctric|buj[ií]a|flasher|socket|cablead/i, "Eléctrico"],
   [/casco/i, "Cascos"],
+  [/escape|exhaust|mofle|silenciador/i, "Escapes"],
   [/aceite|lubric|grasa|refrigerante|l[ií]quido/i, "Lubricantes"],
   [/llanta|neum[aá]t|\baro\b|\brin\b|c[aá]mara|radios/i, "Llantas y aros"],
   [/pist[oó]n|cilindro|carburador|empaque|v[aá]lvula|cig[uü]e[ñn]al|filtro|balancin|[aá]rbol de levas|culata/i, "Motor"],
   [/herramienta|llave |dado |desarmador/i, "Herramientas"],
   [/guante|espejo|manubrio|pu[ñn]o|maleta|parrilla|slider|protector|funda|candado/i, "Accesorios"]
 ];
-let bulk = { rows:[], hasHeader:false, map:[], items:[] };
+let bulk = { rows:[], headers:[], map:[], items:[], imgs:{}, aiRaw:null };
 let bulkPhotos = [];
 
 function openBulk(){
@@ -1190,20 +1324,141 @@ function openBulk(){
   $("bulkText").focus();
 }
 function resetBulk(){
-  bulk = { rows:[], hasHeader:false, map:[], items:[] };
+  bulk = { rows:[], headers:[], map:[], items:[], imgs:{}, aiRaw:null };
   $("bulkText").value = "";
+  $("bulkFactor").value = "1";
   $("bulkStepIn").style.display = "";
   $("bulkStepMap").style.display = "none";
   $("bulkStepPrev").style.display = "none";
   $("bulkImportBtn").style.display = "none";
 }
-$("bulkFile").addEventListener("change", function(){
-  const f = this.files[0]; if(!f) return;
+$("bulkFile").addEventListener("change", async function(){
+  const f = this.files[0]; this.value = ""; if(!f) return;
+  const isXlsx = /\.xlsx$/i.test(f.name) || f.type.includes("spreadsheetml");
+  if(isXlsx){
+    toast("📄 Leyendo la proforma (datos y fotos)…");
+    try{
+      const src = await parseXlsx(f);
+      if(!src.rows.length){ toast("La proforma no tiene filas con datos"); return; }
+      analyzeSource(src);
+      const nImg = Object.keys(src.imgs).length;
+      toast(nImg ? `✅ Proforma leída: ${bulk.items.length} ítems y ${nImg} fotos encontradas` : `✅ Proforma leída: ${bulk.items.length} ítems`);
+    }catch(e){
+      console.error(e);
+      toast("⚠️ No se pudo leer el .xlsx — guárdalo como CSV e inténtalo de nuevo");
+    }
+    return;
+  }
   const r = new FileReader();
   r.onload = ()=>{ $("bulkText").value = r.result; analyzeBulk(); };
   r.readAsText(f);
-  this.value = "";
 });
+
+/* ===== Lector de .xlsx (proformas con fotos incrustadas) ===== */
+async function unzipFile(buf){
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  let e = buf.byteLength - 22;
+  while(e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if(e < 0) throw new Error("no es un zip");
+  const count = dv.getUint16(e+10, true);
+  let off = dv.getUint32(e+16, true);
+  const entries = {};
+  for(let i=0; i<count; i++){
+    if(dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off+10, true);
+    const csize  = dv.getUint32(off+20, true);
+    const nlen = dv.getUint16(off+28, true), elen = dv.getUint16(off+30, true), clen = dv.getUint16(off+32, true);
+    const lho = dv.getUint32(off+42, true);
+    const name = new TextDecoder().decode(u8.subarray(off+46, off+46+nlen));
+    entries[name] = {method, csize, lho};
+    off += 46 + nlen + elen + clen;
+  }
+  return {
+    names: Object.keys(entries),
+    async read(name){
+      const en = entries[name]; if(!en) return null;
+      const lnlen = dv.getUint16(en.lho+26, true), lelen = dv.getUint16(en.lho+28, true);
+      const data = u8.subarray(en.lho + 30 + lnlen + lelen, en.lho + 30 + lnlen + lelen + en.csize);
+      if(en.method === 0) return new Blob([data]);
+      return await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).blob();
+    }
+  };
+}
+async function parseXlsx(file){
+  const zip = await unzipFile(await file.arrayBuffer());
+  const xml = async n => {
+    const b = await zip.read(n); if(!b) return null;
+    return new DOMParser().parseFromString(await b.text(), "text/xml");
+  };
+  const sstDoc = await xml("xl/sharedStrings.xml");
+  const sst = sstDoc ? [...sstDoc.getElementsByTagNameNS("*","si")].map(si =>
+    [...si.getElementsByTagNameNS("*","t")].map(t=>t.textContent).join("")) : [];
+  let sheetPath = "xl/worksheets/sheet1.xml";
+  if(!zip.names.includes(sheetPath)) sheetPath = zip.names.find(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n));
+  const sheet = await xml(sheetPath);
+  const colIdx = ref => { let n=0; for(const ch of ref){ const c=ch.charCodeAt(0); if(c>=65 && c<=90) n=n*26+c-64; else break; } return n-1; };
+  const rows = [];
+  for(const rowEl of sheet.getElementsByTagNameNS("*","row")){
+    const r = parseInt(rowEl.getAttribute("r"));
+    const cells = [];
+    for(const c of rowEl.getElementsByTagNameNS("*","c")){
+      const i = colIdx(c.getAttribute("r") || "");
+      if(i < 0) continue;
+      const t = c.getAttribute("t");
+      let v = "";
+      if(t === "inlineStr"){
+        v = [...c.getElementsByTagNameNS("*","t")].map(x=>x.textContent).join("");
+      }else{
+        const vEl = c.getElementsByTagNameNS("*","v")[0];
+        v = vEl ? vEl.textContent : "";
+        if(t === "s") v = sst[parseInt(v)] ?? "";
+      }
+      cells[i] = String(v).replace(/\s+/g," ").trim();
+    }
+    const arr = [...cells].map(x => x ?? "");
+    if(arr.some(x => x !== "")) rows.push({cells: arr, r});
+  }
+  // fotos incrustadas, ancladas a su fila
+  const imgs = {};
+  const relsDoc = await xml(sheetPath.replace("worksheets/", "worksheets/_rels/") + ".rels");
+  let drawingPath = null;
+  if(relsDoc) for(const rel of relsDoc.getElementsByTagNameNS("*","Relationship")){
+    if(/drawing/i.test(rel.getAttribute("Type"))) drawingPath = rel.getAttribute("Target").replace(/^(\.\.\/|\/xl\/)/, "xl/").replace(/^(?!xl\/)/, "xl/");
+  }
+  if(drawingPath){
+    const dDoc = await xml(drawingPath);
+    const dRels = await xml(drawingPath.replace("drawings/", "drawings/_rels/") + ".rels");
+    const relMap = {};
+    if(dRels) for(const rel of dRels.getElementsByTagNameNS("*","Relationship")){
+      relMap[rel.getAttribute("Id")] = rel.getAttribute("Target").replace(/^\.\.\//, "xl/");
+    }
+    const anchors = [];
+    for(const tag of ["twoCellAnchor","oneCellAnchor"]){
+      for(const an of dDoc.getElementsByTagNameNS("*", tag)){
+        const from = an.getElementsByTagNameNS("*","from")[0];
+        const blip = an.getElementsByTagNameNS("*","blip")[0];
+        if(!from || !blip) continue;
+        const row = parseInt(from.getElementsByTagNameNS("*","row")[0]?.textContent ?? "-1");
+        const rid = blip.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships","embed") || blip.getAttribute("r:embed");
+        const target = relMap[rid];
+        if(row >= 0 && target) anchors.push({row: row + 1, target});
+      }
+    }
+    let done = 0;
+    for(const a of anchors){
+      if(imgs[a.row]) continue;
+      const blob = await zip.read(a.target);
+      if(!blob) continue;
+      const type = /\.png$/i.test(a.target) ? "image/png" : "image/jpeg";
+      try{
+        imgs[a.row] = await photoFromBlob(new Blob([blob], {type}));
+        done++;
+        if(done % 5 === 0) toast(`🖼 Procesando fotos… ${done}/${anchors.length}`);
+      }catch(e){ /* imagen ilegible: continuar */ }
+    }
+  }
+  return {rows, imgs};
+}
 
 function parseTable(text){
   const head = text.split(/\r?\n/).slice(0,6).join("\n");
@@ -1232,7 +1487,10 @@ function parseTable(text){
 }
 function parseMoney(v){
   if(typeof v === "number") return v;
-  let s = String(v ?? "").replace(/[^\d.,-]/g, "");
+  const t = String(v ?? "").trim().replace(/^[^\d.,-]+/, "");
+  // formato máquina (viene de Excel): punto decimal, cualquier cantidad de decimales
+  if(/^-?\d*\.?\d+(e[+-]?\d+)?$/i.test(t)) return parseFloat(t) || 0;
+  let s = t.replace(/[^\d.,-]/g, "");
   if(!s) return 0;
   const d = s.lastIndexOf("."), c = s.lastIndexOf(",");
   if(d > -1 && c > -1){
@@ -1259,21 +1517,39 @@ function guessField(header, sample){
 function analyzeBulk(){
   const text = $("bulkText").value.trim();
   if(!text){ toast("Pega la lista o sube el archivo primero"); return; }
-  const rows = parseTable(text);
-  if(!rows.length){ toast("No se encontraron filas en la lista"); return; }
-  const nCols = Math.max(...rows.map(r => r.length));
-  const first = rows[0];
-  const hdrMap = first.map(h => guessField(h));
-  bulk.hasHeader = hdrMap.some(f => f) && !first.some(c => /^\d+([.,]\d+)?$/.test(c));
-  bulk.rows = bulk.hasHeader ? rows.slice(1) : rows;
-  bulk.map = Array.from({length:nCols}, (_,i)=> bulk.hasHeader ? (hdrMap[i]||"") : "");
-  if(!bulk.hasHeader){
-    // sin encabezado: adivinar por contenido de la primera fila de datos
-    const data = bulk.rows[0] || [];
+  const raw = parseTable(text);
+  if(!raw.length){ toast("No se encontraron filas en la lista"); return; }
+  analyzeSource({rows: raw.map((cells,i)=>({cells, r:i+1})), imgs:{}});
+}
+function analyzeSource(src){
+  bulk.imgs = src.imgs || {};
+  bulk.aiRaw = null;
+  const rows = src.rows;
+  // buscar la fila de encabezado: la que más campos conocidos reconozca (puede no ser la primera)
+  let hdrIdx = -1, best = 1;
+  for(let i=0; i<Math.min(rows.length, 12); i++){
+    const seen = new Set();
+    rows[i].cells.forEach(c => { const f = guessField(String(c||"")); if(f) seen.add(f); });
+    if(seen.size > best){ best = seen.size; hdrIdx = i; }
+  }
+  bulk.headers = hdrIdx >= 0 ? rows[hdrIdx].cells : [];
+  bulk.rows = rows.slice(hdrIdx + 1);
+  const nCols = Math.max(...rows.map(r => r.cells.length));
+  // asignar cada campo a una sola columna (la primera que coincida)
+  const used = new Set();
+  bulk.map = Array.from({length:nCols}, (_,i)=>{
+    if(hdrIdx < 0) return "";
+    const f = guessField(String(bulk.headers[i] || ""));
+    if(f && !used.has(f)){ used.add(f); return f; }
+    return "";
+  });
+  if(hdrIdx < 0){
+    // sin encabezado: adivinar por el contenido de la primera fila
+    const data = bulk.rows[0]?.cells || [];
     data.forEach((v,i)=>{
-      if(bulk.map.includes("code") === false && /^[A-Za-z]{0,4}[-.]?\d{1,6}[A-Za-z]?$/.test(v)) { if(!bulk.map.includes("code")) bulk.map[i]="code"; return; }
-      if(!bulk.map.includes("name") && /[A-Za-zÁ-ú]{4,}/.test(v)) { bulk.map[i]="name"; return; }
-      if(!bulk.map.includes("price") && /^\s*[^\d]{0,3}[\d.,]+\s*$/.test(v) && parseMoney(v)>0) { bulk.map[i]="price"; return; }
+      if(!bulk.map.includes("code") && /^[A-Za-z]{0,4}[-.]?\d{1,6}[A-Za-z]?$/.test(v)){ bulk.map[i] = "code"; return; }
+      if(!bulk.map.includes("name") && /[A-Za-zÁ-ú]{4,}/.test(v)){ bulk.map[i] = "name"; return; }
+      if(!bulk.map.includes("price") && /^\s*[^\d]{0,3}[\d.,]+\s*$/.test(v) && parseMoney(v) > 0){ bulk.map[i] = "price"; return; }
     });
   }
   renderBulkMap(nCols);
@@ -1282,28 +1558,34 @@ function analyzeBulk(){
   buildBulkItems();
 }
 function renderBulkMap(nCols){
-  const first = bulk.hasHeader ? null : null;
-  const headers = bulk.hasHeader ? parseTable($("bulkText").value.trim())[0] : [];
-  const sample = bulk.rows[0] || [];
+  const sample = bulk.rows[0]?.cells || [];
   $("bulkMapGrid").innerHTML = Array.from({length:nCols}, (_,i)=>`
     <div class="map-col ${bulk.map[i] ? "mapped":""}">
-      <div class="hd">${esc(headers[i] || "Columna " + (i+1))}</div>
+      <div class="hd">${esc(bulk.headers[i] || "Columna " + (i+1))}</div>
       <select onchange="bulk.map[${i}]=this.value; buildBulkItems(); this.closest('.map-col').classList.toggle('mapped', !!this.value)">
         ${FIELD_OPTS.map(([v,l])=>`<option value="${v}" ${bulk.map[i]===v?"selected":""}>${l}</option>`).join("")}
       </select>
       <div class="sample">${esc(sample[i] || "")}</div>
     </div>`).join("");
 }
+const round2 = n => Math.round((Number(n)||0) * 100) / 100;
+function bulkFactor(){ return Math.max(0.01, parseFloat($("bulkFactor").value) || 1); }
+function refreshBulkFactor(){
+  if(bulk.aiRaw){ applyAiItems(); return; }
+  if(bulk.rows.length) buildBulkItems();
+}
 function buildBulkItems(){
   const existing = new Set(contProducts().map(p => normCode(p.code)));
   const skipDup = $("bulkSkipDup").checked;
+  const f = bulkFactor();
   const items = [];
   let seq = contProducts().length;
-  for(const r of bulk.rows){
+  for(const row of bulk.rows){
     const it = {};
-    bulk.map.forEach((f,i)=>{ if(f) it[f] = r[i] ?? ""; });
+    bulk.map.forEach((fld,i)=>{ if(fld) it[fld] = row.cells[i] ?? ""; });
     const name = (it.name || it.desc || "").trim();
     if(!name && !(it.code||"").trim()) continue;
+    if(/^(sub)?total/i.test(name)) continue;
     seq++;
     const code = (it.code||"").trim().toUpperCase() || ((activeCont()?.prefix||"HES") + "-" + String(seq).padStart(3,"0"));
     if(skipDup && existing.has(normCode(code))) continue;
@@ -1312,8 +1594,9 @@ function buildBulkItems(){
       desc: (it.name && it.desc) ? String(it.desc).trim() : "",
       category: (it.category||"").trim() || guessCat(name),
       compat: (it.compat||"").trim(),
-      price: parseMoney(it.price), mayor: parseMoney(it.mayor),
-      qty: Math.max(0, parseInt(String(it.qty??"1").replace(/\D/g,"")) || 1)
+      price: round2(parseMoney(it.price) * f), mayor: round2(parseMoney(it.mayor) * f),
+      qty: Math.max(0, Math.round(parseMoney(it.qty ?? 1)) || 1),
+      photo: bulk.imgs[row.r] || null
     });
   }
   bulk.items = items;
@@ -1321,10 +1604,13 @@ function buildBulkItems(){
 }
 function renderBulkPreview(){
   $("bulkCount").textContent = bulk.items.length;
+  const nFotos = bulk.items.filter(it=>it.photo).length;
+  $("bulkPhotoCount").textContent = nFotos ? ` (${nFotos} con foto ✓)` : "";
   $("bulkPrevTable").innerHTML = `
-    <tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Compat.</th><th>Precio</th><th>Mayor</th><th>Cant.</th></tr>
-    ${bulk.items.slice(0,60).map(it=>`
-      <tr><td class="mono">${esc(it.code)}</td><td>${esc(it.name)}</td><td>${esc(it.category)}</td>
+    <tr><th>Foto</th><th>Código</th><th>Nombre</th><th>Categoría</th><th>Compat.</th><th>Precio</th><th>Mayor</th><th>Cant.</th></tr>
+    ${bulk.items.slice(0,80).map(it=>`
+      <tr><td>${it.photo ? `<img src="${it.photo}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;display:block">` : "—"}</td>
+      <td class="mono">${esc(it.code)}</td><td>${esc(it.name)}</td><td>${esc(it.category)}</td>
       <td>${esc(it.compat)}</td><td class="num">${money(it.price)}</td>
       <td class="num">${it.mayor ? money(it.mayor) : "—"}</td><td class="num">${it.qty}</td></tr>`).join("")}`;
   $("bulkStepPrev").style.display = "";
@@ -1334,13 +1620,13 @@ function importBulk(){
   if(!bulk.items.length) return;
   const now = Date.now();
   bulk.items.forEach((it,i)=> state.products.push({
-    id: uid(), containerId: state.active, ...it, photo: null, created: now + i
+    id: uid(), containerId: state.active, ...it, photo: it.photo || null, created: now + i
   }));
   save();
-  const n = bulk.items.length;
+  const n = bulk.items.length, nf = bulk.items.filter(it=>it.photo).length;
   $("dlgBulk").close();
   render();
-  toast(`⚡ ${n} productos importados — ahora súbeles las fotos en lote 📸`);
+  toast(nf ? `⚡ ${n} productos importados con ${nf} fotos` : `⚡ ${n} productos importados — súbeles las fotos en lote 📸`);
 }
 async function aiParseBulk(){
   const raw = $("bulkText").value.trim();
@@ -1356,25 +1642,32 @@ ${raw}`);
     const m = String(resp).match(/\[[\s\S]*\]/);
     const arr = JSON.parse(m[0]);
     if(!Array.isArray(arr) || !arr.length) throw 0;
-    const existing = new Set(contProducts().map(p => normCode(p.code)));
     let seq = contProducts().length;
-    bulk.items = arr.filter(x => x && (x.name || x.code)).map(x => {
+    bulk.aiRaw = arr.filter(x => x && (x.name || x.code)).map(x => {
       seq++;
       return {
         code: String(x.code||"").toUpperCase() || ((activeCont()?.prefix||"HES") + "-" + String(seq).padStart(3,"0")),
         name: String(x.name || x.code), desc: String(x.desc||""),
         category: CATEGORIES.includes(x.category) ? x.category : guessCat(String(x.name||"")),
         compat: String(x.compat||""), price: parseMoney(x.price), mayor: parseMoney(x.mayor),
-        qty: Math.max(0, parseInt(x.qty)||1)
+        qty: Math.max(0, parseInt(x.qty)||1), photo: null
       };
-    }).filter(x => !$("bulkSkipDup").checked || !existing.has(normCode(x.code)));
+    });
+    applyAiItems();
     $("bulkStepIn").style.display = "none";
     $("bulkStepMap").style.display = "none";
-    renderBulkPreview();
     toast(`🤖 IA detectó ${bulk.items.length} productos`);
   }catch(e){
     toast("La IA no pudo leer el texto — prueba con «Analizar lista»");
   }
+}
+function applyAiItems(){
+  const existing = new Set(contProducts().map(p => normCode(p.code)));
+  const f = bulkFactor();
+  bulk.items = (bulk.aiRaw || [])
+    .filter(x => !$("bulkSkipDup").checked || !existing.has(normCode(x.code)))
+    .map(x => ({...x, price: round2(x.price * f), mayor: round2(x.mayor * f)}));
+  renderBulkPreview();
 }
 
 /* ===== Fotos en lote ===== */
@@ -1382,6 +1675,7 @@ const normCode = s => String(s??"").toUpperCase().replace(/[^A-Z0-9]/g,"");
 function openBulkPhotos(){
   if(!contProducts().length){ toast("Primero importa o registra los productos"); return; }
   bulkPhotos = [];
+  $("photosStudio").checked = studioOn();
   $("photoResults").innerHTML = "";
   $("photoSummary").textContent = "";
   $("photosApplyBtn").style.display = "none";
