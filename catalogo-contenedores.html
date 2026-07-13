@@ -252,6 +252,7 @@ kbd{
 .card .price small{font-size:12px; font-weight:700; color:var(--muted); margin-right:2px}
 .card .mayor{font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums}
 .card .edit{margin-left:auto}
+.card.upper h3, .card.upper .cmp, .card.upper .dsc{text-transform:uppercase}
 
 /* ============ CATALOG ============ */
 .cat-toolbar{
@@ -718,6 +719,7 @@ function defaultStyle(){
   return {
     codeSize:2, nameSize:2, priceSize:2,          // 1=S 2=M 3=L 4=XL
     showCategory:true, showCompat:true, showDesc:true,
+    upperCase:true,     // todo el texto en MAYÚSCULAS
     priceMode:"both",   // both = venta+mayor · retail = solo venta · wholesale = solo mayor · none = sin precio
     accent:null,        // null = colores de marca según el tema; o una clave de ACCENTS
     pdfGrid:3           // columnas por fila: 1 (lista) · 2 · 3 · 4
@@ -1219,7 +1221,7 @@ function gridHTML(ps){
 function cardHTML(p, opts={}){
   const qty = Number(p.qty)||0;
   const st = state.style;
-  return `<article class="card">
+  return `<article class="card ${st.upperCase?"upper":""}">
     <div class="ph">
       ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}" loading="lazy">` : `<span class="noimg">📷</span>`}
       <span class="code-chip mono">${esc(p.code)}</span>
@@ -1419,6 +1421,7 @@ function renderStyleModal(){
       <label class="opt-check"><input type="checkbox" ${st.showCategory?"checked":""} onchange="toggleStyleField('showCategory')"> Categoría</label>
       <label class="opt-check"><input type="checkbox" ${st.showCompat?"checked":""} onchange="toggleStyleField('showCompat')"> Compatibilidad (motos)</label>
       <label class="opt-check"><input type="checkbox" ${st.showDesc?"checked":""} onchange="toggleStyleField('showDesc')"> Descripción</label>
+      <label class="opt-check"><input type="checkbox" ${st.upperCase?"checked":""} onchange="toggleStyleField('upperCase')"> 🔠 TODO EN MAYÚSCULAS</label>
     </div>
     <div>
       <label>Color de la marca</label>
@@ -1666,6 +1669,7 @@ function buildPdf(c, items, images){
   const L = pdfLayout(st);
   const { cols, gx, gy, mx, headerH, szCode, szName, szPrice, szCat, szCompat, szDesc, szQty, lh } = L;
   const mode = st.priceMode || "both";
+  const U = s => st.upperCase ? String(s??"").toUpperCase() : String(s??"");
   // dibuja el/los precio(s) de un producto según el modo elegido
   const drawPrice = (x, cardW, yBase) => {
     return (p) => {
@@ -1720,8 +1724,8 @@ function buildPdf(c, items, images){
         s += T(tx, ty, szCode, "F2", DARK, pdfEllip(p.code, szCode, true, tw));
         ty -= lh(szCode);
         if(st.showCategory && p.category){ s += T(tx, ty, szCat, "F2", ORANGE, pdfEllip(String(p.category).toUpperCase(), szCat, true, tw)); ty -= lh(szCat); }
-        s += T(tx, ty, szName, "F2", DARK, pdfEllip(p.name, szName, true, tw)); ty -= lh(szName);
-        if(st.showCompat && p.compat){ s += T(tx, ty, szCompat, "F1", GRAY, pdfEllip(p.compat, szCompat, false, tw)); ty -= lh(szCompat); }
+        s += T(tx, ty, szName, "F2", DARK, pdfEllip(U(p.name), szName, true, tw)); ty -= lh(szName);
+        if(st.showCompat && p.compat){ s += T(tx, ty, szCompat, "F1", GRAY, pdfEllip(U(p.compat), szCompat, false, tw)); ty -= lh(szCompat); }
         s += TR(x+cardW-12, yT-16, szQty, "F1", GRAY, qtyTxt);
         if(mode !== "none"){
           const pv = mode === "wholesale" ? p.mayor : p.price;
@@ -1761,10 +1765,10 @@ function buildPdf(c, items, images){
         s += TR(x+cardW-10, ty, szQty, "F1", GRAY, qtyTxt);
         ty -= lh(szCode);
         if(st.showCategory && p.category){ s += T(x+10, ty, szCat, "F2", ORANGE, pdfEllip(String(p.category).toUpperCase(), szCat, true, tw)); ty -= lh(szCat); }
-        const nameLines = pdfWrap(p.name, szName, true, tw, 2);
+        const nameLines = pdfWrap(U(p.name), szName, true, tw, 2);
         nameLines.forEach(ln=> { s += T(x+10, ty, szName, "F2", DARK, ln); ty -= lh(szName); });
-        if(st.showCompat && p.compat){ s += T(x+10, ty, szCompat, "F1", GRAY, pdfEllip(p.compat, szCompat, false, tw)); ty -= lh(szCompat); }
-        if(st.showDesc && p.desc){ s += T(x+10, ty, szDesc, "F1", GRAY, pdfEllip(p.desc, szDesc, false, tw)); }
+        if(st.showCompat && p.compat){ s += T(x+10, ty, szCompat, "F1", GRAY, pdfEllip(U(p.compat), szCompat, false, tw)); ty -= lh(szCompat); }
+        if(st.showDesc && p.desc){ s += T(x+10, ty, szDesc, "F1", GRAY, pdfEllip(U(p.desc), szDesc, false, tw)); }
         s += drawPrice(x, cardW, yT-cardH+10)(p);
       });
       pages.push(s);
