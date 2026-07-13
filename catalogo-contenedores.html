@@ -300,6 +300,42 @@ dialog .mod-body{flex:1; min-height:0}
 .mod-photo img{width:84px; height:84px; object-fit:cover; border-radius:10px; background:var(--chip)}
 .mod-photo .noph{width:84px; height:84px; border-radius:10px; background:var(--chip); display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:24px}
 
+/* ============ IMPORTACIÓN MASIVA ============ */
+.bulk-bar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;
+  background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  padding:12px 16px; box-shadow:var(--shadow);
+}
+.bulk-bar .ic{font-size:22px}
+.bulk-bar p{margin:0; flex:1; min-width:200px; font-size:13.5px; color:var(--muted)}
+.bulk-bar p b{color:var(--text)}
+dialog.wide{width:min(880px, calc(100vw - 32px))}
+#bulkText{min-height:140px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; white-space:pre}
+.map-grid{display:flex; gap:10px; overflow-x:auto; padding-bottom:6px}
+.map-col{flex:0 0 150px; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px}
+.map-col .hd{font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.map-col .sample{font-size:11.5px; color:var(--faint); margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.map-col select{padding:7px 8px; font-size:13px}
+.map-col.mapped{border-color:var(--brand2)}
+.prev-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:10px}
+.prev-wrap table{width:100%; border-collapse:collapse; font-size:13px}
+.prev-wrap th{
+  text-align:left; padding:8px 10px; background:var(--panel2); font-size:11px;
+  text-transform:uppercase; letter-spacing:.07em; color:var(--muted); white-space:nowrap;
+}
+.prev-wrap td{padding:7px 10px; border-top:1px solid var(--line); white-space:nowrap; max-width:220px; overflow:hidden; text-overflow:ellipsis}
+.prev-wrap td.num{text-align:right; font-variant-numeric:tabular-nums}
+.imp-count{font-weight:800; color:var(--ok)}
+.photo-rows{display:flex; flex-direction:column; gap:8px; max-height:340px; overflow-y:auto}
+.photo-row{display:flex; align-items:center; gap:12px; background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:8px 12px}
+.photo-row img{width:52px; height:52px; object-fit:cover; border-radius:8px; flex:none}
+.photo-row .fn{font-size:12.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
+.photo-row .st{font-size:12px; font-weight:700}
+.photo-row .st.ok{color:var(--ok)}
+.photo-row .st.no{color:var(--danger)}
+.photo-row select{width:auto; max-width:220px; margin-left:auto; padding:6px 8px; font-size:12.5px}
+.hint-box{background:var(--accent-bg); border:1px solid var(--line); border-radius:10px; padding:10px 14px; font-size:13px; color:var(--text)}
+
 /* ============ TOAST ============ */
 #toast{
   position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px);
@@ -365,6 +401,71 @@ dialog .mod-body{flex:1; min-height:0}
 <main id="main"></main>
 
 <div id="toast" role="status"></div>
+
+<!-- ===== Importación masiva ===== -->
+<dialog id="dlgBulk" class="wide">
+  <form method="dialog" onsubmit="return false">
+    <div class="mod-head"><h2>⚡ Importar lista completa</h2><button class="x" onclick="dlgBulk.close()" aria-label="Cerrar">✕</button></div>
+    <div class="mod-body">
+      <div id="bulkStepIn">
+        <p style="margin:0 0 10px; color:var(--muted); font-size:13.5px">
+          Pega aquí la lista del contenedor <b>copiada directo desde Excel</b> (o desde la factura / packing list),
+          o sube el archivo CSV. La app detecta sola los códigos, nombres, precios y cantidades.
+        </p>
+        <textarea id="bulkText" placeholder="CÓDIGO&#9;PRODUCTO&#9;PRECIO&#9;CANT&#10;C07-001&#9;Kit de arrastre 428H&#9;35.50&#9;12&#10;C07-002&#9;Foco LED H4&#9;18.00&#9;30&#10;…"></textarea>
+        <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap">
+          <button class="btn" onclick="bulkFile.click()">📄 Subir archivo CSV / TXT</button>
+          <input type="file" id="bulkFile" accept=".csv,.tsv,.txt,text/csv,text/plain" style="display:none">
+          <button class="btn" id="bulkAiBtn" style="display:none" onclick="aiParseBulk()">🤖 Detectar con IA (texto desordenado)</button>
+          <span class="spacer" style="flex:1"></span>
+          <button class="btn primary" onclick="analyzeBulk()">Analizar lista →</button>
+        </div>
+      </div>
+      <div id="bulkStepMap" style="display:none">
+        <p style="margin:0 0 8px; color:var(--muted); font-size:13.5px">Revisa qué es cada columna — la app ya hizo su mejor intento:</p>
+        <div class="map-grid" id="bulkMapGrid"></div>
+        <label style="display:flex; align-items:center; gap:8px; margin:12px 0 0; font-size:13px; text-transform:none; letter-spacing:0; color:var(--text)">
+          <input type="checkbox" id="bulkSkipDup" checked style="width:auto" onchange="if(bulk.rows.length) buildBulkItems()"> Omitir códigos que ya están registrados en este contenedor
+        </label>
+      </div>
+      <div id="bulkStepPrev" style="display:none">
+        <p style="margin:0 0 8px; font-size:14px">Se importarán <span class="imp-count" id="bulkCount">0</span> productos:</p>
+        <div class="prev-wrap"><table id="bulkPrevTable"></table></div>
+      </div>
+    </div>
+    <div class="mod-foot">
+      <button class="btn" onclick="resetBulk()">↺ Empezar de nuevo</button>
+      <span class="spacer"></span>
+      <button class="btn" onclick="dlgBulk.close()">Cancelar</button>
+      <button class="btn primary" id="bulkImportBtn" style="display:none" onclick="importBulk()">⚡ Importar productos</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ===== Fotos en lote ===== -->
+<dialog id="dlgPhotos" class="wide">
+  <form method="dialog" onsubmit="return false">
+    <div class="mod-head"><h2>📸 Fotos en lote</h2><button class="x" onclick="dlgPhotos.close()" aria-label="Cerrar">✕</button></div>
+    <div class="mod-body">
+      <div class="hint-box">
+        💡 <b>Truco para que se asignen solas:</b> nombra cada foto con el código del producto
+        (ej: <span class="mono">C07-014.jpg</span>). Las que no coincidan las asignas a mano aquí mismo.
+      </div>
+      <label class="drop" id="photosDrop">
+        <span class="big">📸</span>
+        <b>Arrastra todas las fotos aquí</b> o haz clic para elegirlas
+        <input type="file" id="photosFile" accept="image/*" multiple>
+      </label>
+      <div id="photoResults" class="photo-rows"></div>
+    </div>
+    <div class="mod-foot">
+      <span id="photoSummary" style="color:var(--muted); font-size:13px; align-self:center"></span>
+      <span class="spacer"></span>
+      <button class="btn" onclick="dlgPhotos.close()">Cancelar</button>
+      <button class="btn primary" id="photosApplyBtn" style="display:none" onclick="applyBulkPhotos()">Aplicar fotos</button>
+    </div>
+  </form>
+</dialog>
 
 <!-- ===== Container modal ===== -->
 <dialog id="dlgCont">
@@ -580,7 +681,13 @@ function statsHTML(){
 function wizardHTML(){
   const s = STEPS[wiz.step];
   const dots = STEPS.map((_,i)=>`<i class="${i<=wiz.step?"on":""}"></i>`).join("");
-  return `<div class="wizard-grid">
+  return `<div class="bulk-bar no-print">
+    <span class="ic">⚡</span>
+    <p><b>¿Tienes la lista del contenedor en Excel o la factura?</b> Súbela y la app detecta todos los ítems de una vez: códigos, precios, cantidades y categorías.</p>
+    <button class="btn sm primary" onclick="openBulk()">⚡ Importar lista completa</button>
+    <button class="btn sm" onclick="openBulkPhotos()">📸 Fotos en lote</button>
+  </div>
+  <div class="wizard-grid">
     <section class="wiz" aria-label="Registro de producto">
       <div class="wiz-head">
         <span class="step-n">Paso ${wiz.step+1} de ${STEPS.length}</span>
@@ -1042,6 +1149,303 @@ function copyWhatsApp(){
     ta.select(); try{ document.execCommand("copy"); toast("📱 Lista copiada — pégala en WhatsApp"); }
     catch(e){ toast("No se pudo copiar automáticamente"); } ta.remove();
   }
+}
+
+/* ================= IMPORTACIÓN MASIVA ================= */
+const FIELD_OPTS = [
+  ["", "— Ignorar —"], ["code","Código"], ["name","Nombre"], ["desc","Descripción"],
+  ["category","Categoría"], ["compat","Compatibilidad"], ["price","Precio venta"],
+  ["mayor","Precio mayor"], ["qty","Cantidad"]
+];
+const HEADER_HINTS = [
+  [/^(c[oó]d|cod\.?$|ref|sku|item|art[ií]?c?|referencia|codigo)/i, "code"],
+  [/^(nombre|producto|art[ií]culo)/i, "name"],
+  [/^(desc|detalle|especif)/i, "desc"],
+  [/^(categ|tipo|l[ií]nea|familia|secci[oó]n|grupo)/i, "category"],
+  [/^(compat|moto|modelo|aplicaci[oó]n|marca)/i, "compat"],
+  [/mayor|whole|may\.?$/i, "mayor"],
+  [/^(precio|pvp|venta|price|valor|unit)/i, "price"],
+  [/^(cant|qty|unid|und|pcs|piezas|stock)/i, "qty"]
+];
+const CAT_KEYWORDS = [
+  [/foco|luz|luces|led|faro|direccional|stop|halog/i, "Luces"],
+  [/freno|pastilla|disco de|caliper|zapata/i, "Frenos"],
+  [/arrastre|cadena|pi[ñn][oó]n|catalina|sprocket|transmisi|clutch|embrague/i, "Transmisión"],
+  [/amortiguad|suspensi|telesc[oó]p/i, "Suspensión"],
+  [/cdi|bobina|estator|regulador|bater[ií]a|switch|arranque|el[eé]ctric|buj[ií]a|flasher|socket|cablead/i, "Eléctrico"],
+  [/casco/i, "Cascos"],
+  [/aceite|lubric|grasa|refrigerante|l[ií]quido/i, "Lubricantes"],
+  [/llanta|neum[aá]t|\baro\b|\brin\b|c[aá]mara|radios/i, "Llantas y aros"],
+  [/pist[oó]n|cilindro|carburador|empaque|v[aá]lvula|cig[uü]e[ñn]al|filtro|balancin|[aá]rbol de levas|culata/i, "Motor"],
+  [/herramienta|llave |dado |desarmador/i, "Herramientas"],
+  [/guante|espejo|manubrio|pu[ñn]o|maleta|parrilla|slider|protector|funda|candado/i, "Accesorios"]
+];
+let bulk = { rows:[], hasHeader:false, map:[], items:[] };
+let bulkPhotos = [];
+
+function openBulk(){
+  resetBulk();
+  $("bulkAiBtn").style.display = (typeof window.claude?.complete === "function") ? "" : "none";
+  $("dlgBulk").showModal();
+  $("bulkText").focus();
+}
+function resetBulk(){
+  bulk = { rows:[], hasHeader:false, map:[], items:[] };
+  $("bulkText").value = "";
+  $("bulkStepIn").style.display = "";
+  $("bulkStepMap").style.display = "none";
+  $("bulkStepPrev").style.display = "none";
+  $("bulkImportBtn").style.display = "none";
+}
+$("bulkFile").addEventListener("change", function(){
+  const f = this.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{ $("bulkText").value = r.result; analyzeBulk(); };
+  r.readAsText(f);
+  this.value = "";
+});
+
+function parseTable(text){
+  const head = text.split(/\r?\n/).slice(0,6).join("\n");
+  const delim = /\t/.test(head) ? "\t"
+    : ((head.match(/;/g)||[]).length >= (head.match(/,/g)||[]).length ? ";" : ",");
+  const rows = []; let row = [], cur = "", inQ = false;
+  for(let i=0; i<text.length; i++){
+    const ch = text[i];
+    if(inQ){
+      if(ch === '"'){ if(text[i+1] === '"'){ cur += '"'; i++; } else inQ = false; }
+      else cur += ch;
+    }
+    else if(ch === '"') inQ = true;
+    else if(ch === delim){ row.push(cur); cur = ""; }
+    else if(ch === "\n" || ch === "\r"){
+      if(ch === "\r" && text[i+1] === "\n") i++;
+      row.push(cur); cur = "";
+      if(row.some(x => x.trim() !== "")) rows.push(row.map(x=>x.trim()));
+      row = [];
+    }
+    else cur += ch;
+  }
+  row.push(cur);
+  if(row.some(x => x.trim() !== "")) rows.push(row.map(x=>x.trim()));
+  return rows;
+}
+function parseMoney(v){
+  if(typeof v === "number") return v;
+  let s = String(v ?? "").replace(/[^\d.,-]/g, "");
+  if(!s) return 0;
+  const d = s.lastIndexOf("."), c = s.lastIndexOf(",");
+  if(d > -1 && c > -1){
+    const sep = Math.max(d, c);
+    s = s.slice(0, sep).replace(/[^\d-]/g, "") + "." + s.slice(sep + 1).replace(/\D/g, "");
+  } else if(c > -1){
+    const frac = s.length - c - 1;
+    s = (frac <= 2 && s.indexOf(",") === c) ? s.replace(",", ".") : s.replace(/,/g, "");
+  } else if(d > -1){
+    const frac = s.length - d - 1;
+    if(!(frac <= 2 && s.indexOf(".") === d)) s = s.replace(/\./g, "");
+  }
+  return parseFloat(s) || 0;
+}
+function guessCat(name){
+  for(const [re, cat] of CAT_KEYWORDS) if(re.test(name)) return cat;
+  return "Otros";
+}
+function guessField(header, sample){
+  for(const [re, f] of HEADER_HINTS) if(re.test(header)) return f;
+  return "";
+}
+
+function analyzeBulk(){
+  const text = $("bulkText").value.trim();
+  if(!text){ toast("Pega la lista o sube el archivo primero"); return; }
+  const rows = parseTable(text);
+  if(!rows.length){ toast("No se encontraron filas en la lista"); return; }
+  const nCols = Math.max(...rows.map(r => r.length));
+  const first = rows[0];
+  const hdrMap = first.map(h => guessField(h));
+  bulk.hasHeader = hdrMap.some(f => f) && !first.some(c => /^\d+([.,]\d+)?$/.test(c));
+  bulk.rows = bulk.hasHeader ? rows.slice(1) : rows;
+  bulk.map = Array.from({length:nCols}, (_,i)=> bulk.hasHeader ? (hdrMap[i]||"") : "");
+  if(!bulk.hasHeader){
+    // sin encabezado: adivinar por contenido de la primera fila de datos
+    const data = bulk.rows[0] || [];
+    data.forEach((v,i)=>{
+      if(bulk.map.includes("code") === false && /^[A-Za-z]{0,4}[-.]?\d{1,6}[A-Za-z]?$/.test(v)) { if(!bulk.map.includes("code")) bulk.map[i]="code"; return; }
+      if(!bulk.map.includes("name") && /[A-Za-zÁ-ú]{4,}/.test(v)) { bulk.map[i]="name"; return; }
+      if(!bulk.map.includes("price") && /^\s*[^\d]{0,3}[\d.,]+\s*$/.test(v) && parseMoney(v)>0) { bulk.map[i]="price"; return; }
+    });
+  }
+  renderBulkMap(nCols);
+  $("bulkStepIn").style.display = "none";
+  $("bulkStepMap").style.display = "";
+  buildBulkItems();
+}
+function renderBulkMap(nCols){
+  const first = bulk.hasHeader ? null : null;
+  const headers = bulk.hasHeader ? parseTable($("bulkText").value.trim())[0] : [];
+  const sample = bulk.rows[0] || [];
+  $("bulkMapGrid").innerHTML = Array.from({length:nCols}, (_,i)=>`
+    <div class="map-col ${bulk.map[i] ? "mapped":""}">
+      <div class="hd">${esc(headers[i] || "Columna " + (i+1))}</div>
+      <select onchange="bulk.map[${i}]=this.value; buildBulkItems(); this.closest('.map-col').classList.toggle('mapped', !!this.value)">
+        ${FIELD_OPTS.map(([v,l])=>`<option value="${v}" ${bulk.map[i]===v?"selected":""}>${l}</option>`).join("")}
+      </select>
+      <div class="sample">${esc(sample[i] || "")}</div>
+    </div>`).join("");
+}
+function buildBulkItems(){
+  const existing = new Set(contProducts().map(p => normCode(p.code)));
+  const skipDup = $("bulkSkipDup").checked;
+  const items = [];
+  let seq = contProducts().length;
+  for(const r of bulk.rows){
+    const it = {};
+    bulk.map.forEach((f,i)=>{ if(f) it[f] = r[i] ?? ""; });
+    const name = (it.name || it.desc || "").trim();
+    if(!name && !(it.code||"").trim()) continue;
+    seq++;
+    const code = (it.code||"").trim().toUpperCase() || ((activeCont()?.prefix||"HES") + "-" + String(seq).padStart(3,"0"));
+    if(skipDup && existing.has(normCode(code))) continue;
+    items.push({
+      code, name: name || code,
+      desc: (it.name && it.desc) ? String(it.desc).trim() : "",
+      category: (it.category||"").trim() || guessCat(name),
+      compat: (it.compat||"").trim(),
+      price: parseMoney(it.price), mayor: parseMoney(it.mayor),
+      qty: Math.max(0, parseInt(String(it.qty??"1").replace(/\D/g,"")) || 1)
+    });
+  }
+  bulk.items = items;
+  renderBulkPreview();
+}
+function renderBulkPreview(){
+  $("bulkCount").textContent = bulk.items.length;
+  $("bulkPrevTable").innerHTML = `
+    <tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Compat.</th><th>Precio</th><th>Mayor</th><th>Cant.</th></tr>
+    ${bulk.items.slice(0,60).map(it=>`
+      <tr><td class="mono">${esc(it.code)}</td><td>${esc(it.name)}</td><td>${esc(it.category)}</td>
+      <td>${esc(it.compat)}</td><td class="num">${money(it.price)}</td>
+      <td class="num">${it.mayor ? money(it.mayor) : "—"}</td><td class="num">${it.qty}</td></tr>`).join("")}`;
+  $("bulkStepPrev").style.display = "";
+  $("bulkImportBtn").style.display = bulk.items.length ? "" : "none";
+}
+function importBulk(){
+  if(!bulk.items.length) return;
+  const now = Date.now();
+  bulk.items.forEach((it,i)=> state.products.push({
+    id: uid(), containerId: state.active, ...it, photo: null, created: now + i
+  }));
+  save();
+  const n = bulk.items.length;
+  $("dlgBulk").close();
+  render();
+  toast(`⚡ ${n} productos importados — ahora súbeles las fotos en lote 📸`);
+}
+async function aiParseBulk(){
+  const raw = $("bulkText").value.trim();
+  if(!raw){ toast("Pega primero el texto de la factura o lista"); return; }
+  toast("🤖 Analizando con IA…");
+  try{
+    const resp = await window.claude.complete(
+`Extrae los productos de esta lista/factura de repuestos de moto. Responde SOLO un array JSON válido, sin explicación, con objetos de esta forma:
+{"code":"","name":"","desc":"","category":"","compat":"","price":0,"mayor":0,"qty":1}
+Categorías permitidas: ${CATEGORIES.join(", ")}.
+Texto:
+${raw}`);
+    const m = String(resp).match(/\[[\s\S]*\]/);
+    const arr = JSON.parse(m[0]);
+    if(!Array.isArray(arr) || !arr.length) throw 0;
+    const existing = new Set(contProducts().map(p => normCode(p.code)));
+    let seq = contProducts().length;
+    bulk.items = arr.filter(x => x && (x.name || x.code)).map(x => {
+      seq++;
+      return {
+        code: String(x.code||"").toUpperCase() || ((activeCont()?.prefix||"HES") + "-" + String(seq).padStart(3,"0")),
+        name: String(x.name || x.code), desc: String(x.desc||""),
+        category: CATEGORIES.includes(x.category) ? x.category : guessCat(String(x.name||"")),
+        compat: String(x.compat||""), price: parseMoney(x.price), mayor: parseMoney(x.mayor),
+        qty: Math.max(0, parseInt(x.qty)||1)
+      };
+    }).filter(x => !$("bulkSkipDup").checked || !existing.has(normCode(x.code)));
+    $("bulkStepIn").style.display = "none";
+    $("bulkStepMap").style.display = "none";
+    renderBulkPreview();
+    toast(`🤖 IA detectó ${bulk.items.length} productos`);
+  }catch(e){
+    toast("La IA no pudo leer el texto — prueba con «Analizar lista»");
+  }
+}
+
+/* ===== Fotos en lote ===== */
+const normCode = s => String(s??"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+function openBulkPhotos(){
+  if(!contProducts().length){ toast("Primero importa o registra los productos"); return; }
+  bulkPhotos = [];
+  $("photoResults").innerHTML = "";
+  $("photoSummary").textContent = "";
+  $("photosApplyBtn").style.display = "none";
+  $("dlgPhotos").showModal();
+}
+$("photosFile").addEventListener("change", function(){ handlePhotoFiles(this.files); this.value=""; });
+(function(){
+  const dz = $("photosDrop");
+  ["dragover","dragenter"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("over"); }));
+  ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("over"); }));
+  dz.addEventListener("drop", e=> handlePhotoFiles(e.dataTransfer.files));
+})();
+function handlePhotoFiles(files){
+  const imgs = [...files].filter(f => f.type.startsWith("image/"));
+  if(!imgs.length){ toast("No se encontraron imágenes"); return; }
+  let pending = imgs.length;
+  imgs.forEach(f => loadPhoto(f, url => {
+    const base = f.name.replace(/\.[^.]+$/, "");
+    const nb = normCode(base);
+    // buscar el producto cuyo código coincida (el código más largo contenido en el nombre)
+    let best = null;
+    for(const p of contProducts()){
+      const nc = normCode(p.code);
+      if(nc.length >= 3 && (nb === nc || nb.includes(nc))){
+        if(!best || nc.length > normCode(best.code).length) best = p;
+      }
+    }
+    bulkPhotos.push({ name: f.name, url, productId: best ? best.id : "" });
+    if(--pending === 0) renderPhotoRows();
+  }));
+}
+function renderPhotoRows(){
+  const ps = contProducts();
+  $("photoResults").innerHTML = bulkPhotos.map((bp,i)=>{
+    const matched = ps.find(p=>p.id===bp.productId);
+    return `<div class="photo-row">
+      <img src="${bp.url}" alt="">
+      <div style="min-width:0">
+        <div class="fn mono">${esc(bp.name)}</div>
+        <div class="st ${matched?"ok":"no"}">${matched ? "✓ " + esc(matched.code) + " · " + esc(matched.name) : "Sin coincidencia — asígnala:"}</div>
+      </div>
+      <select onchange="bulkPhotos[${i}].productId=this.value; renderPhotoSummary()">
+        <option value="">— No usar —</option>
+        ${ps.map(p=>`<option value="${p.id}" ${p.id===bp.productId?"selected":""}>${esc(p.code)} · ${esc(p.name.slice(0,30))}</option>`).join("")}
+      </select>
+    </div>`;
+  }).join("");
+  renderPhotoSummary();
+}
+function renderPhotoSummary(){
+  const n = bulkPhotos.filter(bp=>bp.productId).length;
+  $("photoSummary").textContent = `${n} de ${bulkPhotos.length} fotos asignadas`;
+  $("photosApplyBtn").style.display = n ? "" : "none";
+}
+function applyBulkPhotos(){
+  let n = 0;
+  bulkPhotos.forEach(bp => {
+    const p = state.products.find(x => x.id === bp.productId);
+    if(p){ p.photo = bp.url; n++; }
+  });
+  save();
+  $("dlgPhotos").close();
+  render();
+  toast(`📸 ${n} fotos asignadas a sus productos`);
 }
 
 /* ================= INICIO ================= */
