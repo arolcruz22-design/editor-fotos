@@ -328,7 +328,11 @@ dialog .mod-body{flex:1; min-height:0}
 /* ============ PUBLICIDAD (imágenes para redes) ============ */
 .ads-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px}
 .ad-item{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:8px; text-align:center}
-.ad-item .thumb{width:100%; aspect-ratio:1/1; border-radius:8px; object-fit:cover; background:var(--chip); cursor:pointer}
+.ad-item .thumb{width:100%; aspect-ratio:1/1; border-radius:8px; object-fit:contain; cursor:pointer;
+  background:repeating-conic-gradient(#dfe1e5 0% 25%, #f4f5f7 0% 50%) 0 0/20px 20px}
+:root[data-theme="dark"] .ad-item .thumb, @media (prefers-color-scheme:dark){ .ad-item .thumb{background:repeating-conic-gradient(#2a2e39 0% 25%, #222530 0% 50%) 0 0/20px 20px} }
+.ads-optrow{display:flex; gap:6px; flex-wrap:wrap}
+.ads-optrow .szbtn{padding:6px 12px; font-size:12.5px}
 .ad-item .nm{font-size:11.5px; font-weight:600; margin:6px 0 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .ad-item .cd{font-size:10.5px; color:var(--muted); margin-bottom:6px}
 .ad-item .row{display:flex; gap:6px}
@@ -443,12 +447,8 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
   <form method="dialog" novalidate onsubmit="return false">
     <div class="mod-head"><h2>📢 Publicidad por producto</h2><button class="x" onclick="dlgAds.close()" aria-label="Cerrar">✕</button></div>
     <div class="mod-body">
-      <div class="hint-box">
-        📸 Genera una <b>imagen cuadrada lista para redes</b> (Instagram, WhatsApp, Facebook) de cada producto,
-        con su foto, código, nombre, modelo y descripción — <b>sin precio</b>.
-        Compártela o descárgala una por una, o baja todas juntas.
-      </div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px">
+      <div id="adsOpts" class="style-fields" style="gap:14px"></div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:4px">
         <button class="btn primary" id="adsAllBtn" onclick="downloadAllAds()">⬇️ Descargar todas (ZIP)</button>
         <span id="adsCount" style="color:var(--muted); font-size:13px"></span>
       </div>
@@ -2422,110 +2422,228 @@ function wrapCanvasText(cx, text, maxW, maxLines){
   }
   return lines;
 }
-async function renderAdCanvas(p){
-  const S = 1080;
-  const acc = ACCENTS[state.style.accent] || ACCENTS.rojo;
-  const up = s => state.style.upperCase ? String(s||"").toUpperCase() : String(s||"");
-  const cv = document.createElement("canvas"); cv.width = S; cv.height = S;
-  const cx = cv.getContext("2d");
-  // fondo estudio
-  const bg = cx.createLinearGradient(0,0,0,S);
-  bg.addColorStop(0,"#ffffff"); bg.addColorStop(1,"#eef0f3");
-  cx.fillStyle = bg; cx.fillRect(0,0,S,S);
-  // franja superior de marca
-  const top = cx.createLinearGradient(0,0,S,0);
-  top.addColorStop(0,acc.brand); top.addColorStop(1,acc.brand2);
-  cx.fillStyle = top; cx.fillRect(0,0,S,16);
-  // encabezado
-  cx.textBaseline = "alphabetic";
-  cx.font = "900 72px Arial, sans-serif";
-  const hg = cx.createLinearGradient(60,0,360,0);
-  hg.addColorStop(0,acc.brand); hg.addColorStop(1,acc.brand2);
-  cx.fillStyle = hg; cx.fillText("HESED", 60, 104);
-  cx.font = "700 21px Arial, sans-serif"; cx.fillStyle = "#5d6470";
-  cx.fillText("T O D O M O T O S", 64, 132);
-  // categoría (arriba a la derecha)
-  if(p.category){
-    cx.font = "800 24px Arial, sans-serif";
-    const ct = up(p.category), cw = cx.measureText(ct).width;
-    cx.fillStyle = "#fdf3e3"; roundRectPath(cx, S-60-cw-32, 66, cw+32, 44, 10); cx.fill();
-    cx.fillStyle = acc.accent; cx.fillText(ct, S-60-cw-16, 96);
-  }
-  // foto
-  const photoY = 170, photoH = 560;
-  if(p.photo){
-    try{
-      const img = await loadImgEl(p.photo);
-      const k = Math.min((S-160)/img.naturalWidth, photoH/img.naturalHeight);
-      const w = img.naturalWidth*k, h = img.naturalHeight*k;
-      // sombra suave de piso
-      cx.save();
-      const sg = cx.createRadialGradient(S/2, photoY+h+8, 0, S/2, photoY+h+8, w*0.42);
-      sg.addColorStop(0,"rgba(20,22,30,.16)"); sg.addColorStop(1,"rgba(20,22,30,0)");
-      cx.fillStyle = sg; cx.beginPath(); cx.ellipse(S/2, photoY+h+6, w*0.42, 18, 0, 0, Math.PI*2); cx.fill();
-      cx.restore();
-      cx.drawImage(img, (S-w)/2, photoY+(photoH-h)/2, w, h);
-    }catch(e){}
-  }else{
-    cx.fillStyle = "#f2f2f4"; roundRectPath(cx, 80, photoY, S-160, photoH, 16); cx.fill();
-    cx.fillStyle = "#b8bcc4"; cx.font = "700 40px Arial"; cx.textAlign = "center";
-    cx.fillText("SIN FOTO", S/2, photoY+photoH/2); cx.textAlign = "left";
-  }
-  // bloque de texto inferior
-  let ty = 792;
-  // código en chip
-  cx.font = "800 40px Arial, sans-serif";
-  const code = up(p.code), cwid = cx.measureText(code).width;
-  cx.fillStyle = "#1c1e24"; roundRectPath(cx, 60, ty-46, cwid+40, 60, 12); cx.fill();
-  cx.fillStyle = "#ffd28a"; cx.fillText(code, 80, ty);
-  // cantidad a la derecha
-  cx.font = "700 30px Arial"; cx.fillStyle = "#8a8f9a"; cx.textAlign = "right";
-  cx.fillText("x"+(Number(p.qty)||0), S-60, ty); cx.textAlign = "left";
-  ty += 66;
-  // nombre
-  cx.fillStyle = "#17181c"; cx.font = "800 52px Arial, sans-serif";
-  wrapCanvasText(cx, up(p.name), S-120, 2).forEach(ln=>{ cx.fillText(ln, 60, ty); ty += 60; });
-  // modelo / compatibilidad
-  if(p.compat){
-    cx.font = "700 32px Arial, sans-serif"; cx.fillStyle = acc.accent;
-    cx.fillText("🏍 "+up(p.compat), 60, ty+4); ty += 46;
-  }
-  // descripción
-  if(p.desc){
-    cx.font = "400 28px Arial, sans-serif"; cx.fillStyle = "#5d6470";
-    wrapCanvasText(cx, up(p.desc), S-120, 2).forEach(ln=>{ cx.fillText(ln, 60, ty+2); ty += 36; });
-  }
-  // franja inferior de marca
-  cx.fillStyle = top; cx.fillRect(0,S-14,S,14);
-  return cv;
+const AD_RATIOS = { "1:1":[1080,1080], "4:5":[1080,1350], "9:16":[1080,1920], "16:9":[1920,1080] };
+const AD_RATIO_LABELS = { "1:1":"1:1 · Post", "4:5":"4:5 · Feed", "9:16":"9:16 · Historia", "16:9":"16:9 · Ancho" };
+const AD_BGS = { studio:"Blanco estudio", light:"Gris claro", brandgrad:"Degradado marca", dark:"Estudio oscuro", black:"Negro", solid:"Color de marca", transparent:"Transparente (PNG)" };
+function defaultAdOpts(){
+  return { ratio:"1:1", bg:"studio", knockout:true, shadow:true, frame:false, productScale:100,
+    show:{ brand:true, category:true, code:true, name:true, compat:true, desc:true, qty:true } };
 }
+let adOpts = defaultAdOpts();
+let cutoutCache = {};   // id -> canvas recortado (o null si no se pudo)
+const adIsPng = () => adOpts.bg === "transparent";
+const adDark = () => ["dark","black","solid","brandgrad"].includes(adOpts.bg);
 function roundRectPath(cx,x,y,w,h,r){
   cx.beginPath();
   cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r); cx.arcTo(x+w,y+h,x,y+h,r);
   cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath();
 }
-function canvasToBlob(cv){
-  return new Promise(res=> cv.toBlob(b=>res(b), "image/jpeg", 0.9));
+
+// Recorta el fondo de una foto (IA de borde): detecta el fondo liso desde los
+// bordes o usa la transparencia existente, y devuelve un lienzo con el producto
+// recortado (fondo transparente), o null si el fondo es demasiado complejo.
+function cutoutCanvas(img){
+  const MAX = 760; let w = img.naturalWidth, h = img.naturalHeight;
+  const k = Math.min(1, MAX/Math.max(w,h)); w = Math.max(2,Math.round(w*k)); h = Math.max(2,Math.round(h*k));
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const cx = cv.getContext("2d",{willReadFrequently:true});
+  cx.drawImage(img,0,0,w,h);
+  const id = cx.getImageData(0,0,w,h), d = id.data, N = w*h;
+  let mask = null, hasAlpha = false;
+  for(let i=3;i<d.length;i+=4){ if(d[i]<245){ hasAlpha = true; break; } }
+  if(hasAlpha){ mask = new Uint8Array(N); for(let q=0;q<N;q++) mask[q] = d[q*4+3]>60?255:0; }
+  else{
+    const border = []; const grab = (x,y)=>{ const i=(y*w+x)*4; border.push([d[i],d[i+1],d[i+2]]); };
+    for(let x=0;x<w;x+=2){ grab(x,0); grab(x,h-1); } for(let y=0;y<h;y+=2){ grab(0,y); grab(w-1,y); }
+    const n = border.length, mean = [0,1,2].map(c=>border.reduce((a,q)=>a+q[c],0)/n);
+    const sd = Math.sqrt([0,1,2].map(c=>border.reduce((a,q)=>a+(q[c]-mean[c])**2,0)/n).reduce((a,b)=>a+b)/3);
+    if(sd < 48){
+      const tol = Math.max(42, sd*2.8), bg = new Uint8Array(N), stack = [];
+      const tryP = q=>{ if(bg[q]) return; const i=q*4, dr=d[i]-mean[0], dg=d[i+1]-mean[1], db=d[i+2]-mean[2];
+        if(Math.sqrt((dr*dr+dg*dg+db*db)/3) < tol){ bg[q]=1; stack.push(q); } };
+      for(let x=0;x<w;x++){ tryP(x); tryP((h-1)*w+x); } for(let y=0;y<h;y++){ tryP(y*w); tryP(y*w+w-1); }
+      while(stack.length){ const q=stack.pop(), x=q%w, y=(q/w)|0;
+        if(x>0)tryP(q-1); if(x<w-1)tryP(q+1); if(y>0)tryP(q-w); if(y<h-1)tryP(q+w); }
+      let fg=0; for(let q=0;q<N;q++) if(!bg[q]) fg++;
+      if(fg>N*0.02 && fg<N*0.97){ mask=new Uint8Array(N); for(let q=0;q<N;q++) mask[q]=bg[q]?0:255; }
+    }
+  }
+  if(!mask) return null;
+  featherMask(mask,w,h);
+  for(let q=0;q<N;q++) d[q*4+3] = mask[q];
+  cx.putImageData(id,0,0);
+  let minX=w,minY=h,maxX=-1,maxY=-1;
+  for(let y=0;y<h;y++) for(let x=0;x<w;x++){ if(mask[y*w+x]>90){ if(x<minX)minX=x;if(x>maxX)maxX=x;if(y<minY)minY=y;if(y>maxY)maxY=y; } }
+  if(maxX<0) return null;
+  const bw=maxX-minX+1, bh=maxY-minY+1;
+  const out=document.createElement("canvas"); out.width=bw; out.height=bh;
+  out.getContext("2d").drawImage(cv,minX,minY,bw,bh,0,0,bw,bh);
+  return out;
+}
+async function getCutout(p){
+  if(p.id in cutoutCache) return cutoutCache[p.id];
+  let res = null;
+  try{ res = cutoutCanvas(await loadImgEl(p.photo)); }catch(e){}
+  cutoutCache[p.id] = res;
+  return res;
+}
+function drawAdBg(cx,W,H,acc){
+  const bg = adOpts.bg;
+  if(bg === "transparent") return;
+  if(bg === "studio"){ const g=cx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#ffffff"); g.addColorStop(1,"#eef0f3"); cx.fillStyle=g; }
+  else if(bg === "light") cx.fillStyle = "#f3f4f6";
+  else if(bg === "dark"){ const g=cx.createRadialGradient(W/2,H*0.4,W*0.1,W/2,H*0.55,W*0.85); g.addColorStop(0,"#2b3039"); g.addColorStop(1,"#12151d"); cx.fillStyle=g; }
+  else if(bg === "black") cx.fillStyle = "#0e1014";
+  else if(bg === "solid") cx.fillStyle = acc.brand;
+  else if(bg === "brandgrad"){ const g=cx.createLinearGradient(0,0,W,H); g.addColorStop(0,acc.brand); g.addColorStop(1,acc.brand2); cx.fillStyle=g; }
+  else cx.fillStyle = "#ffffff";
+  cx.fillRect(0,0,W,H);
+}
+async function drawAdProduct(cx,W,region,p,dark){
+  let src = null, isCut = false;
+  if(p.photo){
+    if(adOpts.knockout){ const cut = await getCutout(p); if(cut){ src = cut; isCut = true; } }
+    if(!src){ try{ src = await loadImgEl(p.photo); }catch(e){} }
+  }
+  const u = W/1080;
+  if(!src){
+    cx.fillStyle = dark ? "rgba(255,255,255,.08)" : "#f2f2f4";
+    roundRectPath(cx, region.x, region.y, region.w, region.h, 16*u); cx.fill();
+    cx.fillStyle = dark ? "rgba(255,255,255,.4)" : "#b8bcc4"; cx.font = `700 ${40*u}px Arial`;
+    cx.textAlign="center"; cx.textBaseline="middle";
+    cx.fillText("SIN FOTO", region.x+region.w/2, region.y+region.h/2);
+    cx.textAlign="left"; cx.textBaseline="alphabetic"; return;
+  }
+  const iw = src.naturalWidth||src.width, ih = src.naturalHeight||src.height;
+  const scale = Math.min(region.w/iw, region.h/ih) * (adOpts.productScale/100);
+  const w = iw*scale, h = ih*scale;
+  const x = region.x+(region.w-w)/2, y = region.y+(region.h-h)/2;
+  // Si la IA no pudo recortar (foto con fondo complejo) y el fondo del anuncio
+  // es de color/oscuro/transparente, ponemos el producto sobre una tarjeta blanca
+  // con sombra para que no choque con el fondo — se ve intencional y limpio.
+  if(!isCut && (dark || adOpts.bg === "transparent")){
+    const pad = 16*u;
+    cx.save();
+    cx.shadowColor = "rgba(0,0,0,.28)"; cx.shadowBlur = 34*u; cx.shadowOffsetY = 12*u;
+    cx.fillStyle = "#ffffff"; roundRectPath(cx, x-pad, y-pad, w+2*pad, h+2*pad, 20*u); cx.fill();
+    cx.restore();
+    cx.drawImage(src, x, y, w, h);
+    return;
+  }
+  if(adOpts.shadow && adOpts.bg !== "transparent"){
+    cx.save();
+    const cxp = x+w/2, cyp = y+h+6*u, rx = Math.max(40,w*0.42), ry = Math.max(10,h*0.05);
+    const sg = cx.createRadialGradient(cxp,cyp,0,cxp,cyp,rx);
+    sg.addColorStop(0,"rgba(8,10,16,.30)"); sg.addColorStop(.7,"rgba(8,10,16,.10)"); sg.addColorStop(1,"rgba(8,10,16,0)");
+    cx.translate(cxp,cyp); cx.scale(1,ry/rx); cx.translate(-cxp,-cyp);
+    cx.fillStyle = sg; cx.beginPath(); cx.arc(cxp,cyp,rx,0,Math.PI*2); cx.fill(); cx.restore();
+  }
+  cx.drawImage(src,x,y,w,h);
+}
+async function renderAd(p){
+  const acc = ACCENTS[state.style.accent] || ACCENTS.rojo;
+  const up = s => state.style.upperCase ? String(s||"").toUpperCase() : String(s||"");
+  const [W,H] = AD_RATIOS[adOpts.ratio] || AD_RATIOS["1:1"];
+  const u = W/1080, dark = adDark(), s = adOpts.show;
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+  const cx = cv.getContext("2d");
+  drawAdBg(cx,W,H,acc);
+  cx.textBaseline = "alphabetic";
+  const hasTop = s.brand || s.category;
+  const hasBottom = s.code || s.qty || s.name || s.compat || s.desc;
+  // ----- encabezado -----
+  const topH = hasTop ? 150*u : 24*u;
+  if(s.brand){
+    const strip = cx.createLinearGradient(0,0,W,0); strip.addColorStop(0,acc.brand); strip.addColorStop(1,acc.brand2);
+    cx.fillStyle = strip; cx.fillRect(0,0,W,16*u);
+    cx.font = `900 ${72*u}px Arial`;
+    const hg = cx.createLinearGradient(60*u,0,360*u,0); hg.addColorStop(0,acc.brand); hg.addColorStop(1,acc.brand2);
+    cx.fillStyle = hg; cx.fillText("HESED", 60*u, 104*u);
+    cx.font = `700 ${21*u}px Arial`; cx.fillStyle = dark ? "#c9cfda" : "#5d6470";
+    cx.fillText("T O D O M O T O S", 64*u, 132*u);
+  }
+  if(s.category && p.category){
+    cx.font = `800 ${24*u}px Arial`;
+    const ct = up(p.category), cw = cx.measureText(ct).width;
+    cx.fillStyle = dark ? "rgba(255,255,255,.14)" : "#fdf3e3";
+    roundRectPath(cx, W-60*u-cw-32*u, 66*u, cw+32*u, 44*u, 10*u); cx.fill();
+    cx.fillStyle = dark ? "#ffd9a3" : acc.accent; cx.fillText(ct, W-60*u-cw-16*u, 96*u);
+  }
+  // ----- alto reservado del bloque inferior -----
+  let botH = 0;
+  if(hasBottom){
+    botH = 26*u;
+    if(s.code || s.qty) botH += 66*u;
+    if(s.name) botH += 2*60*u;
+    if(s.compat) botH += 46*u;
+    if(s.desc) botH += 2*36*u;
+  }
+  // ----- producto -----
+  const padTop = hasTop ? topH+10*u : 60*u;
+  const region = { x:60*u, y:padTop, w:W-120*u, h: H - padTop - (hasBottom ? botH : 60*u) };
+  await drawAdProduct(cx,W,region,p,dark);
+  // ----- bloque inferior -----
+  if(hasBottom){
+    let ty = H - botH + 46*u;
+    if(s.code || s.qty){
+      if(s.code){
+        cx.font = `800 ${40*u}px Arial`; const code = up(p.code), cwid = cx.measureText(code).width;
+        cx.fillStyle = dark ? "rgba(255,255,255,.16)" : "#1c1e24";
+        roundRectPath(cx, 60*u, ty-46*u, cwid+40*u, 60*u, 12*u); cx.fill();
+        cx.fillStyle = "#ffd28a"; cx.fillText(code, 80*u, ty);
+      }
+      if(s.qty){
+        cx.font = `700 ${30*u}px Arial`; cx.fillStyle = dark ? "#c9cfda" : "#8a8f9a";
+        cx.textAlign = "right"; cx.fillText("x"+(Number(p.qty)||0), W-60*u, ty); cx.textAlign = "left";
+      }
+      ty += 66*u;
+    }
+    if(s.name){
+      cx.fillStyle = dark ? "#ffffff" : "#17181c"; cx.font = `800 ${52*u}px Arial`;
+      wrapCanvasText(cx, up(p.name), W-120*u, 2).forEach(ln=>{ cx.fillText(ln, 60*u, ty); ty += 60*u; });
+    }
+    if(s.compat && p.compat){
+      cx.font = `700 ${32*u}px Arial`; cx.fillStyle = dark ? "#ffd9a3" : acc.accent;
+      cx.fillText("🏍 "+up(p.compat), 60*u, ty+4*u); ty += 46*u;
+    }
+    if(s.desc && p.desc){
+      cx.font = `400 ${28*u}px Arial`; cx.fillStyle = dark ? "#c9cfda" : "#5d6470";
+      wrapCanvasText(cx, up(p.desc), W-120*u, 2).forEach(ln=>{ cx.fillText(ln, 60*u, ty+2*u); ty += 36*u; });
+    }
+    if(s.brand){
+      const strip = cx.createLinearGradient(0,0,W,0); strip.addColorStop(0,acc.brand); strip.addColorStop(1,acc.brand2);
+      cx.fillStyle = strip; cx.fillRect(0, H-14*u, W, 14*u);
+    }
+  }
+  // ----- marco -----
+  if(adOpts.frame){
+    cx.strokeStyle = dark ? "rgba(255,255,255,.55)" : "rgba(20,22,30,.4)";
+    cx.lineWidth = Math.max(4, 6*u); const m = 30*u;
+    cx.strokeRect(m, m, W-2*m, H-2*m);
+  }
+  return cv;
 }
 async function adBlobFor(p){
   if(adCache[p.id]) return adCache[p.id];
-  const cv = await renderAdCanvas(p);
-  const blob = await canvasToBlob(cv);
+  const cv = await renderAd(p);
+  const png = adIsPng();
+  const blob = await new Promise(res=> cv.toBlob(b=>res(b), png?"image/png":"image/jpeg", png?undefined:0.9));
   adCache[p.id] = blob;
   return blob;
 }
-function adFileName(p){ return "PUBLI-" + String(p.code||"producto").replace(/[^\wÁ-ú\-]/g,"") + ".jpg"; }
+function adFileName(p){ return "PUBLI-" + String(p.code||"producto").replace(/[^\wÁ-ú\-]/g,"") + (adIsPng()?".png":".jpg"); }
 
 function adProducts(){
   let ps = contProducts().slice();
   if(ui.filterCat) ps = ps.filter(p=>p.category===ui.filterCat);
   return ps.sort((a,b)=> String(a.code).localeCompare(String(b.code),"es",{numeric:true}));
 }
+let adRenderToken = 0;
 function openAdsModal(){
   const ps = adProducts();
   if(!ps.length){ toast("No hay productos para publicitar"); return; }
-  adCache = {};
-  $("adsCount").textContent = `${ps.length} productos`;
+  adCache = {}; cutoutCache = {};
+  renderAdsOpts();
   $("adsGrid").innerHTML = ps.map(p=>`
     <div class="ad-item" id="ad-${p.id}">
       <div class="thumb" style="display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:12px">⏳</div>
@@ -2537,23 +2655,92 @@ function openAdsModal(){
       </div>
     </div>`).join("");
   $("dlgAds").showModal();
-  // generar miniaturas progresivamente
+  regenAdThumbs();
+}
+function regenAdThumbs(){
+  const ps = adProducts();
+  $("adsCount").textContent = `${ps.length} productos`;
+  const token = ++adRenderToken;
   (async ()=>{
     for(const p of ps){
-      if(!$("dlgAds").open) break;
+      if(!$("dlgAds").open || token !== adRenderToken) break;
       try{
         const blob = await adBlobFor(p);
-        const box = document.querySelector(`#ad-${p.id} .thumb`);
-        if(box){ const url = URL.createObjectURL(blob); box.outerHTML = `<img class="thumb" src="${url}" alt="" onclick="downloadAd('${p.id}')">`; }
+        if(token !== adRenderToken) break;
+        const el = document.querySelector(`#ad-${p.id}`);
+        if(el){
+          const old = el.querySelector(".thumb"); const url = URL.createObjectURL(blob);
+          const img = document.createElement("img"); img.className = "thumb"; img.src = url; img.alt = "";
+          img.onclick = ()=> downloadAd(p.id);
+          old.replaceWith(img);
+        }
       }catch(e){}
       await new Promise(r=> setTimeout(r, 0));
     }
   })();
 }
+function pill(active, label, onclick){
+  return `<button type="button" class="szbtn ${active?"sel":""}" onclick="${onclick}">${label}</button>`;
+}
+function renderAdsOpts(){
+  const o = adOpts, s = o.show;
+  $("adsOpts").innerHTML = `
+    <div class="hint-box">📸 Genera imágenes profesionales para redes. Elige qué se ve, el fondo y el tamaño; la IA recorta el fondo del producto para que combine con el diseño. <b>Sin precio.</b></div>
+    <div>
+      <label>Plantilla rápida</label>
+      <div class="ads-optrow">
+        ${pill(false,"✅ Completa","applyAdPreset('full')")}
+        ${pill(false,"🖼 Solo producto (sin texto)","applyAdPreset('solo')")}
+        ${pill(false,"🏷 Producto + código","applyAdPreset('codigo')")}
+      </div>
+    </div>
+    <div>
+      <label>Qué se ve en la imagen</label>
+      <div class="ads-optrow">
+        ${["brand:Marca","category:Categoría","code:Código","name:Nombre","compat:Modelo","desc:Descripción","qty:Cantidad"].map(kv=>{
+          const [k,lb]=kv.split(":"); return pill(s[k], lb, `toggleAdShow('${k}')`); }).join("")}
+      </div>
+    </div>
+    <div>
+      <label>Fondo</label>
+      <div class="ads-optrow">
+        ${Object.entries(AD_BGS).map(([k,lb])=> pill(o.bg===k, lb, `setAdOpt('bg','${k}')`)).join("")}
+      </div>
+    </div>
+    <div>
+      <label>Tamaño / formato</label>
+      <div class="ads-optrow">
+        ${Object.entries(AD_RATIO_LABELS).map(([k,lb])=> pill(o.ratio===k, lb, `setAdOpt('ratio','${k}')`)).join("")}
+      </div>
+    </div>
+    <div>
+      <label>Efectos profesionales</label>
+      <div class="ads-optrow">
+        ${pill(o.knockout,"✂️ Quitar fondo (IA)","toggleAdOpt('knockout')")}
+        ${pill(o.shadow,"🌑 Sombra","toggleAdOpt('shadow')")}
+        ${pill(o.frame,"🔲 Marco","toggleAdOpt('frame')")}
+      </div>
+    </div>
+    <div>
+      <label>Tamaño del producto: <span id="adScaleVal">${o.productScale}%</span></label>
+      <input type="range" min="55" max="140" value="${o.productScale}" style="accent-color:var(--brand2)"
+        oninput="$('adScaleVal').textContent=this.value+'%'" onchange="setAdScale(this.value)">
+    </div>`;
+}
+function setAdOpt(k,v){ adOpts[k]=v; adCache={}; renderAdsOpts(); regenAdThumbs(); }
+function toggleAdOpt(k){ adOpts[k]=!adOpts[k]; adCache={}; renderAdsOpts(); regenAdThumbs(); }
+function toggleAdShow(k){ adOpts.show[k]=!adOpts.show[k]; adCache={}; renderAdsOpts(); regenAdThumbs(); }
+function setAdScale(v){ adOpts.productScale=+v; adCache={}; regenAdThumbs(); }
+function applyAdPreset(name){
+  if(name==="full") adOpts.show = { brand:true, category:true, code:true, name:true, compat:true, desc:true, qty:true };
+  else if(name==="solo") adOpts.show = { brand:false, category:false, code:false, name:false, compat:false, desc:false, qty:false };
+  else if(name==="codigo") adOpts.show = { brand:true, category:false, code:true, name:true, compat:false, desc:false, qty:false };
+  adCache={}; renderAdsOpts(); regenAdThumbs();
+}
 async function shareAd(id){
   const p = state.products.find(x=>x.id===id); if(!p) return;
   const blob = await adBlobFor(p);
-  const file = new File([blob], adFileName(p), {type:"image/jpeg"});
+  const file = new File([blob], adFileName(p), {type:blob.type});
   if(navigator.share && navigator.canShare?.({files:[file]})){
     try{ await navigator.share({files:[file], title:p.name}); return; }
     catch(e){ if(e.name==="AbortError") return; }
@@ -2573,7 +2760,7 @@ async function downloadAllAds(){
   for(let i=0;i<ps.length;i++){
     const blob = await adBlobFor(ps[i]);
     let nm = adFileName(ps[i]);
-    if(usedNames[nm]){ const k = ++usedNames[nm]; nm = nm.replace(/\.jpg$/, "-"+k+".jpg"); }
+    if(usedNames[nm]){ const k = ++usedNames[nm]; nm = nm.replace(/\.(jpg|png)$/, "-"+k+".$1"); }
     else usedNames[nm] = 1;
     files.push({ name: nm, bytes: new Uint8Array(await blob.arrayBuffer()) });
     bar.firstElementChild.style.width = Math.round((i+1)/ps.length*100)+"%";
