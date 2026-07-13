@@ -402,6 +402,48 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
 
 <div id="toast" role="status"></div>
 
+<!-- ===== Archivo exportado listo ===== -->
+<dialog id="dlgExport">
+  <form method="dialog" novalidate onsubmit="return false">
+    <div class="mod-head"><h2>✅ Tu archivo está listo</h2><button class="x" onclick="dlgExport.close()" aria-label="Cerrar">✕</button></div>
+    <div class="mod-body">
+      <div style="display:flex; align-items:center; gap:12px">
+        <span style="font-size:30px">📄</span>
+        <div style="min-width:0">
+          <div class="mono" id="expName" style="font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap"></div>
+          <div style="font-size:12.5px; color:var(--muted)" id="expSize"></div>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap">
+        <button class="btn primary" onclick="expDownload()">⬇️ Descargar</button>
+        <button class="btn" onclick="expOpen()">👁 Abrir</button>
+        <button class="btn wa" id="expShareBtn" onclick="expShare()">📤 Compartir</button>
+      </div>
+      <p id="expHint" style="margin:0; font-size:13px; color:var(--muted)"></p>
+    </div>
+    <div class="mod-foot">
+      <span class="spacer"></span>
+      <button class="btn" onclick="dlgExport.close()">Cerrar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ===== Lista WhatsApp (copia manual) ===== -->
+<dialog id="dlgWa">
+  <form method="dialog" novalidate onsubmit="return false">
+    <div class="mod-head"><h2>📱 Lista para WhatsApp</h2><button class="x" onclick="dlgWa.close()" aria-label="Cerrar">✕</button></div>
+    <div class="mod-body">
+      <p style="margin:0; font-size:13.5px; color:var(--muted)">Mantén presionado (o Ctrl+C) para copiar la lista y pégala en WhatsApp:</p>
+      <textarea id="waText" rows="12" readonly style="font-size:13px" onclick="this.select()"></textarea>
+    </div>
+    <div class="mod-foot">
+      <span class="spacer"></span>
+      <button class="btn" onclick="dlgWa.close()">Cerrar</button>
+      <button class="btn primary" onclick="tryCopy(waText.value,'📱 Lista copiada — pégala en WhatsApp')">Copiar</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- ===== Importación masiva ===== -->
 <dialog id="dlgBulk" class="wide">
   <form method="dialog" novalidate onsubmit="return false">
@@ -1058,8 +1100,8 @@ function catalogHTML(){
       <option value="priceAsc" ${ui.sort==="priceAsc"?"selected":""}>Precio: menor a mayor</option>
       <option value="priceDesc" ${ui.sort==="priceDesc"?"selected":""}>Precio: mayor a menor</option>
     </select>
-    <button class="btn" onclick="window.print()">🖨 Imprimir / PDF</button>
-    <button class="btn wa" onclick="copyWhatsApp()">📱 Lista WhatsApp</button>
+    <button class="btn primary" onclick="exportPDF()">📄 Catálogo PDF</button>
+    <button class="btn wa" onclick="sendWhatsApp()">📱 Lista WhatsApp</button>
     <button class="btn" onclick="exportCSV()">📊 Excel (CSV)</button>
     <button class="btn" onclick="exportJSON()">💾 Respaldo</button>
     <button class="btn ghost" onclick="importJSON()">Importar</button>
@@ -1222,11 +1264,234 @@ function switchContainer(id){ state.active = id; wiz = {step:0, data:{}}; save()
 function setTab(t){ ui.tab = t; ui.search=""; ui.filterCat=""; render(); }
 
 /* ================= EXPORTAR ================= */
-function download(name, blob){
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+let exportBlob = null, exportName = "";
+const isMobile = ()=> matchMedia("(pointer:coarse)").matches;
+function openExportModal(blob, name, hint){
+  exportBlob = blob; exportName = name;
+  $("expName").textContent = name;
+  $("expSize").textContent = (blob.size/1024/1024 >= 1)
+    ? (blob.size/1048576).toFixed(1) + " MB" : Math.max(1, Math.round(blob.size/1024)) + " KB";
+  $("expHint").textContent = hint || (isMobile()
+    ? "En el celular: usa «Compartir» para guardarlo o enviarlo directo por WhatsApp."
+    : "Usa «Descargar»; si tu navegador no lo permite, prueba «Abrir» y guárdalo desde ahí.");
+  $("expShareBtn").style.display = (navigator.share && navigator.canShare?.({files:[new File([""],"x.txt",{type:"text/plain"})]})) ? "" : "none";
+  $("dlgExport").showModal();
+}
+function expDownload(){
+  try{
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(exportBlob); a.download = exportName;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 3000);
+    toast("⬇️ " + exportName);
+  }catch(e){ toast("No se pudo descargar — prueba «Abrir» o «Compartir»"); }
+}
+function expOpen(){
+  const url = URL.createObjectURL(exportBlob);
+  const win = window.open(url, "_blank");
+  if(!win) toast("El navegador bloqueó la ventana — usa «Descargar» o «Compartir»");
+}
+async function expShare(){
+  try{
+    const f = new File([exportBlob], exportName, {type: exportBlob.type});
+    await navigator.share({files:[f], title: exportName});
+  }catch(e){
+    if(e.name !== "AbortError") toast("No se pudo compartir — usa «Descargar»");
+  }
+}
+function download(name, blob){ openExportModal(blob, name); }
+
+/* ===== Generador de PDF (catálogo profesional, sin librerías) ===== */
+async function imgToJpeg(src, max){
+  const img = await loadImgEl(src);
+  let w = img.naturalWidth, h = img.naturalHeight;
+  const k = Math.min(1, max/Math.max(w,h));
+  w = Math.max(1, Math.round(w*k)); h = Math.max(1, Math.round(h*k));
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const cx = cv.getContext("2d");
+  cx.fillStyle = "#ffffff"; cx.fillRect(0,0,w,h);
+  cx.drawImage(img, 0, 0, w, h);
+  const bin = atob(cv.toDataURL("image/jpeg", 0.82).split(",")[1]);
+  const bytes = new Uint8Array(bin.length);
+  for(let i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return {bytes, w, h};
+}
+function pdfTxt(s){
+  return String(s??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+}
+function pdfW(s, size, bold){
+  // ancho aproximado de Helvetica
+  let w = 0;
+  for(const ch of String(s??"")){
+    if("iljtf.,:;!|'`()[]".includes(ch)) w += 0.30;
+    else if("mwMW@%".includes(ch)) w += 0.92;
+    else if(/[A-Z0-9ÁÉÍÓÚÑ]/.test(ch)) w += 0.66;
+    else if(ch === " ") w += 0.30;
+    else w += 0.52;
+  }
+  return w * size * (bold ? 1.04 : 1);
+}
+function pdfWrap(s, size, bold, maxW, maxLines){
+  const words = String(s??"").split(/\s+/).filter(Boolean);
+  const lines = []; let cur = "";
+  for(const wd of words){
+    const t = cur ? cur + " " + wd : wd;
+    if(pdfW(t, size, bold) <= maxW) cur = t;
+    else{
+      if(cur) lines.push(cur);
+      cur = wd;
+      if(lines.length === maxLines - 1) break;
+    }
+  }
+  if(cur && lines.length < maxLines) lines.push(cur);
+  if(lines.length === maxLines && words.join(" ") !== lines.join(" ")){
+    let last = lines[maxLines-1];
+    while(pdfW(last + "...", size, bold) > maxW && last.length > 2) last = last.slice(0,-1);
+    lines[maxLines-1] = last + "...";
+  }
+  return lines;
+}
+function pdfEllip(s, size, bold, maxW){
+  s = String(s??"");
+  if(pdfW(s, size, bold) <= maxW) return s;
+  while(pdfW(s + "...", size, bold) > maxW && s.length > 2) s = s.slice(0,-1);
+  return s + "...";
+}
+async function exportPDF(){
+  const c = activeCont();
+  const items = contProducts().slice().sort((a,b)=>
+    a.category.localeCompare(b.category,"es") || String(a.code).localeCompare(String(b.code),"es",{numeric:true}));
+  if(!items.length){ toast("El contenedor no tiene productos aún"); return; }
+  toast("📄 Generando catálogo PDF…");
+  const images = {};
+  for(let i=0; i<items.length; i++){
+    if(items[i].photo){
+      try{ images[i] = await imgToJpeg(items[i].photo, 560); }catch(e){}
+      if(i % 8 === 7) toast(`📄 Preparando fotos… ${i+1}/${items.length}`);
+    }
+  }
+  const bytes = buildPdf(c, items, images);
+  const blob = new Blob([bytes], {type:"application/pdf"});
+  openExportModal(blob, (c?.name || "catalogo").replace(/[^\wÁ-ú\- ]/g,"") + ".pdf");
+}
+function buildPdf(c, items, images){
+  const W = 595.28, H = 841.89;
+  const RED = "0.851 0.137 0.137", ORANGE = "0.72 0.42 0", DARK = "0.11 0.12 0.14",
+        GRAY = "0.42 0.44 0.47", LGRAY = "0.85 0.85 0.86", BG = "0.965 0.96 0.95";
+  const enc = s => { const o = new Uint8Array(s.length); for(let i=0;i<s.length;i++){ const cc = s.charCodeAt(i); o[i] = cc > 255 ? 63 : cc; } return o; };
+  const T = (x, y, size, font, color, s) => `BT /${font} ${size} Tf ${color} rg 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfTxt(s)}) Tj ET\n`;
+  const TC = (y, size, font, color, s) => T((W - pdfW(s,size,font==="F2"))/2, y, size, font, color, s);
+  const TR = (xr, y, size, font, color, s) => T(xr - pdfW(s,size,font==="F2"), y, size, font, color, s);
+  const line = (x1,y1,x2,y2,cw,col) => `${col} RG ${cw} w ${x1} ${y1} m ${x2} ${y2} l S\n`;
+  const rect = (x,y,w,h,col,fill) => `${col} ${fill?"rg":"RG"} ${fill?"":"0.8 w "}${x.toFixed(2)} ${y.toFixed(2)} ${w.toFixed(2)} ${h.toFixed(2)} re ${fill?"f":"S"}\n`;
+
+  const fmt = n => cur() + " " + (Number(n)||0).toLocaleString("es",{minimumFractionDigits:2, maximumFractionDigits:2});
+  const dateStr = c?.date ? new Date(c.date+"T12:00:00").toLocaleDateString("es",{day:"numeric",month:"long",year:"numeric"}) : "";
+
+  // ----- portada -----
+  let cover = "";
+  cover += rect(0, H-14, W, 14, RED, true);
+  cover += TC(H-300, 58, "F2", RED, "HESED");
+  cover += TC(H-322, 11, "F1", GRAY, "T O D O M O T O S   ·   R E P U E S T O S   Y   A C C E S O R I O S");
+  cover += line(W/2-110, H-352, W/2+110, H-352, 1.2, RED);
+  cover += TC(H-400, 24, "F2", DARK, c?.name || "Catálogo");
+  const units = items.reduce((a,p)=>a+(Number(p.qty)||0),0);
+  cover += TC(H-424, 11.5, "F1", GRAY, `${dateStr}${dateStr?"  ·  ":""}${items.length} productos  ·  ${units.toLocaleString("es")} unidades`);
+  cover += TC(H-444, 10, "F1", GRAY, `Precios en ${cur()}`);
+  cover += TC(46, 8.5, "F1", GRAY, `Catalogo HESED Todomotos  ·  generado el ${new Date().toLocaleDateString("es")}`);
+  cover += rect(0, 0, W, 8, RED, true);
+
+  // ----- páginas de productos: 3 x 3 -----
+  const perPage = 9, cardW = 170, cardH = 236, gx = 12, gy = 12, mx = 24;
+  const pages = [];
+  for(let start = 0; start < items.length; start += perPage){
+    const slice = items.slice(start, start + perPage);
+    let s = "";
+    s += T(mx, H-38, 10, "F2", RED, "HESED · TODOMOTOS");
+    s += TR(W-mx, H-38, 9, "F1", GRAY, c?.name || "");
+    s += line(mx, H-48, W-mx, H-48, 0.7, LGRAY);
+    slice.forEach((p, j)=>{
+      const col = j % 3, row = (j/3)|0;
+      const x = mx + col*(cardW+gx);
+      const yT = (H-64) - row*(cardH+gy);
+      const gi = start + j;
+      s += rect(x, yT-cardH, cardW, cardH, LGRAY, false);
+      const im = images[gi];
+      if(im){
+        const k = Math.min(150/im.w, 150/im.h);
+        const iw = im.w*k, ih = im.h*k;
+        s += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${(x+10+(150-iw)/2).toFixed(2)} ${(yT-10-150+(150-ih)/2).toFixed(2)} cm /Im${gi} Do Q\n`;
+      }else{
+        s += rect(x+10, yT-160, 150, 150, BG, true);
+        s += T(x+10+(150-pdfW("SIN FOTO",7,false))/2, yT-88, 7, "F1", GRAY, "SIN FOTO");
+      }
+      s += T(x+10, yT-174, 8.5, "F2", DARK, pdfEllip(p.code, 8.5, true, 105));
+      s += TR(x+cardW-10, yT-174, 8, "F1", GRAY, "x" + (Number(p.qty)||0));
+      s += T(x+10, yT-185, 6.5, "F2", ORANGE, pdfEllip(String(p.category||"").toUpperCase(), 6.5, true, 150));
+      const nameLines = pdfWrap(p.name, 9.5, true, 150, 2);
+      nameLines.forEach((ln,li)=> { s += T(x+10, yT-197-li*11, 9.5, "F2", DARK, ln); });
+      if(p.compat) s += T(x+10, yT-197-nameLines.length*11, 7.5, "F1", GRAY, pdfEllip(p.compat, 7.5, false, 150));
+      s += T(x+10, yT-cardH+8, 13, "F2", ORANGE, fmt(p.price));
+      if(Number(p.mayor) > 0) s += TR(x+cardW-10, yT-cardH+8, 7.5, "F1", GRAY, "Mayor: " + fmt(p.mayor));
+    });
+    pages.push(s);
+  }
+
+  // ----- ensamblado del PDF -----
+  const objs = [];  // {body:Uint8Array|string, stream?:Uint8Array}
+  const nPages = pages.length + 1;
+  const imgKeys = Object.keys(images);
+  // ids: 1 catálogo, 2 páginas, 3 F1, 4 F2, luego imágenes, luego (página+contenido)*n
+  const imgId = {}; let next = 5;
+  imgKeys.forEach(k => { imgId[k] = next++; });
+  const pageIds = [], contIds = [];
+  for(let i=0; i<nPages; i++){ pageIds.push(next++); contIds.push(next++); }
+
+  objs[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objs[2] = `<< /Type /Pages /Kids [${pageIds.map(id=>id+" 0 R").join(" ")}] /Count ${nPages} >>`;
+  objs[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>";
+  objs[4] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>";
+  imgKeys.forEach(k => {
+    const im = images[k];
+    objs[imgId[k]] = {
+      body: `<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.bytes.length} >>`,
+      stream: im.bytes
+    };
+  });
+  const allImgRefs = imgKeys.map(k => `/Im${k} ${imgId[k]} 0 R`).join(" ");
+  const contents = [ cover, ...pages ];
+  contents.forEach((cs, i)=>{
+    const withFooter = i === 0 ? cs
+      : cs + TC(28, 8, "F1", GRAY, `Pagina ${i+1} de ${nPages}`);
+    const body = enc(withFooter);
+    objs[pageIds[i]] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << ${allImgRefs} >> >> /Contents ${contIds[i]} 0 R >>`;
+    objs[contIds[i]] = { body: `<< /Length ${body.length} >>`, stream: body };
+  });
+
+  const chunks = []; let pos = 0;
+  const push = d => { const b = typeof d === "string" ? enc(d) : d; chunks.push(b); pos += b.length; };
+  push("%PDF-1.4\n%\xE2\xE3\xCF\xD3\n");
+  const xref = [];
+  for(let id=1; id<next; id++){
+    xref[id] = pos;
+    const o = objs[id];
+    push(`${id} 0 obj\n`);
+    if(typeof o === "string"){ push(o + "\nendobj\n"); }
+    else{
+      push(o.body + "\nstream\n");
+      push(o.stream);
+      push("\nendstream\nendobj\n");
+    }
+  }
+  const xrefPos = pos;
+  push(`xref\n0 ${next}\n0000000000 65535 f \n`);
+  for(let id=1; id<next; id++) push(String(xref[id]).padStart(10,"0") + " 00000 n \n");
+  push(`trailer\n<< /Size ${next} /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`);
+  const total = chunks.reduce((a,b)=>a+b.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for(const b of chunks){ out.set(b, off); off += b.length; }
+  return out;
 }
 function exportCSV(){
   const c = activeCont();
@@ -1234,12 +1499,10 @@ function exportCSV(){
   contProducts().forEach(p=> rows.push([p.code,p.name,p.desc,p.category,p.compat,p.price,p.mayor,p.qty]));
   const csv = "\uFEFF" + rows.map(r=> r.map(v=>`"${String(v??"").replace(/"/g,'""')}"`).join(";")).join("\r\n");
   download(`${(c?.name||"catalogo").replace(/[^\w\- ]/g,"")}.csv`, new Blob([csv],{type:"text/csv;charset=utf-8"}));
-  toast("📊 CSV descargado — ábrelo en Excel");
 }
 function exportJSON(){
   download(`respaldo-hesed-catalogos-${new Date().toISOString().slice(0,10)}.json`,
     new Blob([JSON.stringify(state)], {type:"application/json"}));
-  toast("💾 Respaldo descargado (incluye fotos)");
 }
 function importJSON(){
   const f = document.createElement("input"); f.type="file"; f.accept=".json,application/json";
@@ -1260,28 +1523,52 @@ function importJSON(){
   };
   f.click();
 }
-function copyWhatsApp(){
+function buildWaText(){
   const c = activeCont();
-  let ps = contProducts().slice().sort((a,b)=> String(a.code).localeCompare(String(b.code),"es",{numeric:true}));
+  let ps = contProducts().slice();
   if(ui.filterCat) ps = ps.filter(p=>p.category===ui.filterCat);
   const lines = [`🏍 *HESED TODOMOTOS* — ${c?.name||"Catálogo"}`, `_Nuevo ingreso · ${ps.length} productos_`, ""];
   let lastCat = null;
-  ps.slice().sort((a,b)=> a.category.localeCompare(b.category,"es") || String(a.code).localeCompare(String(b.code),"es",{numeric:true}))
+  ps.sort((a,b)=> a.category.localeCompare(b.category,"es") || String(a.code).localeCompare(String(b.code),"es",{numeric:true}))
     .forEach(p=>{
       if(p.category !== lastCat){ lines.push(`*— ${p.category.toUpperCase()} —*`); lastCat = p.category; }
       lines.push(`▪️ *${p.code}* · ${p.name}${p.compat?` (${p.compat})`:""} → *${money(p.price)}*`);
     });
   lines.push("", "📲 Pide el tuyo por este WhatsApp");
-  const text = lines.join("\n");
-  navigator.clipboard?.writeText(text).then(
-    ()=> toast("📱 Lista copiada — pégala en WhatsApp"),
-    ()=> fallbackCopy(text)
-  ) || fallbackCopy(text);
-  function fallbackCopy(t){
-    const ta = document.createElement("textarea"); ta.value=t; document.body.appendChild(ta);
-    ta.select(); try{ document.execCommand("copy"); toast("📱 Lista copiada — pégala en WhatsApp"); }
-    catch(e){ toast("No se pudo copiar automáticamente"); } ta.remove();
+  return lines.join("\n");
+}
+async function sendWhatsApp(){
+  const text = buildWaText();
+  // 1) hoja nativa de compartir (celular): manda directo a WhatsApp
+  if(isMobile() && navigator.share){
+    try{ await navigator.share({text}); return; }
+    catch(e){ if(e.name === "AbortError") return; }
   }
+  // 2) abrir WhatsApp con el texto listo (si no es demasiado largo)
+  if(text.length < 1800){
+    const a = document.createElement("a");
+    a.href = "https://wa.me/?text=" + encodeURIComponent(text);
+    a.target = "_blank"; a.rel = "noopener";
+    document.body.appendChild(a); a.click(); a.remove();
+    tryCopy(text, "📱 WhatsApp abierto — y la lista quedó copiada por si acaso");
+    return;
+  }
+  // 3) copiar al portapapeles
+  if(await tryCopy(text, "📱 Lista copiada — pégala en WhatsApp")) return;
+  // 4) último recurso: mostrarla para copiar a mano
+  $("waText").value = text;
+  $("dlgWa").showModal();
+  $("waText").select();
+}
+async function tryCopy(text, okMsg){
+  try{ await navigator.clipboard.writeText(text); toast(okMsg); return true; }catch(e){}
+  try{
+    const ta = document.createElement("textarea"); ta.value = text;
+    document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy"); ta.remove();
+    if(ok){ toast(okMsg); return true; }
+  }catch(e){}
+  return false;
 }
 
 /* ================= IMPORTACIÓN MASIVA ================= */
