@@ -1614,12 +1614,25 @@ function buildPdf(c, items, images){
 
   // ----- páginas de productos: cuadrícula 3x3 o 2x2 según lo elegido -----
   const cols = st.pdfGrid === 2 ? 2 : 3;
-  const perPage = cols*cols, gx = 12, gy = 12, mx = 24;
+  const gx = 12, gy = 12, mx = 24, headerH = 64, bottomMargin = 30;
   const cardW = (W - mx*2 - gx*(cols-1)) / cols;
-  const cardH = cols === 2 ? 300 : 236;
-  const imgSize = cols === 2 ? 210 : 150;
-  // tamaños de texto: se acercan a los elegidos para pantalla (S/M/L/XL), escalados a puntos de PDF
-  const szCode = [7,8.5,10,12][st.codeSize-1], szName = [8,9.5,11,13][st.nameSize-1], szPrice = [11,13,15,18][st.priceSize-1];
+  const imgSize = cardW - 20;
+  // tamaños de texto (S/M/L/XL), notablemente más grandes que la lectura por defecto anterior
+  const szCode = [10,13,17,22][st.codeSize-1], szName = [9,12,14,17][st.nameSize-1], szPrice = [15,19,24,30][st.priceSize-1];
+  const szCat = 7.5, szCompat = 8.5, szDesc = 7.5, szQty = Math.max(7, szCode-3), szMayor = 8;
+  const lh = sz => sz + 4; // alto de línea con interlineado
+  // Alto de tarjeta calculado a partir del peor caso de texto posible (2 líneas de
+  // nombre + todos los campos activos): así el precio NUNCA queda debajo del texto,
+  // sin importar cuán largo sea el nombre o cuán grandes estén los tamaños elegidos.
+  let textH = lh(szCode);
+  if(st.showCategory) textH += lh(szCat);
+  textH += lh(szName) * 2;
+  if(st.showCompat) textH += lh(szCompat);
+  if(st.showDesc) textH += lh(szDesc);
+  const priceH = szPrice + 14;
+  const cardH = 10 + imgSize + 14 + textH + priceH + 6;
+  const rowsPerPage = Math.max(1, Math.floor((H - headerH - bottomMargin) / (cardH + gy)));
+  const perPage = cols * rowsPerPage;
   const pages = [];
   for(let start = 0; start < items.length; start += perPage){
     const slice = items.slice(start, start + perPage);
@@ -1630,7 +1643,7 @@ function buildPdf(c, items, images){
     slice.forEach((p, j)=>{
       const col = j % cols, row = (j/cols)|0;
       const x = mx + col*(cardW+gx);
-      const yT = (H-64) - row*(cardH+gy);
+      const yT = (H-headerH) - row*(cardH+gy);
       const gi = start + j;
       s += rect(x, yT-cardH, cardW, cardH, LGRAY, false);
       const im = images[gi];
@@ -1644,16 +1657,18 @@ function buildPdf(c, items, images){
       }
       const tw = cardW - 20;
       let ty = yT-10-imgSize-14;
-      s += T(x+10, ty, szCode, "F2", DARK, pdfEllip(p.code, szCode, true, tw*0.62));
-      s += TR(x+cardW-10, ty, Math.max(7,szCode-0.5), "F1", GRAY, "x" + (Number(p.qty)||0));
-      ty -= 11;
-      if(st.showCategory && p.category){ s += T(x+10, ty, 6.5, "F2", ORANGE, pdfEllip(String(p.category).toUpperCase(), 6.5, true, tw)); ty -= 11; }
+      const qtyTxt = "x" + (Number(p.qty)||0);
+      const qtyW = pdfW(qtyTxt, szQty, false);
+      s += T(x+10, ty, szCode, "F2", DARK, pdfEllip(p.code, szCode, true, tw - qtyW - 8));
+      s += TR(x+cardW-10, ty, szQty, "F1", GRAY, qtyTxt);
+      ty -= lh(szCode);
+      if(st.showCategory && p.category){ s += T(x+10, ty, szCat, "F2", ORANGE, pdfEllip(String(p.category).toUpperCase(), szCat, true, tw)); ty -= lh(szCat); }
       const nameLines = pdfWrap(p.name, szName, true, tw, 2);
-      nameLines.forEach(ln=> { s += T(x+10, ty, szName, "F2", DARK, ln); ty -= (szName+2.5); });
-      if(st.showCompat && p.compat){ s += T(x+10, ty, 7.5, "F1", GRAY, pdfEllip(p.compat, 7.5, false, tw)); ty -= 10; }
-      if(st.showDesc && p.desc){ s += T(x+10, ty, 7, "F1", GRAY, pdfEllip(p.desc, 7, false, tw)); }
-      s += T(x+10, yT-cardH+8, szPrice, "F2", ORANGE, fmt(p.price));
-      if(st.showMayor && Number(p.mayor) > 0) s += TR(x+cardW-10, yT-cardH+8, 7.5, "F1", GRAY, "Mayor: " + fmt(p.mayor));
+      nameLines.forEach(ln=> { s += T(x+10, ty, szName, "F2", DARK, ln); ty -= lh(szName); });
+      if(st.showCompat && p.compat){ s += T(x+10, ty, szCompat, "F1", GRAY, pdfEllip(p.compat, szCompat, false, tw)); ty -= lh(szCompat); }
+      if(st.showDesc && p.desc){ s += T(x+10, ty, szDesc, "F1", GRAY, pdfEllip(p.desc, szDesc, false, tw)); }
+      s += T(x+10, yT-cardH+10, szPrice, "F2", ORANGE, fmt(p.price));
+      if(st.showMayor && Number(p.mayor) > 0) s += TR(x+cardW-10, yT-cardH+10, szMayor, "F1", GRAY, "Mayor: " + fmt(p.mayor));
     });
     pages.push(s);
   }
