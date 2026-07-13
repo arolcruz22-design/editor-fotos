@@ -229,8 +229,8 @@ kbd{
 .card .ph .noimg{color:var(--faint); font-size:30px}
 .code-chip{
   position:absolute; top:8px; left:8px; background:rgba(18,20,26,.85); color:#ffd28a;
-  font-size:11.5px; font-weight:700; padding:3px 9px; border-radius:6px; letter-spacing:.05em;
-  backdrop-filter:blur(3px);
+  font-size:var(--sz-code, 11.5px); font-weight:700; padding:3px 9px; border-radius:6px; letter-spacing:.05em;
+  backdrop-filter:blur(3px); max-width:calc(100% - 60px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
 }
 .qty-chip{
   position:absolute; top:8px; right:8px; background:rgba(18,20,26,.85); color:#fff;
@@ -240,7 +240,7 @@ kbd{
 .qty-chip.zero{color:#ff9c9c}
 .card .bd{padding:12px 14px 0; flex:1}
 .card .cat{font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--brand2); font-weight:800}
-.card h3{margin:3px 0 4px; font-size:15.5px; line-height:1.25}
+.card h3{margin:3px 0 4px; font-size:var(--sz-name, 15.5px); line-height:1.25}
 .card .cmp{font-size:12.5px; color:var(--muted); margin:0 0 4px}
 .card .cmp b{font-weight:600; color:var(--text)}
 .card .dsc{
@@ -248,7 +248,7 @@ kbd{
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
 }
 .card .ft{display:flex; align-items:flex-end; gap:8px; padding:10px 14px 13px}
-.card .price{font-size:21px; font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; line-height:1}
+.card .price{font-size:var(--sz-price, 21px); font-weight:800; color:var(--accent); font-variant-numeric:tabular-nums; line-height:1}
 .card .price small{font-size:12px; font-weight:700; color:var(--muted); margin-right:2px}
 .card .mayor{font-size:11.5px; color:var(--muted); font-variant-numeric:tabular-nums}
 .card .edit{margin-left:auto}
@@ -299,6 +299,30 @@ dialog .mod-body{flex:1; min-height:0}
 .mod-photo{display:flex; gap:14px; align-items:center}
 .mod-photo img{width:84px; height:84px; object-fit:cover; border-radius:10px; background:var(--chip)}
 .mod-photo .noph{width:84px; height:84px; border-radius:10px; background:var(--chip); display:flex; align-items:center; justify-content:center; color:var(--faint); font-size:24px}
+
+/* ============ PERSONALIZAR CATÁLOGO ============ */
+.style-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:24px; align-items:start}
+@media (max-width:640px){ .style-grid{grid-template-columns:1fr} }
+.style-fields{display:flex; flex-direction:column; gap:18px}
+.szrow{display:flex; gap:6px; flex-wrap:wrap}
+.szbtn{padding:7px 15px; border-radius:8px; background:var(--chip); font-weight:700; font-size:13px; border:1.5px solid transparent; white-space:nowrap}
+.szbtn:hover{border-color:var(--line2)}
+.szbtn.sel{background:var(--accent-bg); border-color:var(--brand2); color:var(--text)}
+.opt-check{display:flex; align-items:center; gap:8px; margin:0 0 8px; font-size:13.5px; font-weight:400; text-transform:none; letter-spacing:0; color:var(--text); cursor:pointer}
+.opt-check input{width:auto}
+.swatches{display:flex; gap:10px; flex-wrap:wrap}
+.swatch{width:34px; height:34px; border-radius:50%; border:2px solid transparent; cursor:pointer; box-shadow:0 0 0 1px var(--line); flex:none}
+.swatch.sel{box-shadow:0 0 0 1px var(--line), 0 0 0 3px var(--panel), 0 0 0 5px var(--text)}
+.swatch.none{background:var(--chip); display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--muted)}
+.style-preview{position:sticky; top:0}
+
+/* ============ EDITOR DE FOTOS ============ */
+.pe-canvas-wrap{display:flex; justify-content:center; background:var(--panel2); border-radius:12px; padding:14px}
+.pe-canvas-wrap canvas{max-width:100%; height:auto; border-radius:8px; background:#e9e9e9; box-shadow:var(--shadow)}
+.pe-row{display:flex; align-items:center; gap:12px; font-size:13px}
+.pe-row label{flex:0 0 88px; color:var(--muted); font-weight:600; text-transform:none; letter-spacing:0; margin:0}
+.pe-row input[type=range]{flex:1; width:auto; padding:0; border:none; background:none; accent-color:var(--brand2)}
+.pe-actions{display:flex; gap:8px; flex-wrap:wrap}
 
 /* ============ IMPORTACIÓN MASIVA ============ */
 .bulk-bar{
@@ -401,6 +425,52 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
 <main id="main"></main>
 
 <div id="toast" role="status"></div>
+
+<!-- ===== Personalizar catálogo ===== -->
+<dialog id="dlgStyle" class="wide">
+  <form method="dialog" novalidate onsubmit="return false">
+    <div class="mod-head"><h2>🎨 Personalizar catálogo</h2><button class="x" onclick="dlgStyle.close()" aria-label="Cerrar">✕</button></div>
+    <div class="mod-body">
+      <div class="style-grid">
+        <div class="style-fields" id="styleBody"></div>
+        <div class="style-preview">
+          <p class="lbl">Vista previa</p>
+          <div id="stylePreviewCard"></div>
+        </div>
+      </div>
+    </div>
+    <div class="mod-foot">
+      <button class="btn" onclick="resetStyle()">↺ Restablecer</button>
+      <span class="spacer"></span>
+      <button class="btn" onclick="dlgStyle.close()">Cerrar</button>
+      <button class="btn primary" onclick="dlgStyle.close(); exportPDF()">📄 Generar catálogo PDF</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ===== Editor de fotos ===== -->
+<dialog id="dlgPhotoEdit">
+  <form method="dialog" novalidate onsubmit="return false">
+    <div class="mod-head"><h2>✏️ Editar foto</h2><button class="x" onclick="dlgPhotoEdit.close()" aria-label="Cerrar">✕</button></div>
+    <div class="mod-body">
+      <div class="pe-canvas-wrap"><canvas id="peCanvas" width="640" height="640"></canvas></div>
+      <div class="pe-row"><label>☀️ Brillo</label><input type="range" id="peBright" min="60" max="140" value="100" oninput="drawPhotoEdit()"></div>
+      <div class="pe-row"><label>◐ Contraste</label><input type="range" id="peContrast" min="60" max="150" value="100" oninput="drawPhotoEdit()"></div>
+      <div class="pe-row"><label>🎨 Saturación</label><input type="range" id="peSat" min="0" max="200" value="100" oninput="drawPhotoEdit()"></div>
+      <div class="pe-row"><label>🔍 Zoom</label><input type="range" id="peZoom" min="100" max="220" value="100" oninput="drawPhotoEdit()"></div>
+      <div class="pe-actions">
+        <button class="btn sm" onclick="rotatePhotoEdit(-1)">↺ Rotar izquierda</button>
+        <button class="btn sm" onclick="rotatePhotoEdit(1)">↻ Rotar derecha</button>
+        <button class="btn sm ghost" onclick="resetPhotoEdit()">Restablecer ajustes</button>
+      </div>
+    </div>
+    <div class="mod-foot">
+      <span class="spacer"></span>
+      <button class="btn" onclick="dlgPhotoEdit.close()">Cancelar</button>
+      <button class="btn primary" onclick="savePhotoEdit()">Guardar foto</button>
+    </div>
+  </form>
+</dialog>
 
 <!-- ===== Archivo exportado listo ===== -->
 <dialog id="dlgExport">
@@ -569,6 +639,7 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
         <span id="pPhotoBox"><span class="noph">📷</span></span>
         <div style="display:flex; flex-direction:column; gap:8px">
           <button class="btn sm" onclick="pPhotoFile.click()">📷 Cambiar foto</button>
+          <button class="btn sm" onclick="editCurrentProductPhoto()">✏️ Editar foto</button>
           <button class="btn sm ghost" onclick="clearEditPhoto()">Quitar foto</button>
           <input type="file" id="pPhotoFile" accept="image/*" style="display:none">
         </div>
@@ -643,10 +714,19 @@ function save(){
 
 /* ================= ESTADO ================= */
 const CATEGORIES = ["Motor","Frenos","Transmisión","Suspensión","Escapes","Eléctrico","Luces","Carenados","Llantas y aros","Cascos","Accesorios","Lubricantes","Herramientas","Otros"];
+function defaultStyle(){
+  return {
+    codeSize:2, nameSize:2, priceSize:2,          // 1=S 2=M 3=L 4=XL
+    showCategory:true, showCompat:true, showDesc:true, showMayor:true,
+    accent:null,        // null = colores de marca según el tema; o una clave de ACCENTS
+    pdfGrid:3           // 3 = 3x3 (más productos por hoja) · 2 = 2x2 (fotos grandes)
+  };
+}
 let state = {
   containers: [],       // {id,name,date,expected,prefix,currency}
   products: [],         // {id,containerId,code,name,desc,category,compat,price,mayor,qty,photo,created}
-  active: null
+  active: null,
+  style: defaultStyle()
 };
 let ui = { tab:"reg", search:"", filterCat:"", sort:"recent", editingId:null, editPhoto:undefined };
 let wiz = { step:0, data:{} };
@@ -776,7 +856,8 @@ function wizFieldHTML(s){
   switch(s.key){
     case "photo":
       if(d.photo) return `<div class="drop-preview"><img src="${d.photo}" alt="Foto del producto">
-        <button onclick="wiz.data.photo=null; refreshWizStep()" aria-label="Quitar foto">✕</button></div>`;
+        <button onclick="wiz.data.photo=null; refreshWizStep()" aria-label="Quitar foto">✕</button></div>
+        <div style="margin-top:12px"><button class="btn sm" onclick="openPhotoEditor(wiz.data.photo, function(url){ wiz.data.photo=url; refreshWizStep(); })">✏️ Editar foto (brillo, zoom, rotar…)</button></div>`;
       return `<label class="drop" id="dropZone">
         <span class="big">📷</span>
         <b>Arrastra la foto aquí</b> o haz clic para elegirla<br>
@@ -1100,6 +1181,7 @@ function catalogHTML(){
       <option value="priceAsc" ${ui.sort==="priceAsc"?"selected":""}>Precio: menor a mayor</option>
       <option value="priceDesc" ${ui.sort==="priceDesc"?"selected":""}>Precio: mayor a menor</option>
     </select>
+    <button class="btn" onclick="openStyleModal()">🎨 Personalizar</button>
     <button class="btn primary" onclick="exportPDF()">📄 Catálogo PDF</button>
     <button class="btn wa" onclick="sendWhatsApp()">📱 Lista WhatsApp</button>
     <button class="btn" onclick="exportCSV()">📊 Excel (CSV)</button>
@@ -1135,6 +1217,7 @@ function gridHTML(ps){
 
 function cardHTML(p, opts={}){
   const qty = Number(p.qty)||0;
+  const st = state.style;
   return `<article class="card">
     <div class="ph">
       ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}" loading="lazy">` : `<span class="noimg">📷</span>`}
@@ -1142,15 +1225,15 @@ function cardHTML(p, opts={}){
       <span class="qty-chip ${qty===0?"zero":""}">×${qty}</span>
     </div>
     <div class="bd">
-      ${p.category ? `<div class="cat">${esc(p.category)}</div>` : ""}
+      ${st.showCategory && p.category ? `<div class="cat">${esc(p.category)}</div>` : ""}
       <h3>${esc(p.name)}</h3>
-      ${p.compat ? `<p class="cmp">🏍 <b>${esc(p.compat)}</b></p>` : ""}
-      ${p.desc ? `<p class="dsc">${esc(p.desc)}</p>` : ""}
+      ${st.showCompat && p.compat ? `<p class="cmp">🏍 <b>${esc(p.compat)}</b></p>` : ""}
+      ${st.showDesc && p.desc ? `<p class="dsc">${esc(p.desc)}</p>` : ""}
     </div>
     <div class="ft">
       <div>
         <div class="price"><small>${esc(cur())}</small>${(Number(p.price)||0).toLocaleString("es",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-        ${Number(p.mayor)>0 ? `<div class="mayor">Por mayor: ${money(p.mayor)}</div>` : ""}
+        ${st.showMayor && Number(p.mayor)>0 ? `<div class="mayor">Por mayor: ${money(p.mayor)}</div>` : ""}
       </div>
       ${opts.preview ? "" : `<button class="btn sm ghost edit no-print" onclick="openProduct('${p.id}')">✏️ Editar</button>`}
     </div>
@@ -1263,6 +1346,127 @@ function deleteContainer(){
 function switchContainer(id){ state.active = id; wiz = {step:0, data:{}}; save(); render(); }
 function setTab(t){ ui.tab = t; ui.search=""; ui.filterCat=""; render(); }
 
+/* ================= PERSONALIZAR CATÁLOGO ================= */
+const SIZE_LABELS = ["S","M","L","XL"];
+const SIZE_PX = { codeSize:[11,13,16,20], nameSize:[13,15.5,18,22], priceSize:[16,21,26,32] };
+const ACCENTS = {
+  rojo:    {label:"Rojo HESED", brand:"#d92323", brand2:"#ff6a00", accent:"#a35f00"},
+  naranja: {label:"Naranja",    brand:"#c2660a", brand2:"#ffb200", accent:"#8a5200"},
+  azul:    {label:"Azul",       brand:"#1d5fd9", brand2:"#00b2ff", accent:"#0d6e9e"},
+  verde:   {label:"Verde",      brand:"#1e8a4c", brand2:"#7ed957", accent:"#1e7a45"},
+  negro:   {label:"Negro elegante", brand:"#20242c", brand2:"#5b6270", accent:"#4a4f58"}
+};
+function applyStyle(){
+  const st = state.style, r = document.documentElement.style;
+  r.setProperty("--sz-code", SIZE_PX.codeSize[st.codeSize-1]+"px");
+  r.setProperty("--sz-name", SIZE_PX.nameSize[st.nameSize-1]+"px");
+  r.setProperty("--sz-price", SIZE_PX.priceSize[st.priceSize-1]+"px");
+  if(st.accent && ACCENTS[st.accent]){
+    const a = ACCENTS[st.accent];
+    r.setProperty("--brand", a.brand); r.setProperty("--brand2", a.brand2); r.setProperty("--accent", a.accent);
+  }else{
+    r.removeProperty("--brand"); r.removeProperty("--brand2"); r.removeProperty("--accent");
+  }
+}
+function refreshCatalogIfOpen(){ if(ui.tab === "cat") refreshCatalog(); }
+function setStyleField(field, val){ state.style[field] = val; applyStyle(); save(); renderStyleModal(); refreshCatalogIfOpen(); }
+function toggleStyleField(field){ state.style[field] = !state.style[field]; save(); renderStyleModal(); refreshCatalogIfOpen(); }
+function setAccent(name){ state.style.accent = name; applyStyle(); save(); renderStyleModal(); refreshCatalogIfOpen(); }
+function setPdfGrid(n){ state.style.pdfGrid = n; save(); renderStyleModal(); }
+function resetStyle(){ state.style = defaultStyle(); applyStyle(); save(); renderStyleModal(); refreshCatalogIfOpen(); toast("Estilo restablecido"); }
+function szBtns(field){
+  return `<div class="szrow">${SIZE_LABELS.map((lb,i)=>`
+    <button type="button" class="szbtn ${state.style[field]===i+1?"sel":""}" onclick="setStyleField('${field}',${i+1})">${lb}</button>`).join("")}</div>`;
+}
+function sampleProduct(){
+  return contProducts()[0] || {
+    code:"HES-001", name:"Kit de arrastre reforzado 428H",
+    desc:"Acero templado, alta resistencia al desgaste, incluye piñón y catalina.",
+    category:"Transmisión", compat:"Honda CG125 · Yamaha YBR", price:35.5, mayor:29.9, qty:12, photo:null
+  };
+}
+function openStyleModal(){ renderStyleModal(); $("dlgStyle").showModal(); }
+function renderStyleModal(){
+  const st = state.style;
+  $("styleBody").innerHTML = `
+    <div><label>Tamaño del código</label>${szBtns("codeSize")}</div>
+    <div><label>Tamaño del nombre</label>${szBtns("nameSize")}</div>
+    <div><label>Tamaño del precio</label>${szBtns("priceSize")}</div>
+    <div>
+      <label>Qué mostrar en cada tarjeta</label>
+      <label class="opt-check"><input type="checkbox" ${st.showCategory?"checked":""} onchange="toggleStyleField('showCategory')"> Categoría</label>
+      <label class="opt-check"><input type="checkbox" ${st.showCompat?"checked":""} onchange="toggleStyleField('showCompat')"> Compatibilidad (motos)</label>
+      <label class="opt-check"><input type="checkbox" ${st.showDesc?"checked":""} onchange="toggleStyleField('showDesc')"> Descripción</label>
+      <label class="opt-check"><input type="checkbox" ${st.showMayor?"checked":""} onchange="toggleStyleField('showMayor')"> Precio por mayor</label>
+    </div>
+    <div>
+      <label>Color de la marca</label>
+      <div class="swatches">
+        <button type="button" class="swatch none ${!st.accent?"sel":""}" onclick="setAccent(null)" title="Predeterminado del tema">✕</button>
+        ${Object.entries(ACCENTS).map(([k,v])=>`
+          <button type="button" class="swatch ${st.accent===k?"sel":""}" title="${v.label}"
+            style="background:linear-gradient(100deg,${v.brand},${v.brand2})" onclick="setAccent('${k}')"></button>`).join("")}
+      </div>
+    </div>
+    <div>
+      <label>Diseño del catálogo PDF</label>
+      <div class="szrow">
+        <button type="button" class="szbtn ${st.pdfGrid===3?"sel":""}" onclick="setPdfGrid(3)">3×3 · más productos por hoja</button>
+        <button type="button" class="szbtn ${st.pdfGrid===2?"sel":""}" onclick="setPdfGrid(2)">2×2 · fotos grandes</button>
+      </div>
+    </div>
+  `;
+  $("stylePreviewCard").innerHTML = cardHTML(sampleProduct());
+}
+
+/* ================= EDITOR DE FOTOS ================= */
+let photoEdit = { img:null, rotate:0, bright:100, contrast:100, sat:100, zoom:100, onSave:null };
+function openPhotoEditor(src, onSave){
+  if(!src){ toast("Primero agrega una foto"); return; }
+  loadImgEl(src).then(img=>{
+    photoEdit = { img, rotate:0, bright:100, contrast:100, sat:100, zoom:100, onSave };
+    $("peBright").value = 100; $("peContrast").value = 100; $("peSat").value = 100; $("peZoom").value = 100;
+    drawPhotoEdit();
+    $("dlgPhotoEdit").showModal();
+  }).catch(()=> toast("No se pudo abrir la foto para editar"));
+}
+function drawPhotoEdit(){
+  if(!photoEdit.img) return;
+  photoEdit.bright = +$("peBright").value; photoEdit.contrast = +$("peContrast").value;
+  photoEdit.sat = +$("peSat").value; photoEdit.zoom = +$("peZoom").value;
+  const cv = $("peCanvas"), SIZE = 640;
+  cv.width = SIZE; cv.height = SIZE;
+  const cx = cv.getContext("2d");
+  cx.save();
+  cx.fillStyle = "#e9e9e9"; cx.fillRect(0,0,SIZE,SIZE);
+  cx.filter = `brightness(${photoEdit.bright}%) contrast(${photoEdit.contrast}%) saturate(${photoEdit.sat}%)`;
+  cx.translate(SIZE/2, SIZE/2);
+  cx.rotate(photoEdit.rotate * Math.PI/2);
+  const img = photoEdit.img;
+  const swap = photoEdit.rotate % 2 !== 0;
+  const bw = swap ? img.naturalHeight : img.naturalWidth, bh = swap ? img.naturalWidth : img.naturalHeight;
+  const scale = Math.min(SIZE/bw, SIZE/bh) * (photoEdit.zoom/100);
+  const dw = img.naturalWidth*scale, dh = img.naturalHeight*scale;
+  cx.drawImage(img, -dw/2, -dh/2, dw, dh);
+  cx.restore();
+}
+function rotatePhotoEdit(dir){ photoEdit.rotate = (photoEdit.rotate + dir + 4) % 4; drawPhotoEdit(); }
+function resetPhotoEdit(){
+  $("peBright").value = 100; $("peContrast").value = 100; $("peSat").value = 100; $("peZoom").value = 100;
+  photoEdit.rotate = 0; drawPhotoEdit();
+}
+function savePhotoEdit(){
+  const url = $("peCanvas").toDataURL("image/jpeg", 0.85);
+  if(photoEdit.onSave) photoEdit.onSave(url);
+  $("dlgPhotoEdit").close();
+  toast("✏️ Foto actualizada");
+}
+function editCurrentProductPhoto(){
+  const p = state.products.find(x=>x.id===ui.editingId);
+  const src = ui.editPhoto !== undefined ? ui.editPhoto : p?.photo;
+  openPhotoEditor(src, url=>{ ui.editPhoto = url; $("pPhotoBox").innerHTML = `<img src="${url}" alt="">`; });
+}
+
 /* ================= EXPORTAR ================= */
 let exportBlob = null, exportName = "";
 const isMobile = ()=> matchMedia("(pointer:coarse)").matches;
@@ -1374,9 +1578,16 @@ async function exportPDF(){
   const blob = new Blob([bytes], {type:"application/pdf"});
   openExportModal(blob, (c?.name || "catalogo").replace(/[^\wÁ-ú\- ]/g,"") + ".pdf");
 }
+function hexToPdfColor(hex){
+  const h = hex.replace("#","");
+  const r = parseInt(h.slice(0,2),16)/255, g = parseInt(h.slice(2,4),16)/255, b = parseInt(h.slice(4,6),16)/255;
+  return `${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)}`;
+}
 function buildPdf(c, items, images){
   const W = 595.28, H = 841.89;
-  const RED = "0.851 0.137 0.137", ORANGE = "0.72 0.42 0", DARK = "0.11 0.12 0.14",
+  const st = state.style;
+  const acc = ACCENTS[st.accent] || ACCENTS.rojo;
+  const RED = hexToPdfColor(acc.brand), ORANGE = hexToPdfColor(acc.accent), DARK = "0.11 0.12 0.14",
         GRAY = "0.42 0.44 0.47", LGRAY = "0.85 0.85 0.86", BG = "0.965 0.96 0.95";
   const enc = s => { const o = new Uint8Array(s.length); for(let i=0;i<s.length;i++){ const cc = s.charCodeAt(i); o[i] = cc > 255 ? 63 : cc; } return o; };
   const T = (x, y, size, font, color, s) => `BT /${font} ${size} Tf ${color} rg 1 0 0 1 ${x.toFixed(2)} ${y.toFixed(2)} Tm (${pdfTxt(s)}) Tj ET\n`;
@@ -1401,8 +1612,14 @@ function buildPdf(c, items, images){
   cover += TC(46, 8.5, "F1", GRAY, `Catalogo HESED Todomotos  ·  generado el ${new Date().toLocaleDateString("es")}`);
   cover += rect(0, 0, W, 8, RED, true);
 
-  // ----- páginas de productos: 3 x 3 -----
-  const perPage = 9, cardW = 170, cardH = 236, gx = 12, gy = 12, mx = 24;
+  // ----- páginas de productos: cuadrícula 3x3 o 2x2 según lo elegido -----
+  const cols = st.pdfGrid === 2 ? 2 : 3;
+  const perPage = cols*cols, gx = 12, gy = 12, mx = 24;
+  const cardW = (W - mx*2 - gx*(cols-1)) / cols;
+  const cardH = cols === 2 ? 300 : 236;
+  const imgSize = cols === 2 ? 210 : 150;
+  // tamaños de texto: se acercan a los elegidos para pantalla (S/M/L/XL), escalados a puntos de PDF
+  const szCode = [7,8.5,10,12][st.codeSize-1], szName = [8,9.5,11,13][st.nameSize-1], szPrice = [11,13,15,18][st.priceSize-1];
   const pages = [];
   for(let start = 0; start < items.length; start += perPage){
     const slice = items.slice(start, start + perPage);
@@ -1411,28 +1628,32 @@ function buildPdf(c, items, images){
     s += TR(W-mx, H-38, 9, "F1", GRAY, c?.name || "");
     s += line(mx, H-48, W-mx, H-48, 0.7, LGRAY);
     slice.forEach((p, j)=>{
-      const col = j % 3, row = (j/3)|0;
+      const col = j % cols, row = (j/cols)|0;
       const x = mx + col*(cardW+gx);
       const yT = (H-64) - row*(cardH+gy);
       const gi = start + j;
       s += rect(x, yT-cardH, cardW, cardH, LGRAY, false);
       const im = images[gi];
       if(im){
-        const k = Math.min(150/im.w, 150/im.h);
+        const k = Math.min(imgSize/im.w, imgSize/im.h);
         const iw = im.w*k, ih = im.h*k;
-        s += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${(x+10+(150-iw)/2).toFixed(2)} ${(yT-10-150+(150-ih)/2).toFixed(2)} cm /Im${gi} Do Q\n`;
+        s += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${(x+10+(imgSize-iw)/2).toFixed(2)} ${(yT-10-imgSize+(imgSize-ih)/2).toFixed(2)} cm /Im${gi} Do Q\n`;
       }else{
-        s += rect(x+10, yT-160, 150, 150, BG, true);
-        s += T(x+10+(150-pdfW("SIN FOTO",7,false))/2, yT-88, 7, "F1", GRAY, "SIN FOTO");
+        s += rect(x+10, yT-10-imgSize, imgSize, imgSize, BG, true);
+        s += T(x+10+(imgSize-pdfW("SIN FOTO",7,false))/2, yT-10-imgSize/2, 7, "F1", GRAY, "SIN FOTO");
       }
-      s += T(x+10, yT-174, 8.5, "F2", DARK, pdfEllip(p.code, 8.5, true, 105));
-      s += TR(x+cardW-10, yT-174, 8, "F1", GRAY, "x" + (Number(p.qty)||0));
-      s += T(x+10, yT-185, 6.5, "F2", ORANGE, pdfEllip(String(p.category||"").toUpperCase(), 6.5, true, 150));
-      const nameLines = pdfWrap(p.name, 9.5, true, 150, 2);
-      nameLines.forEach((ln,li)=> { s += T(x+10, yT-197-li*11, 9.5, "F2", DARK, ln); });
-      if(p.compat) s += T(x+10, yT-197-nameLines.length*11, 7.5, "F1", GRAY, pdfEllip(p.compat, 7.5, false, 150));
-      s += T(x+10, yT-cardH+8, 13, "F2", ORANGE, fmt(p.price));
-      if(Number(p.mayor) > 0) s += TR(x+cardW-10, yT-cardH+8, 7.5, "F1", GRAY, "Mayor: " + fmt(p.mayor));
+      const tw = cardW - 20;
+      let ty = yT-10-imgSize-14;
+      s += T(x+10, ty, szCode, "F2", DARK, pdfEllip(p.code, szCode, true, tw*0.62));
+      s += TR(x+cardW-10, ty, Math.max(7,szCode-0.5), "F1", GRAY, "x" + (Number(p.qty)||0));
+      ty -= 11;
+      if(st.showCategory && p.category){ s += T(x+10, ty, 6.5, "F2", ORANGE, pdfEllip(String(p.category).toUpperCase(), 6.5, true, tw)); ty -= 11; }
+      const nameLines = pdfWrap(p.name, szName, true, tw, 2);
+      nameLines.forEach(ln=> { s += T(x+10, ty, szName, "F2", DARK, ln); ty -= (szName+2.5); });
+      if(st.showCompat && p.compat){ s += T(x+10, ty, 7.5, "F1", GRAY, pdfEllip(p.compat, 7.5, false, tw)); ty -= 10; }
+      if(st.showDesc && p.desc){ s += T(x+10, ty, 7, "F1", GRAY, pdfEllip(p.desc, 7, false, tw)); }
+      s += T(x+10, yT-cardH+8, szPrice, "F2", ORANGE, fmt(p.price));
+      if(st.showMayor && Number(p.mayor) > 0) s += TR(x+cardW-10, yT-cardH+8, 7.5, "F1", GRAY, "Mayor: " + fmt(p.mayor));
     });
     pages.push(s);
   }
@@ -2036,6 +2257,8 @@ function applyBulkPhotos(){
     state = saved;
     if(!state.containers.find(c=>c.id===state.active)) state.active = state.containers[0]?.id || null;
   }
+  state.style = {...defaultStyle(), ...(state.style||{})};
+  applyStyle();
   render();
 })();
 </script>
