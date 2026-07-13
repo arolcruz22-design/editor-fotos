@@ -717,9 +717,10 @@ const CATEGORIES = ["Motor","Frenos","Transmisión","Suspensión","Escapes","El�
 function defaultStyle(){
   return {
     codeSize:2, nameSize:2, priceSize:2,          // 1=S 2=M 3=L 4=XL
-    showCategory:true, showCompat:true, showDesc:true, showMayor:true,
+    showCategory:true, showCompat:true, showDesc:true,
+    priceMode:"both",   // both = venta+mayor · retail = solo venta · wholesale = solo mayor · none = sin precio
     accent:null,        // null = colores de marca según el tema; o una clave de ACCENTS
-    pdfGrid:3           // 3 = 3x3 (más productos por hoja) · 2 = 2x2 (fotos grandes)
+    pdfGrid:3           // columnas por fila: 1 (lista) · 2 · 3 · 4
   };
 }
 let state = {
@@ -1231,13 +1232,21 @@ function cardHTML(p, opts={}){
       ${st.showDesc && p.desc ? `<p class="dsc">${esc(p.desc)}</p>` : ""}
     </div>
     <div class="ft">
-      <div>
-        <div class="price"><small>${esc(cur())}</small>${(Number(p.price)||0).toLocaleString("es",{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-        ${st.showMayor && Number(p.mayor)>0 ? `<div class="mayor">Por mayor: ${money(p.mayor)}</div>` : ""}
-      </div>
+      <div>${priceCardHTML(p)}</div>
       ${opts.preview ? "" : `<button class="btn sm ghost edit no-print" onclick="openProduct('${p.id}')">✏️ Editar</button>`}
     </div>
   </article>`;
+}
+function fmtNum(n){ return (Number(n)||0).toLocaleString("es",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function priceCardHTML(p){
+  const mode = state.style.priceMode || "both";
+  const big = v => `<div class="price"><small>${esc(cur())}</small>${fmtNum(v)}</div>`;
+  const mayorTag = `<div class="mayor">Mayor: ${money(p.mayor)}</div>`;
+  if(mode === "none") return "";
+  if(mode === "retail") return big(p.price);
+  if(mode === "wholesale") return big(p.mayor) + `<div class="mayor" style="color:var(--brand2);font-weight:700">Precio mayorista</div>`;
+  // both
+  return big(p.price) + (Number(p.mayor)>0 ? mayorTag : "");
 }
 
 function refreshCatalog(){
@@ -1373,6 +1382,11 @@ function setStyleField(field, val){ state.style[field] = val; applyStyle(); save
 function toggleStyleField(field){ state.style[field] = !state.style[field]; save(); renderStyleModal(); refreshCatalogIfOpen(); }
 function setAccent(name){ state.style.accent = name; applyStyle(); save(); renderStyleModal(); refreshCatalogIfOpen(); }
 function setPdfGrid(n){ state.style.pdfGrid = n; save(); renderStyleModal(); }
+function updatePerPageHint(){
+  const el = $("perPageHint"); if(!el) return;
+  const lay = pdfLayout(state.style);
+  el.innerHTML = `Con esta opción entran <b>${lay.perPage} productos por página</b> (${lay.cols} por fila).`;
+}
 function resetStyle(){ state.style = defaultStyle(); applyStyle(); save(); renderStyleModal(); refreshCatalogIfOpen(); toast("Estilo restablecido"); }
 function szBtns(field){
   return `<div class="szrow">${SIZE_LABELS.map((lb,i)=>`
@@ -1393,11 +1407,18 @@ function renderStyleModal(){
     <div><label>Tamaño del nombre</label>${szBtns("nameSize")}</div>
     <div><label>Tamaño del precio</label>${szBtns("priceSize")}</div>
     <div>
-      <label>Qué mostrar en cada tarjeta</label>
+      <label>💰 Qué precio mostrar</label>
+      <div class="szrow">
+        ${[["both","Venta + mayor"],["retail","Solo venta"],["wholesale","Solo mayorista"],["none","Sin precio"]].map(([k,lb])=>
+          `<button type="button" class="szbtn ${st.priceMode===k?"sel":""}" onclick="setStyleField('priceMode','${k}')">${lb}</button>`).join("")}
+      </div>
+      <p class="wiz-hint" style="margin:8px 0 0">Para un catálogo exclusivo de mayoristas elige <b>«Solo mayorista»</b>.</p>
+    </div>
+    <div>
+      <label>Qué más mostrar en cada tarjeta</label>
       <label class="opt-check"><input type="checkbox" ${st.showCategory?"checked":""} onchange="toggleStyleField('showCategory')"> Categoría</label>
       <label class="opt-check"><input type="checkbox" ${st.showCompat?"checked":""} onchange="toggleStyleField('showCompat')"> Compatibilidad (motos)</label>
       <label class="opt-check"><input type="checkbox" ${st.showDesc?"checked":""} onchange="toggleStyleField('showDesc')"> Descripción</label>
-      <label class="opt-check"><input type="checkbox" ${st.showMayor?"checked":""} onchange="toggleStyleField('showMayor')"> Precio por mayor</label>
     </div>
     <div>
       <label>Color de la marca</label>
@@ -1409,13 +1430,15 @@ function renderStyleModal(){
       </div>
     </div>
     <div>
-      <label>Diseño del catálogo PDF</label>
+      <label>📄 Productos por página del PDF</label>
       <div class="szrow">
-        <button type="button" class="szbtn ${st.pdfGrid===3?"sel":""}" onclick="setPdfGrid(3)">3×3 · más productos por hoja</button>
-        <button type="button" class="szbtn ${st.pdfGrid===2?"sel":""}" onclick="setPdfGrid(2)">2×2 · fotos grandes</button>
+        ${[[1,"1 · lista grande"],[2,"2 por fila"],[3,"3 por fila"],[4,"4 · muchos"]].map(([n,lb])=>
+          `<button type="button" class="szbtn ${st.pdfGrid===n?"sel":""}" onclick="setPdfGrid(${n})">${lb}</button>`).join("")}
       </div>
+      <p class="wiz-hint" id="perPageHint" style="margin:8px 0 0"></p>
     </div>
   `;
+  updatePerPageHint();
   $("stylePreviewCard").innerHTML = cardHTML(sampleProduct());
 }
 
@@ -1578,6 +1601,33 @@ async function exportPDF(){
   const blob = new Blob([bytes], {type:"application/pdf"});
   openExportModal(blob, (c?.name || "catalogo").replace(/[^\wÁ-ú\- ]/g,"") + ".pdf");
 }
+// Calcula la geometría de las páginas del PDF (columnas, tamaño de tarjeta,
+// filas por página). La usan tanto el generador de PDF como el aviso del panel
+// «productos por página», para que el número mostrado coincida con el resultado.
+function pdfLayout(st){
+  const W = 595.28, H = 841.89, gx = 12, gy = 12, mx = 24, headerH = 64, bottomMargin = 30;
+  const cols = [1,2,3,4].includes(st.pdfGrid) ? st.pdfGrid : 3;
+  const szCode = [10,13,17,22][st.codeSize-1], szName = [9,12,14,17][st.nameSize-1], szPrice = [15,19,24,30][st.priceSize-1];
+  const szCat = 7.5, szCompat = 8.5, szDesc = 7.5, szQty = Math.max(7, szCode-3), szMayor = 8;
+  const lh = sz => sz + 4;
+  const base = {W,H,gx,gy,mx,headerH,cols,szCode,szName,szPrice,szCat,szCompat,szDesc,szQty,szMayor,lh};
+  if(cols === 1){
+    const rowH = 92 + (szCode-13) + (szName-12);
+    const rowsPerPage = Math.max(1, Math.floor((H - headerH - bottomMargin) / (rowH + gy)));
+    return {...base, list:true, cardW: W - mx*2, rowH, rowsPerPage, perPage: rowsPerPage};
+  }
+  const cardW = (W - mx*2 - gx*(cols-1)) / cols;
+  const imgSize = cardW - 20;
+  let textH = lh(szCode);
+  if(st.showCategory) textH += lh(szCat);
+  textH += lh(szName) * 2;
+  if(st.showCompat) textH += lh(szCompat);
+  if(st.showDesc) textH += lh(szDesc);
+  const priceH = (st.priceMode === "none") ? 6 : szPrice + 14;
+  const cardH = 10 + imgSize + 14 + textH + priceH + 6;
+  const rowsPerPage = Math.max(1, Math.floor((H - headerH - bottomMargin) / (cardH + gy)));
+  return {...base, list:false, cardW, imgSize, cardH, rowsPerPage, perPage: cols*rowsPerPage};
+}
 function hexToPdfColor(hex){
   const h = hex.replace("#","");
   const r = parseInt(h.slice(0,2),16)/255, g = parseInt(h.slice(2,4),16)/255, b = parseInt(h.slice(4,6),16)/255;
@@ -1612,65 +1662,113 @@ function buildPdf(c, items, images){
   cover += TC(46, 8.5, "F1", GRAY, `Catalogo HESED Todomotos  ·  generado el ${new Date().toLocaleDateString("es")}`);
   cover += rect(0, 0, W, 8, RED, true);
 
-  // ----- páginas de productos: cuadrícula 3x3 o 2x2 según lo elegido -----
-  const cols = st.pdfGrid === 2 ? 2 : 3;
-  const gx = 12, gy = 12, mx = 24, headerH = 64, bottomMargin = 30;
-  const cardW = (W - mx*2 - gx*(cols-1)) / cols;
-  const imgSize = cardW - 20;
-  // tamaños de texto (S/M/L/XL), notablemente más grandes que la lectura por defecto anterior
-  const szCode = [10,13,17,22][st.codeSize-1], szName = [9,12,14,17][st.nameSize-1], szPrice = [15,19,24,30][st.priceSize-1];
-  const szCat = 7.5, szCompat = 8.5, szDesc = 7.5, szQty = Math.max(7, szCode-3), szMayor = 8;
-  const lh = sz => sz + 4; // alto de línea con interlineado
-  // Alto de tarjeta calculado a partir del peor caso de texto posible (2 líneas de
-  // nombre + todos los campos activos): así el precio NUNCA queda debajo del texto,
-  // sin importar cuán largo sea el nombre o cuán grandes estén los tamaños elegidos.
-  let textH = lh(szCode);
-  if(st.showCategory) textH += lh(szCat);
-  textH += lh(szName) * 2;
-  if(st.showCompat) textH += lh(szCompat);
-  if(st.showDesc) textH += lh(szDesc);
-  const priceH = szPrice + 14;
-  const cardH = 10 + imgSize + 14 + textH + priceH + 6;
-  const rowsPerPage = Math.max(1, Math.floor((H - headerH - bottomMargin) / (cardH + gy)));
-  const perPage = cols * rowsPerPage;
+  // ----- páginas de productos según lo elegido -----
+  const L = pdfLayout(st);
+  const { cols, gx, gy, mx, headerH, szCode, szName, szPrice, szCat, szCompat, szDesc, szQty, lh } = L;
+  const mode = st.priceMode || "both";
+  // dibuja el/los precio(s) de un producto según el modo elegido
+  const drawPrice = (x, cardW, yBase) => {
+    return (p) => {
+      if(mode === "none") return "";
+      let s2 = "";
+      if(mode === "wholesale"){
+        s2 += T(x+10, yBase, szPrice, "F2", ORANGE, fmt(p.mayor));
+        s2 += TR(x+cardW-10, yBase+3, 8, "F2", ORANGE, "MAYORISTA");
+      }else if(mode === "retail"){
+        s2 += T(x+10, yBase, szPrice, "F2", ORANGE, fmt(p.price));
+      }else{
+        s2 += T(x+10, yBase, szPrice, "F2", ORANGE, fmt(p.price));
+        if(Number(p.mayor) > 0) s2 += TR(x+cardW-10, yBase+3, 8, "F1", GRAY, "Mayor: " + fmt(p.mayor));
+      }
+      return s2;
+    };
+  };
   const pages = [];
-  for(let start = 0; start < items.length; start += perPage){
-    const slice = items.slice(start, start + perPage);
+  const pageHeader = () => {
     let s = "";
     s += T(mx, H-38, 10, "F2", RED, "HESED · TODOMOTOS");
-    s += TR(W-mx, H-38, 9, "F1", GRAY, c?.name || "");
+    let sub = c?.name || "";
+    if(mode === "wholesale") sub += "  ·  PRECIOS DE MAYORISTA";
+    s += TR(W-mx, H-38, 9, "F1", GRAY, sub);
     s += line(mx, H-48, W-mx, H-48, 0.7, LGRAY);
-    slice.forEach((p, j)=>{
-      const col = j % cols, row = (j/cols)|0;
-      const x = mx + col*(cardW+gx);
-      const yT = (H-headerH) - row*(cardH+gy);
-      const gi = start + j;
-      s += rect(x, yT-cardH, cardW, cardH, LGRAY, false);
-      const im = images[gi];
-      if(im){
-        const k = Math.min(imgSize/im.w, imgSize/im.h);
-        const iw = im.w*k, ih = im.h*k;
-        s += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${(x+10+(imgSize-iw)/2).toFixed(2)} ${(yT-10-imgSize+(imgSize-ih)/2).toFixed(2)} cm /Im${gi} Do Q\n`;
-      }else{
-        s += rect(x+10, yT-10-imgSize, imgSize, imgSize, BG, true);
-        s += T(x+10+(imgSize-pdfW("SIN FOTO",7,false))/2, yT-10-imgSize/2, 7, "F1", GRAY, "SIN FOTO");
-      }
-      const tw = cardW - 20;
-      let ty = yT-10-imgSize-14;
-      const qtyTxt = "x" + (Number(p.qty)||0);
-      const qtyW = pdfW(qtyTxt, szQty, false);
-      s += T(x+10, ty, szCode, "F2", DARK, pdfEllip(p.code, szCode, true, tw - qtyW - 8));
-      s += TR(x+cardW-10, ty, szQty, "F1", GRAY, qtyTxt);
-      ty -= lh(szCode);
-      if(st.showCategory && p.category){ s += T(x+10, ty, szCat, "F2", ORANGE, pdfEllip(String(p.category).toUpperCase(), szCat, true, tw)); ty -= lh(szCat); }
-      const nameLines = pdfWrap(p.name, szName, true, tw, 2);
-      nameLines.forEach(ln=> { s += T(x+10, ty, szName, "F2", DARK, ln); ty -= lh(szName); });
-      if(st.showCompat && p.compat){ s += T(x+10, ty, szCompat, "F1", GRAY, pdfEllip(p.compat, szCompat, false, tw)); ty -= lh(szCompat); }
-      if(st.showDesc && p.desc){ s += T(x+10, ty, szDesc, "F1", GRAY, pdfEllip(p.desc, szDesc, false, tw)); }
-      s += T(x+10, yT-cardH+10, szPrice, "F2", ORANGE, fmt(p.price));
-      if(st.showMayor && Number(p.mayor) > 0) s += TR(x+cardW-10, yT-cardH+10, szMayor, "F1", GRAY, "Mayor: " + fmt(p.mayor));
-    });
-    pages.push(s);
+    return s;
+  };
+
+  if(L.list){
+    // ----- lista grande: una fila por producto (foto a la izquierda, precio a la derecha) -----
+    const { rowH, cardW, perPage } = L;
+    const imgS = rowH - 16;
+    for(let start = 0; start < items.length; start += perPage){
+      const slice = items.slice(start, start + perPage);
+      let s = pageHeader();
+      slice.forEach((p, j)=>{
+        const x = mx, yT = (H-headerH) - j*(rowH+gy), gi = start + j;
+        s += rect(x, yT-rowH, cardW, rowH, LGRAY, false);
+        const im = images[gi];
+        if(im){
+          const k = Math.min(imgS/im.w, imgS/im.h);
+          const iw = im.w*k, ih = im.h*k;
+          s += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${(x+8+(imgS-iw)/2).toFixed(2)} ${(yT-8-imgS+(imgS-ih)/2).toFixed(2)} cm /Im${gi} Do Q\n`;
+        }else{
+          s += rect(x+8, yT-8-imgS, imgS, imgS, BG, true);
+        }
+        const priceColW = mode === "none" ? 0 : 160;
+        const tx = x+8+imgS+16;
+        const tw = cardW - (imgS+24) - priceColW - 16;
+        let ty = yT-20;
+        const qtyTxt = "x" + (Number(p.qty)||0);
+        s += T(tx, ty, szCode, "F2", DARK, pdfEllip(p.code, szCode, true, tw));
+        ty -= lh(szCode);
+        if(st.showCategory && p.category){ s += T(tx, ty, szCat, "F2", ORANGE, pdfEllip(String(p.category).toUpperCase(), szCat, true, tw)); ty -= lh(szCat); }
+        s += T(tx, ty, szName, "F2", DARK, pdfEllip(p.name, szName, true, tw)); ty -= lh(szName);
+        if(st.showCompat && p.compat){ s += T(tx, ty, szCompat, "F1", GRAY, pdfEllip(p.compat, szCompat, false, tw)); ty -= lh(szCompat); }
+        s += TR(x+cardW-12, yT-16, szQty, "F1", GRAY, qtyTxt);
+        if(mode !== "none"){
+          const pv = mode === "wholesale" ? p.mayor : p.price;
+          s += TR(x+cardW-12, yT-rowH/2-szPrice/2+6, szPrice, "F2", ORANGE, fmt(pv));
+          const lbl = mode === "wholesale" ? "MAYORISTA" : (mode === "both" && Number(p.mayor)>0 ? "Mayor: "+fmt(p.mayor) : "");
+          if(lbl) s += TR(x+cardW-12, yT-rowH/2-szPrice/2-6, 8, "F1", mode==="wholesale"?ORANGE:GRAY, lbl);
+        }
+      });
+      pages.push(s);
+    }
+  }else{
+    // ----- cuadrícula de tarjetas (2, 3 o 4 columnas) -----
+    const { cardW, cardH, imgSize, perPage } = L;
+    for(let start = 0; start < items.length; start += perPage){
+      const slice = items.slice(start, start + perPage);
+      let s = pageHeader();
+      slice.forEach((p, j)=>{
+        const col = j % cols, row = (j/cols)|0;
+        const x = mx + col*(cardW+gx);
+        const yT = (H-headerH) - row*(cardH+gy);
+        const gi = start + j;
+        s += rect(x, yT-cardH, cardW, cardH, LGRAY, false);
+        const im = images[gi];
+        if(im){
+          const k = Math.min(imgSize/im.w, imgSize/im.h);
+          const iw = im.w*k, ih = im.h*k;
+          s += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${(x+10+(imgSize-iw)/2).toFixed(2)} ${(yT-10-imgSize+(imgSize-ih)/2).toFixed(2)} cm /Im${gi} Do Q\n`;
+        }else{
+          s += rect(x+10, yT-10-imgSize, imgSize, imgSize, BG, true);
+          s += T(x+10+(imgSize-pdfW("SIN FOTO",7,false))/2, yT-10-imgSize/2, 7, "F1", GRAY, "SIN FOTO");
+        }
+        const tw = cardW - 20;
+        let ty = yT-10-imgSize-14;
+        const qtyTxt = "x" + (Number(p.qty)||0);
+        const qtyW = pdfW(qtyTxt, szQty, false);
+        s += T(x+10, ty, szCode, "F2", DARK, pdfEllip(p.code, szCode, true, tw - qtyW - 8));
+        s += TR(x+cardW-10, ty, szQty, "F1", GRAY, qtyTxt);
+        ty -= lh(szCode);
+        if(st.showCategory && p.category){ s += T(x+10, ty, szCat, "F2", ORANGE, pdfEllip(String(p.category).toUpperCase(), szCat, true, tw)); ty -= lh(szCat); }
+        const nameLines = pdfWrap(p.name, szName, true, tw, 2);
+        nameLines.forEach(ln=> { s += T(x+10, ty, szName, "F2", DARK, ln); ty -= lh(szName); });
+        if(st.showCompat && p.compat){ s += T(x+10, ty, szCompat, "F1", GRAY, pdfEllip(p.compat, szCompat, false, tw)); ty -= lh(szCompat); }
+        if(st.showDesc && p.desc){ s += T(x+10, ty, szDesc, "F1", GRAY, pdfEllip(p.desc, szDesc, false, tw)); }
+        s += drawPrice(x, cardW, yT-cardH+10)(p);
+      });
+      pages.push(s);
+    }
   }
 
   // ----- ensamblado del PDF -----
