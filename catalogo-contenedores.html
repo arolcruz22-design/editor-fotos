@@ -325,6 +325,17 @@ dialog .mod-body{flex:1; min-height:0}
 .pe-row input[type=range]{flex:1; width:auto; padding:0; border:none; background:none; accent-color:var(--brand2)}
 .pe-actions{display:flex; gap:8px; flex-wrap:wrap}
 
+/* ============ PUBLICIDAD (imágenes para redes) ============ */
+.ads-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px}
+.ad-item{background:var(--panel2); border:1px solid var(--line); border-radius:12px; padding:8px; text-align:center}
+.ad-item .thumb{width:100%; aspect-ratio:1/1; border-radius:8px; object-fit:cover; background:var(--chip); cursor:pointer}
+.ad-item .nm{font-size:11.5px; font-weight:600; margin:6px 0 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.ad-item .cd{font-size:10.5px; color:var(--muted); margin-bottom:6px}
+.ad-item .row{display:flex; gap:6px}
+.ad-item .row .btn{flex:1; padding:6px 4px; font-size:12px; justify-content:center}
+.ads-progress{height:8px; background:var(--chip); border-radius:99px; overflow:hidden; margin-top:8px}
+.ads-progress i{display:block; height:100%; background:linear-gradient(90deg,var(--brand),var(--brand2)); width:0; transition:width .2s}
+
 /* ============ IMPORTACIÓN MASIVA ============ */
 .bulk-bar{
   display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px;
@@ -426,6 +437,30 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
 <main id="main"></main>
 
 <div id="toast" role="status"></div>
+
+<!-- ===== Publicidad (imágenes para redes) ===== -->
+<dialog id="dlgAds" class="wide">
+  <form method="dialog" novalidate onsubmit="return false">
+    <div class="mod-head"><h2>📢 Publicidad por producto</h2><button class="x" onclick="dlgAds.close()" aria-label="Cerrar">✕</button></div>
+    <div class="mod-body">
+      <div class="hint-box">
+        📸 Genera una <b>imagen cuadrada lista para redes</b> (Instagram, WhatsApp, Facebook) de cada producto,
+        con su foto, código, nombre, modelo y descripción — <b>sin precio</b>.
+        Compártela o descárgala una por una, o baja todas juntas.
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:12px">
+        <button class="btn primary" id="adsAllBtn" onclick="downloadAllAds()">⬇️ Descargar todas (ZIP)</button>
+        <span id="adsCount" style="color:var(--muted); font-size:13px"></span>
+      </div>
+      <div class="ads-progress" id="adsProgress" style="display:none"><i></i></div>
+      <div class="ads-grid" id="adsGrid" style="margin-top:14px"></div>
+    </div>
+    <div class="mod-foot">
+      <span class="spacer"></span>
+      <button class="btn" onclick="dlgAds.close()">Cerrar</button>
+    </div>
+  </form>
+</dialog>
 
 <!-- ===== Personalizar catálogo ===== -->
 <dialog id="dlgStyle" class="wide">
@@ -1186,6 +1221,7 @@ function catalogHTML(){
     </select>
     <button class="btn" onclick="openStyleModal()">🎨 Personalizar</button>
     <button class="btn primary" onclick="exportPDF()">📄 Catálogo PDF</button>
+    <button class="btn" onclick="openAdsModal()">📢 Publicidad</button>
     <button class="btn wa" onclick="sendWhatsApp()">📱 Lista WhatsApp</button>
     <button class="btn" onclick="exportCSV()">📊 Excel (CSV)</button>
     <button class="btn" onclick="exportJSON()">💾 Respaldo</button>
@@ -2365,6 +2401,230 @@ function applyBulkPhotos(){
   $("dlgPhotos").close();
   render();
   toast(`📸 ${n} fotos asignadas a sus productos`);
+}
+
+/* ================= PUBLICIDAD (imágenes para redes) ================= */
+let adCache = {};   // id -> Blob (imagen 1080x1080 ya generada)
+
+function wrapCanvasText(cx, text, maxW, maxLines){
+  const words = String(text||"").split(/\s+/).filter(Boolean);
+  const lines = []; let cur = "";
+  for(const w of words){
+    const t = cur ? cur+" "+w : w;
+    if(cx.measureText(t).width <= maxW) cur = t;
+    else { if(cur) lines.push(cur); cur = w; if(lines.length === maxLines-1) break; }
+  }
+  if(cur && lines.length < maxLines) lines.push(cur);
+  if(lines.length === maxLines && words.join(" ") !== lines.join(" ")){
+    let last = lines[maxLines-1];
+    while(cx.measureText(last+"…").width > maxW && last.length>1) last = last.slice(0,-1);
+    lines[maxLines-1] = last+"…";
+  }
+  return lines;
+}
+async function renderAdCanvas(p){
+  const S = 1080;
+  const acc = ACCENTS[state.style.accent] || ACCENTS.rojo;
+  const up = s => state.style.upperCase ? String(s||"").toUpperCase() : String(s||"");
+  const cv = document.createElement("canvas"); cv.width = S; cv.height = S;
+  const cx = cv.getContext("2d");
+  // fondo estudio
+  const bg = cx.createLinearGradient(0,0,0,S);
+  bg.addColorStop(0,"#ffffff"); bg.addColorStop(1,"#eef0f3");
+  cx.fillStyle = bg; cx.fillRect(0,0,S,S);
+  // franja superior de marca
+  const top = cx.createLinearGradient(0,0,S,0);
+  top.addColorStop(0,acc.brand); top.addColorStop(1,acc.brand2);
+  cx.fillStyle = top; cx.fillRect(0,0,S,16);
+  // encabezado
+  cx.textBaseline = "alphabetic";
+  cx.font = "900 72px Arial, sans-serif";
+  const hg = cx.createLinearGradient(60,0,360,0);
+  hg.addColorStop(0,acc.brand); hg.addColorStop(1,acc.brand2);
+  cx.fillStyle = hg; cx.fillText("HESED", 60, 104);
+  cx.font = "700 21px Arial, sans-serif"; cx.fillStyle = "#5d6470";
+  cx.fillText("T O D O M O T O S", 64, 132);
+  // categoría (arriba a la derecha)
+  if(p.category){
+    cx.font = "800 24px Arial, sans-serif";
+    const ct = up(p.category), cw = cx.measureText(ct).width;
+    cx.fillStyle = "#fdf3e3"; roundRectPath(cx, S-60-cw-32, 66, cw+32, 44, 10); cx.fill();
+    cx.fillStyle = acc.accent; cx.fillText(ct, S-60-cw-16, 96);
+  }
+  // foto
+  const photoY = 170, photoH = 560;
+  if(p.photo){
+    try{
+      const img = await loadImgEl(p.photo);
+      const k = Math.min((S-160)/img.naturalWidth, photoH/img.naturalHeight);
+      const w = img.naturalWidth*k, h = img.naturalHeight*k;
+      // sombra suave de piso
+      cx.save();
+      const sg = cx.createRadialGradient(S/2, photoY+h+8, 0, S/2, photoY+h+8, w*0.42);
+      sg.addColorStop(0,"rgba(20,22,30,.16)"); sg.addColorStop(1,"rgba(20,22,30,0)");
+      cx.fillStyle = sg; cx.beginPath(); cx.ellipse(S/2, photoY+h+6, w*0.42, 18, 0, 0, Math.PI*2); cx.fill();
+      cx.restore();
+      cx.drawImage(img, (S-w)/2, photoY+(photoH-h)/2, w, h);
+    }catch(e){}
+  }else{
+    cx.fillStyle = "#f2f2f4"; roundRectPath(cx, 80, photoY, S-160, photoH, 16); cx.fill();
+    cx.fillStyle = "#b8bcc4"; cx.font = "700 40px Arial"; cx.textAlign = "center";
+    cx.fillText("SIN FOTO", S/2, photoY+photoH/2); cx.textAlign = "left";
+  }
+  // bloque de texto inferior
+  let ty = 792;
+  // código en chip
+  cx.font = "800 40px Arial, sans-serif";
+  const code = up(p.code), cwid = cx.measureText(code).width;
+  cx.fillStyle = "#1c1e24"; roundRectPath(cx, 60, ty-46, cwid+40, 60, 12); cx.fill();
+  cx.fillStyle = "#ffd28a"; cx.fillText(code, 80, ty);
+  // cantidad a la derecha
+  cx.font = "700 30px Arial"; cx.fillStyle = "#8a8f9a"; cx.textAlign = "right";
+  cx.fillText("x"+(Number(p.qty)||0), S-60, ty); cx.textAlign = "left";
+  ty += 66;
+  // nombre
+  cx.fillStyle = "#17181c"; cx.font = "800 52px Arial, sans-serif";
+  wrapCanvasText(cx, up(p.name), S-120, 2).forEach(ln=>{ cx.fillText(ln, 60, ty); ty += 60; });
+  // modelo / compatibilidad
+  if(p.compat){
+    cx.font = "700 32px Arial, sans-serif"; cx.fillStyle = acc.accent;
+    cx.fillText("🏍 "+up(p.compat), 60, ty+4); ty += 46;
+  }
+  // descripción
+  if(p.desc){
+    cx.font = "400 28px Arial, sans-serif"; cx.fillStyle = "#5d6470";
+    wrapCanvasText(cx, up(p.desc), S-120, 2).forEach(ln=>{ cx.fillText(ln, 60, ty+2); ty += 36; });
+  }
+  // franja inferior de marca
+  cx.fillStyle = top; cx.fillRect(0,S-14,S,14);
+  return cv;
+}
+function roundRectPath(cx,x,y,w,h,r){
+  cx.beginPath();
+  cx.moveTo(x+r,y); cx.arcTo(x+w,y,x+w,y+h,r); cx.arcTo(x+w,y+h,x,y+h,r);
+  cx.arcTo(x,y+h,x,y,r); cx.arcTo(x,y,x+w,y,r); cx.closePath();
+}
+function canvasToBlob(cv){
+  return new Promise(res=> cv.toBlob(b=>res(b), "image/jpeg", 0.9));
+}
+async function adBlobFor(p){
+  if(adCache[p.id]) return adCache[p.id];
+  const cv = await renderAdCanvas(p);
+  const blob = await canvasToBlob(cv);
+  adCache[p.id] = blob;
+  return blob;
+}
+function adFileName(p){ return "PUBLI-" + String(p.code||"producto").replace(/[^\wÁ-ú\-]/g,"") + ".jpg"; }
+
+function adProducts(){
+  let ps = contProducts().slice();
+  if(ui.filterCat) ps = ps.filter(p=>p.category===ui.filterCat);
+  return ps.sort((a,b)=> String(a.code).localeCompare(String(b.code),"es",{numeric:true}));
+}
+function openAdsModal(){
+  const ps = adProducts();
+  if(!ps.length){ toast("No hay productos para publicitar"); return; }
+  adCache = {};
+  $("adsCount").textContent = `${ps.length} productos`;
+  $("adsGrid").innerHTML = ps.map(p=>`
+    <div class="ad-item" id="ad-${p.id}">
+      <div class="thumb" style="display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:12px">⏳</div>
+      <div class="nm">${esc(p.name)}</div>
+      <div class="cd mono">${esc(p.code)}</div>
+      <div class="row">
+        <button class="btn wa" onclick="shareAd('${p.id}')">📤 Compartir</button>
+        <button class="btn" onclick="downloadAd('${p.id}')">⬇️</button>
+      </div>
+    </div>`).join("");
+  $("dlgAds").showModal();
+  // generar miniaturas progresivamente
+  (async ()=>{
+    for(const p of ps){
+      if(!$("dlgAds").open) break;
+      try{
+        const blob = await adBlobFor(p);
+        const box = document.querySelector(`#ad-${p.id} .thumb`);
+        if(box){ const url = URL.createObjectURL(blob); box.outerHTML = `<img class="thumb" src="${url}" alt="" onclick="downloadAd('${p.id}')">`; }
+      }catch(e){}
+      await new Promise(r=> setTimeout(r, 0));
+    }
+  })();
+}
+async function shareAd(id){
+  const p = state.products.find(x=>x.id===id); if(!p) return;
+  const blob = await adBlobFor(p);
+  const file = new File([blob], adFileName(p), {type:"image/jpeg"});
+  if(navigator.share && navigator.canShare?.({files:[file]})){
+    try{ await navigator.share({files:[file], title:p.name}); return; }
+    catch(e){ if(e.name==="AbortError") return; }
+  }
+  openExportModal(blob, adFileName(p), "Usa «Descargar» o «Compartir» para publicarla en tus redes.");
+}
+async function downloadAd(id){
+  const p = state.products.find(x=>x.id===id); if(!p) return;
+  const blob = await adBlobFor(p);
+  openExportModal(blob, adFileName(p), "Descárgala y súbela a Instagram, WhatsApp o Facebook.");
+}
+async function downloadAllAds(){
+  const ps = adProducts(); if(!ps.length) return;
+  const btn = $("adsAllBtn"); btn.disabled = true;
+  const bar = $("adsProgress"); bar.style.display = ""; bar.firstElementChild.style.width = "0";
+  const files = []; const usedNames = {};
+  for(let i=0;i<ps.length;i++){
+    const blob = await adBlobFor(ps[i]);
+    let nm = adFileName(ps[i]);
+    if(usedNames[nm]){ const k = ++usedNames[nm]; nm = nm.replace(/\.jpg$/, "-"+k+".jpg"); }
+    else usedNames[nm] = 1;
+    files.push({ name: nm, bytes: new Uint8Array(await blob.arrayBuffer()) });
+    bar.firstElementChild.style.width = Math.round((i+1)/ps.length*100)+"%";
+    $("adsCount").textContent = `Preparando ${i+1} de ${ps.length}…`;
+    await new Promise(r=> setTimeout(r, 0));
+  }
+  const zip = zipStore(files);
+  const c = activeCont();
+  const name = "PUBLICIDAD-" + String(c?.name||"catalogo").replace(/[^\wÁ-ú\- ]/g,"") + ".zip";
+  bar.style.display = "none"; btn.disabled = false;
+  $("adsCount").textContent = `${ps.length} productos`;
+  openExportModal(new Blob([zip], {type:"application/zip"}), name, `${ps.length} imágenes listas. Descarga el ZIP y ábrelo para tener todas las publicidades.`);
+}
+
+/* ZIP sin compresión (store) — no requiere librerías */
+const CRC_TABLE = (()=>{ const t = new Uint32Array(256);
+  for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c = (c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; }
+  return t; })();
+function crc32(bytes){
+  let c = 0xFFFFFFFF;
+  for(let i=0;i<bytes.length;i++) c = CRC_TABLE[(c^bytes[i])&0xFF] ^ (c>>>8);
+  return (c^0xFFFFFFFF)>>>0;
+}
+function zipStore(files){
+  const enc = new TextEncoder();
+  const chunks = []; let offset = 0; const central = [];
+  const u16 = n => [n&0xFF,(n>>8)&0xFF];
+  const u32 = n => [n&0xFF,(n>>8)&0xFF,(n>>16)&0xFF,(n>>24)&0xFF];
+  for(const f of files){
+    const nameB = enc.encode(f.name);
+    const crc = crc32(f.bytes), sz = f.bytes.length;
+    const local = [].concat([0x50,0x4b,0x03,0x04], u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(sz), u32(sz), u16(nameB.length), u16(0));
+    chunks.push(new Uint8Array(local), nameB, f.bytes);
+    central.push({nameB, crc, sz, offset});
+    offset += local.length + nameB.length + sz;
+  }
+  const cdStart = offset; let cdLen = 0;
+  for(const c of central){
+    const h = [].concat([0x50,0x4b,0x01,0x02], u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(c.crc), u32(c.sz), u32(c.sz), u16(c.nameB.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(c.offset));
+    chunks.push(new Uint8Array(h), c.nameB);
+    cdLen += h.length + c.nameB.length;
+  }
+  const end = [].concat([0x50,0x4b,0x05,0x06], u16(0), u16(0), u16(central.length), u16(central.length),
+    u32(cdLen), u32(cdStart), u16(0));
+  chunks.push(new Uint8Array(end));
+  const total = chunks.reduce((a,b)=>a+b.length,0);
+  const out = new Uint8Array(total); let o = 0;
+  for(const ch of chunks){ out.set(ch, o); o += ch.length; }
+  return out;
 }
 
 /* ================= INICIO ================= */
