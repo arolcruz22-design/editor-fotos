@@ -50,9 +50,31 @@ La idea es tener **una sola herramienta** donde yo pueda ver de un vistazo:
 - Separar lo que es gasto de la empresa vs. gasto personal.
 - Saber cuánto puedo tomar del negocio sin descapitalizarlo.
 
+### 5. Trabajo / Operaciones (para no olvidar nada) 🗂️
+Espacio para controlar el día a día del trabajo y que nada se me pase:
+
+- **📋 Tareas / trabajos pendientes**
+  - Lista de todo lo que tengo que hacer (con estado: pendiente, en proceso, hecho).
+  - Ejemplo: cambios que hay que hacerle a lo que llega de un proveedor, ajustes, seguimientos.
+  - Poder marcar prioridad y fecha límite para no olvidarme.
+
+- **🔄 Cambios de proveedor / seguimiento de proveedores**
+  - Registro de lo que llega de cada proveedor y qué cambios o ajustes hay que hacerle.
+  - Estado de cada cambio (pendiente / resuelto).
+  - Datos de contacto del proveedor.
+
+- **📁 Archivos importantes / de ayuda**
+  - Sección para guardar o listar los documentos y archivos necesarios (permisos, facturas, contratos, manuales, ayudas).
+  - Que estén siempre a la mano y no se pierdan.
+
+- **📦 Contenedores pedidos**
+  - Lista de todos los contenedores que se han pedido.
+  - Estado de cada uno: pedido / en camino / recibido.
+  - Fecha, contenido, proveedor y notas de cada contenedor.
+
 ---
 
-## ❓ 20 preguntas para enfocar tu sistema
+## ❓ Preguntas para enfocar tu sistema
 
 > Contesta las que quieras (puedes responder por número). Con tus respuestas voy a diseñar el centro de trabajo a tu medida.
 
@@ -80,11 +102,17 @@ La idea es tener **una sola herramienta** donde yo pueda ver de un vistazo:
 15. **¿Quieres que el sistema te avise cuándo pagar cada tarjeta/deuda?** (fechas de corte y pago)
 16. **¿Tu meta principal es salir de deudas, ahorrar, o hacer crecer el negocio?**
 
+### Sobre el trabajo y operaciones (tareas, proveedores, contenedores)
+17. **En "tareas pendientes", ¿qué tipo de trabajos anotas normalmente?** (cambios de proveedor, reparaciones, trámites, seguimientos...)
+18. **En los cambios de proveedor, ¿qué necesitas registrar de cada uno?** (nombre del proveedor, qué llegó, qué cambio hay que hacerle, si ya está resuelto)
+19. **Para los contenedores, ¿qué datos quieres controlar?** (número/nombre del contenedor, qué trae, proveedor, fecha de pedido, si ya llegó)
+20. **¿Qué archivos importantes necesitas tener siempre a la mano?** (facturas, permisos, contratos, listas de precios, manuales...)
+
 ### Sobre cómo quieres usar la herramienta
-17. **¿Dónde la vas a usar más:** en la computadora, en el celular, o en los dos?
-18. **¿Quieres registrar los movimientos tú mismo a mano, o lo más automático posible?**
-19. **¿Prefieres algo simple y directo, o con muchos detalles y reportes/gráficas?**
-20. **¿Quieres poder ver reportes por día, por semana, por mes?** ¿Cada cuándo revisarías tus números?
+21. **¿Dónde la vas a usar más:** en la computadora, en el celular, o en los dos?
+22. **¿Quieres registrar los movimientos tú mismo a mano, o lo más automático posible?**
+23. **¿Prefieres algo simple y directo, o con muchos detalles y reportes/gráficas?**
+24. **¿Quieres poder ver reportes por día, por semana, por mes?** ¿Cada cuándo revisarías tus números?
 
 ---
 
