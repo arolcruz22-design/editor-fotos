@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Centro de Trabajo — Todo Motos</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏍️</text></svg>">
+</head>
+<body>
+<style>
+  :root {
+    --accent: #F26A1B;
+    --accent-2: #FFB020;
+    --good: #2FA363;   --good-soft: rgba(47,163,99,.14);
+    --bad: #E0503A;    --bad-soft: rgba(224,80,58,.14);
+    --warn: #E8A32C;   --warn-soft: rgba(232,163,44,.16);
+
+    /* series (validated, dark mode steps) */
+    --s-fijos: #d55181;
+    --s-transp: #c98500;
+    --s-emerg: #008300;
+    --s-ahorro: #3987e5;
+    --s-saldo: #d95926;
+
+    --bg: #17130E; --bg-2: #1F1A13; --surface: #241E16; --surface-2: #2C2519;
+    --line: #3A3123; --line-soft: #2E2719;
+    --text: #F3ECE0; --text-dim: #B7AC98; --text-mute: #8A8069;
+    --shadow: 0 1px 0 rgba(255,255,255,.02), 0 12px 26px -16px rgba(0,0,0,.7);
+    --r: 14px; --r-sm: 9px;
+    --mono: ui-monospace, "SF Mono", "SFMono-Regular", "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #F4F0E9; --bg-2: #EDE7DC; --surface: #FFFFFF; --surface-2: #F8F4EC;
+      --line: #E2D9C9; --line-soft: #ECE4D6;
+      --text: #241E15; --text-dim: #6C6252; --text-mute: #948A76;
+      --shadow: 0 1px 2px rgba(60,45,20,.05), 0 14px 30px -20px rgba(80,60,25,.35);
+      --s-fijos: #e87ba4; --s-transp: #eda100; --s-emerg: #008300; --s-ahorro: #2a78d6; --s-saldo: #eb6834;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F4F0E9; --bg-2: #EDE7DC; --surface: #FFFFFF; --surface-2: #F8F4EC;
+    --line: #E2D9C9; --line-soft: #ECE4D6; --text: #241E15; --text-dim: #6C6252;
+    --text-mute: #948A76; --shadow: 0 1px 2px rgba(60,45,20,.05), 0 14px 30px -20px rgba(80,60,25,.35);
+    --s-fijos: #e87ba4; --s-transp: #eda100; --s-emerg: #008300; --s-ahorro: #2a78d6; --s-saldo: #eb6834;
+  }
+  :root[data-theme="dark"] {
+    --bg: #17130E; --bg-2: #1F1A13; --surface: #241E16; --surface-2: #2C2519;
+    --line: #3A3123; --line-soft: #2E2719; --text: #F3ECE0; --text-dim: #B7AC98;
+    --text-mute: #8A8069; --shadow: 0 1px 0 rgba(255,255,255,.02), 0 12px 26px -16px rgba(0,0,0,.7);
+    --s-fijos: #d55181; --s-transp: #c98500; --s-emerg: #008300; --s-ahorro: #3987e5; --s-saldo: #d95926;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans);
+    line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  @media (prefers-reduced-motion: no-preference) {
+    .nav-btn, .btn, .icon-btn, .line-name, input, select, .pill, .qtab, .seg { transition: background-color .16s, border-color .16s, color .16s, opacity .16s; }
+    .bar > i, .cmp-fill { transition: width .4s ease; }
+  }
+
+  .app { display: grid; grid-template-columns: 256px 1fr; min-height: 100vh; }
+
+  /* Sidebar */
+  .side { background: var(--bg-2); border-right: 1px solid var(--line); padding: 20px 14px;
+    display: flex; flex-direction: column; gap: 3px; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 4px 8px 16px; }
+  .brand .logo { width: 40px; height: 40px; border-radius: 11px; flex: none;
+    background: linear-gradient(150deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-size: 21px; box-shadow: 0 6px 16px -6px rgba(242,106,27,.6); }
+  .brand b { font-size: 15px; letter-spacing: -.01em; display: block; }
+  .brand span { font-size: 11.5px; color: var(--text-mute); text-transform: uppercase; letter-spacing: .09em; }
+  .nav-group { font-size: 10.5px; text-transform: uppercase; letter-spacing: .11em; color: var(--text-mute);
+    padding: 15px 10px 6px; font-weight: 600; }
+  .nav-btn { display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 10px; border: 0;
+    background: transparent; color: var(--text-dim); font: inherit; font-size: 13.5px; text-align: left;
+    border-radius: var(--r-sm); cursor: pointer; }
+  .nav-btn .ic { width: 18px; text-align: center; font-size: 14px; opacity: .9; }
+  .nav-btn .badge { margin-left: auto; font: 600 11px/1 var(--mono); background: var(--surface-2);
+    color: var(--text-mute); padding: 3px 7px; border-radius: 20px; }
+  .nav-btn:hover { background: var(--surface); color: var(--text); }
+  .nav-btn.active { background: var(--surface); color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
+  .nav-btn.active .ic { color: var(--accent); opacity: 1; }
+
+  /* Main */
+  .main { min-width: 0; }
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 15px 30px; border-bottom: 1px solid var(--line);
+    position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(8px); }
+  .topbar h1 { font-size: 18px; margin: 0; letter-spacing: -.02em; font-weight: 650; }
+  .topbar .sub { color: var(--text-mute); font-size: 12.5px; text-transform: capitalize; }
+  .spacer { flex: 1; }
+  .icon-btn { background: var(--surface); border: 1px solid var(--line); color: var(--text-dim);
+    width: 36px; height: 36px; border-radius: var(--r-sm); cursor: pointer; font-size: 15px; }
+  .icon-btn:hover { color: var(--text); border-color: var(--text-mute); }
+
+  .view { padding: 26px 30px; max-width: 1240px; }
+  .view[hidden] { display: none; }
+  .view-head { margin-bottom: 16px; }
+  .view-head h2.big { font-size: 21px; margin: 0 0 3px; letter-spacing: -.02em; }
+  .section-lead { color: var(--text-dim); font-size: 13.5px; margin: 0; max-width: 66ch; }
+
+  /* quincena tabs */
+  .qtabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 20px; }
+  .qtab { font: inherit; font-size: 13px; font-weight: 550; padding: 9px 16px; border-radius: 22px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text-dim); cursor: pointer; }
+  .qtab small { display: block; font-size: 10.5px; color: var(--text-mute); font-weight: 500; }
+  .qtab.active { background: var(--accent); border-color: var(--accent); color: #1a1206; }
+  .qtab.active small { color: rgba(26,18,6,.65); }
+  .qtab .now { font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+    background: var(--good-soft); color: var(--good); border-radius: 8px; padding: 1px 6px; margin-left: 5px; }
+  .qtab.active .now { background: rgba(26,18,6,.18); color: #1a1206; }
+
+  /* ===== layout ===== */
+  .budget-grid { display: grid; grid-template-columns: 1fr 372px; gap: 22px; align-items: start; }
+  @media (max-width: 980px) { .budget-grid { grid-template-columns: 1fr; } }
+  .rail { display: flex; flex-direction: column; gap: 18px; position: sticky; top: 84px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+    box-shadow: var(--shadow); overflow: hidden; }
+  .stack { display: flex; flex-direction: column; gap: 18px; }
+
+  .cat-head { display: grid; grid-template-columns: auto 1fr auto; gap: 12px 14px; align-items: center; padding: 15px 18px; }
+  .cat-ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 16px; background: var(--surface-2); }
+  .cat-title { min-width: 0; }
+  .cat-title b { font-size: 14.5px; letter-spacing: -.01em; }
+  .cat-title small { display: block; color: var(--text-mute); font-size: 11.5px; margin-top: 1px; }
+  .cat-amt { text-align: right; font: 650 17px/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .cat-amt small { display: block; font: 500 11px/1 var(--sans); color: var(--text-mute); margin-top: 4px; }
+  .cat-bar { grid-column: 1 / -1; height: 6px; border-radius: 20px; background: var(--surface-2); overflow: hidden; }
+  .cat-bar > i { display: block; height: 100%; border-radius: 20px; }
+  .cat-body { padding: 4px 18px 8px; border-top: 1px solid var(--line-soft); }
+
+  .line { display: grid; grid-template-columns: 26px 1fr 128px 30px; gap: 8px; align-items: center; padding: 5px 0; }
+  .line .dot { width: 8px; height: 8px; border-radius: 50%; justify-self: center; opacity: .7; }
+  .line-name { border: 1px solid transparent; background: transparent; color: var(--text); font: inherit; font-size: 13.5px;
+    padding: 6px 9px; border-radius: 7px; width: 100%; }
+  .line-name:hover { border-color: var(--line); }
+  .line-name:focus { border-color: var(--accent); background: var(--bg); outline: none; }
+  .line-amt { border: 1px solid transparent; background: transparent; color: var(--text); font-family: var(--mono);
+    font-variant-numeric: tabular-nums; font-size: 13.5px; text-align: right; padding: 6px 9px; border-radius: 7px; width: 100%; }
+  .line-amt:hover { border-color: var(--line); }
+  .line-amt:focus { border-color: var(--accent); background: var(--bg); outline: none; }
+  .icon-x { background: none; border: 0; color: var(--text-mute); cursor: pointer; font-size: 14px; padding: 3px 6px; border-radius: 6px; }
+  .icon-x:hover { color: var(--bad); background: var(--bad-soft); }
+  .add-line { display: flex; gap: 8px; align-items: center; padding: 8px 0 12px 26px; }
+  .add-line input { font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); }
+  .add-line input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); border-color: var(--accent); }
+  .add-line .nm { flex: 1; min-width: 0; }
+  .add-line .am { width: 120px; text-align: right; font-family: var(--mono); }
+  .amt-input-big { border: 1px solid var(--line); background: var(--bg); color: var(--text); font-family: var(--mono);
+    font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 600; text-align: right; padding: 8px 12px;
+    border-radius: var(--r-sm); width: 150px; }
+  .amt-input-big:focus { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); border-color: var(--accent); }
+  .mono-note { color: var(--text-mute); font-size: 12px; }
+
+  /* Saldo hero */
+  .saldo-hero { background: linear-gradient(155deg, color-mix(in srgb, var(--accent) 24%, var(--surface)), var(--surface));
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line)); border-radius: var(--r); padding: 20px 22px; box-shadow: var(--shadow); }
+  .saldo-hero .lab { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); font-weight: 600; }
+  .saldo-hero .big { font: 700 38px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; margin: 10px 0 4px; }
+  .saldo-hero .big.neg { color: var(--bad); }
+  .saldo-hero .cap { font-size: 12.5px; color: var(--text-dim); }
+
+  /* ===== distribution stacked bar ===== */
+  .dist { padding: 18px 20px 6px; }
+  .dist h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-mute); margin: 0 0 12px; font-weight: 600; }
+  .dist-bar { display: flex; gap: 2px; height: 26px; border-radius: 7px; overflow: hidden; background: var(--surface-2); }
+  .seg { min-width: 3px; position: relative; cursor: default; }
+  .seg:hover { opacity: .82; }
+  .seg:first-child { border-radius: 6px 0 0 6px; }
+  .seg:last-child { border-radius: 0 6px 6px 0; }
+  .seg .seg-lab { position: absolute; inset: 0; display: grid; place-items: center;
+    font: 650 10.5px/1 var(--mono); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.45); white-space: nowrap; overflow: hidden; }
+  .legend { display: flex; flex-direction: column; padding: 8px 6px 12px; }
+  .legend-row { display: grid; grid-template-columns: 12px 1fr auto 44px; gap: 10px; align-items: center;
+    padding: 7px 8px; font-size: 12.5px; border-bottom: 1px solid var(--line-soft); border-radius: 6px; }
+  .legend-row:last-child { border-bottom: 0; }
+  .legend-row.hl { background: var(--surface-2); }
+  .legend-row .sw { width: 11px; height: 11px; border-radius: 3px; }
+  .legend-row .lv { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+  .legend-row .lp { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text-mute); font-size: 11.5px; text-align: right; }
+  .legend-row.total { border-top: 1px solid var(--line); font-weight: 650; margin-top: 2px; }
+
+  .over { display: flex; gap: 9px; align-items: flex-start; background: var(--bad-soft); color: var(--bad);
+    border-radius: var(--r-sm); padding: 11px 13px; font-size: 12.5px; font-weight: 500; margin: 0 20px 18px; }
+
+  /* ===== month view ===== */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 17px; box-shadow: var(--shadow); }
+  .tile .lab { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-mute); font-weight: 600; }
+  .tile .val { font: 650 24px/1.1 var(--mono); font-variant-numeric: tabular-nums; margin-top: 9px; }
+  .tile .note { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+  .tile.hero { background: linear-gradient(155deg, color-mix(in srgb, var(--accent) 22%, var(--surface)), var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .val.good { color: var(--good); } .val.bad { color: var(--bad); }
+
+  .cmp { padding: 6px 20px 18px; }
+  .cmp-row { display: grid; grid-template-columns: 150px 1fr; gap: 8px 14px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
+  .cmp-row:last-child { border-bottom: 0; }
+  .cmp-name { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 550; }
+  .cmp-name .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  .cmp-tracks { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .cmp-track { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: center; }
+  .cmp-track .q { font: 600 10px/1 var(--mono); color: var(--text-mute); text-align: right; }
+  .cmp-lane { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .cmp-fill { height: 13px; border-radius: 0 4px 4px 0; min-width: 2px; }
+  .cmp-track.q2 .cmp-fill { opacity: .55; }
+  .cmp-val { font: 550 11.5px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--text-dim); white-space: nowrap; }
+
+  /* generic module tables */
+  .card-head { display: flex; align-items: center; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--line-soft); }
+  .card-head h2 { font-size: 14.5px; margin: 0; letter-spacing: -.01em; }
+  .card-head .sub { color: var(--text-mute); font-size: 12px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-mute);
+    font-weight: 600; padding: 10px 14px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--surface-2); }
+  td.num, th.num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .empty { padding: 30px 18px; text-align: center; color: var(--text-mute); font-size: 13px; }
+  .pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+  .pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .pill.g { color: var(--good); background: var(--good-soft); }
+  .pill.r { color: var(--bad); background: var(--bad-soft); }
+  .pill.w { color: var(--warn); background: var(--warn-soft); }
+  .pill.n { color: var(--text-dim); background: var(--surface-2); }
+  .tag { font-size: 11px; color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--line-soft); padding: 2px 8px; border-radius: 6px; }
+  .bar { height: 7px; background: var(--surface-2); border-radius: 20px; overflow: hidden; min-width: 90px; }
+  .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius: 20px; }
+  .bar.g > i { background: linear-gradient(90deg, var(--good), #56c98a); }
+  .btn { font: inherit; font-size: 13px; font-weight: 550; border-radius: var(--r-sm); cursor: pointer; padding: 8px 14px;
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--text); display: inline-flex; align-items: center; gap: 7px; }
+  .btn:hover { border-color: var(--text-mute); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #1a1206; font-weight: 650; }
+  .btn.primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+  .btn.sm { padding: 6px 11px; font-size: 12px; }
+  .form-row { display: grid; gap: 12px; padding: 16px 18px; background: var(--surface-2); border-top: 1px solid var(--line-soft);
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: end; }
+  .fld { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .fld label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-mute); font-weight: 600; }
+  input, select { font: inherit; font-size: 13.5px; padding: 8px 10px; border-radius: var(--r-sm); border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); width: 100%; }
+  input:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; border-color: var(--accent); }
+  input::placeholder { color: var(--text-mute); }
+  .fld.act .btn { width: 100%; justify-content: center; }
+  .checkbox { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
+  .done td:not(.act-cell) { opacity: .5; }
+  .done .titlecell { text-decoration: line-through; }
+  .est-sel { padding: 5px 8px; font-size: 12.5px; }
+
+  /* cloud bar */
+  .cloudbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 30px;
+    border-bottom: 1px solid var(--line); background: var(--bg-2); font-size: 12.5px; color: var(--text-dim); }
+  .cloudbar[hidden] { display: none; }
+  .cloudbar .st { display: inline-flex; align-items: center; gap: 8px; }
+  .cloudbar .st::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--text-mute); flex: none; }
+  .cloudbar.ok .st::before { background: var(--good); }
+  .cloudbar.err .st::before { background: var(--bad); }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
+    padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.4); z-index: 100; }
+
+  .menu-btn { display: none; }
+  .scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 30; }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; }
+    .side { position: fixed; z-index: 40; width: 262px; left: 0; top: 0; transform: translateX(-100%); box-shadow: 0 0 40px rgba(0,0,0,.5); }
+    .side.open { transform: none; }
+    .menu-btn { display: inline-grid; place-items: center; }
+    .scrim.show { display: block; }
+    .view { padding: 18px 15px; }
+    .topbar { padding: 13px 15px; }
+    .cloudbar { padding: 9px 15px; }
+    .rail { position: static; }
+    .cmp-row { grid-template-columns: 1fr; }
+    .add-line { flex-wrap: wrap; padding-left: 0; }
+    .add-line .nm { flex: 1 1 100%; }
+    .add-line .am { flex: 1; }
+  }
+</style>
+
+<div class="app">
+  <aside class="side" id="side">
+    <div class="brand">
+      <div class="logo">🏍️</div>
+      <div><b>Todo Motos</b><span>Centro de trabajo</span></div>
+    </div>
+
+    <div class="nav-group">Mis finanzas</div>
+    <button class="nav-btn active" data-view="presupuesto"><span class="ic">◧</span> Presupuesto</button>
+    <button class="nav-btn" data-view="tarjetas"><span class="ic">▭</span> Tarjetas</button>
+    <button class="nav-btn" data-view="deudas"><span class="ic">⚑</span> Deudas</button>
+    <button class="nav-btn" data-view="ahorros"><span class="ic">◈</span> Ahorros</button>
+
+    <div class="nav-group">Trabajo / Operaciones</div>
+    <button class="nav-btn" data-view="tareas"><span class="ic">✓</span> Tareas pendientes <span class="badge" id="badge-tareas">0</span></button>
+    <button class="nav-btn" data-view="proveedores"><span class="ic">⇄</span> Proveedores</button>
+    <button class="nav-btn" data-view="contenedores"><span class="ic">▣</span> Contenedores <span class="badge" id="badge-cont">0</span></button>
+    <button class="nav-btn" data-view="archivos"><span class="ic">▤</span> Archivos importantes</button>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn">☰</button>
+      <div>
+        <h1 id="viewTitle">Presupuesto</h1>
+        <div class="sub" id="viewDate"></div>
+      </div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeBtn" title="Cambiar tema">◑</button>
+    </header>
+    <div class="cloudbar" id="cloudbar" hidden></div>
+
+    <section class="view" id="view-presupuesto"></section>
+    <section class="view" id="view-tarjetas" hidden></section>
+    <section class="view" id="view-deudas" hidden></section>
+    <section class="view" id="view-ahorros" hidden></section>
+    <section class="view" id="view-tareas" hidden></section>
+    <section class="view" id="view-proveedores" hidden></section>
+    <section class="view" id="view-contenedores" hidden></section>
+    <section class="view" id="view-archivos" hidden></section>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const KEY = "todomotos_centro_v4";
+  const OLD_KEY = "todomotos_centro_v3";
+  const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const MESES_L = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const uid = () => Math.random().toString(36).slice(2, 9);
+  const $ = (s, r=document) => r.querySelector(s);
+  const today = (o=0) => { const d=new Date(); d.setDate(d.getDate()+o); return d.toISOString().slice(0,10); };
+
+  const mkQ = (n) => ({
+    ingreso: [ { id: uid(), concepto: "Pago de la " + n + " quincena", monto: 17500 } ],
+    gastosFijos: n === "1ª"
+      ? [ { id: uid(), concepto: "Alquiler", monto: 8000 }, { id: uid(), concepto: "Comida / despensa", monto: 2500 } ]
+      : [ { id: uid(), concepto: "Luz", monto: 600 }, { id: uid(), concepto: "Agua", monto: 250 },
+          { id: uid(), concepto: "Internet", monto: 500 }, { id: uid(), concepto: "Comida / despensa", monto: 2500 } ],
+    transporte: [ { id: uid(), concepto: "Gasolina", monto: 1250 } ],
+    fondoEmergencia: 1500,
+    ahorroGeneral: 2000,
+  });
+
+  const seed = {
+    budget: { q1: mkQ("1ª"), q2: mkQ("2ª") },
+    ahorros: {
+      metaEmerg: 30000, metaGeneral: 60000,
+      movimientos: [
+        { id: uid(), fecha: today(-30), fondo: "emergencia", tipo: "deposito", concepto: "Saldo inicial", monto: 12000 },
+        { id: uid(), fecha: today(-30), fondo: "general", tipo: "deposito", concepto: "Saldo inicial", monto: 15000 },
+      ],
+    },
+    tarjetas: [
+      { id: uid(), nombre: "BBVA Azul", banco: "BBVA", limite: 40000, deuda: 18500, corte: 12, pago: 30 },
+      { id: uid(), nombre: "Nu", banco: "Nu", limite: 15000, deuda: 4200, corte: 5, pago: 22 },
+    ],
+    deudas: [ { id: uid(), acreedor: "Financiamiento camioneta", monto: 90000, pagado: 35000, plazo: "2026-12" } ],
+    tareas: [
+      { id: uid(), titulo: "Revisar cambios del contenedor de defensas", prioridad: "alta", fecha: today(2), estado: "pendiente" },
+      { id: uid(), titulo: "Cotizar cascos con proveedor nuevo", prioridad: "media", fecha: today(5), estado: "pendiente" },
+      { id: uid(), titulo: "Pagar tarjeta BBVA", prioridad: "alta", fecha: today(3), estado: "pendiente" },
+    ],
+    proveedores: [
+      { id: uid(), proveedor: "Motopartes del Norte", queLlego: "Lote de defensas", cambio: "Cambiar 4 defensas dañadas", contacto: "55-1234-5678", estado: "pendiente" },
+      { id: uid(), proveedor: "Cascos MX", queLlego: "20 cascos", cambio: "Devolver 2 talla equivocada", contacto: "cascosmx@mail.com", estado: "resuelto" },
+    ],
+    contenedores: [
+      { id: uid(), nombre: "CNT-001", contenido: "Motos 150cc (x8)", proveedor: "Import China", fecha: today(-20), estado: "recibido" },
+      { id: uid(), nombre: "CNT-002", contenido: "Refacciones surtidas", proveedor: "Import China", fecha: today(-3), estado: "en camino" },
+      { id: uid(), nombre: "CNT-003", contenido: "Llantas y cascos", proveedor: "AsiaMoto", fecha: today(1), estado: "pedido" },
+    ],
+    archivos: [
+      { id: uid(), nombre: "Acta constitutiva", tipo: "Legal", nota: "Carpeta física + PDF en Drive" },
+      { id: uid(), nombre: "Lista de precios proveedores", tipo: "Precios", nota: "Actualizar cada mes" },
+    ],
+  };
+
+  let state = load();
+  function load(){
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.budget && s.budget.q1 && s.ahorros) return s; } catch(e){}
+    const fresh = structuredClone(seed);
+    // carry over data from the previous version, if any
+    try {
+      const old = JSON.parse(localStorage.getItem(OLD_KEY));
+      if (old) {
+        ["tarjetas","deudas","tareas","proveedores","contenedores","archivos"].forEach(k=>{ if (Array.isArray(old[k])) fresh[k] = old[k]; });
+        if (old.budget && old.budget.q1) {
+          fresh.budget = { q1: old.budget.q1, q2: old.budget.q2 };
+          fresh.ahorros.movimientos = [];
+          if (+old.budget.emergAcum) fresh.ahorros.movimientos.push({ id: uid(), fecha: today(0), fondo: "emergencia", tipo: "deposito", concepto: "Saldo inicial", monto: +old.budget.emergAcum });
+          if (+old.budget.ahorroAcum) fresh.ahorros.movimientos.push({ id: uid(), fecha: today(0), fondo: "general", tipo: "deposito", concepto: "Saldo inicial", monto: +old.budget.ahorroAcum });
+        }
+      }
+    } catch(e){}
+    return fresh;
+  }
+  const fundBalance = f => sum(state.ahorros.movimientos.filter(m=>m.fondo===f), m=> m.tipo==="retiro" ? -m.monto : +m.monto);
+  function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+
+  const money = n => "$" + Math.round(n||0).toLocaleString("es-MX");
+  const fdate = s => { if(!s) return "—"; const [y,m,d]=s.split("-"); return `${+d} ${MESES[+m-1]}`; };
+  const sum = (arr, f) => arr.reduce((a,x)=>a+(+f(x)||0),0);
+  const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+  // =========================================================
+  //  PRESUPUESTO POR QUINCENA
+  // =========================================================
+  const CATS = [
+    { key:"gastosFijos", ic:"🏠", cvar:"--s-fijos",  name:"Gastos fijos", desc:"Luz, agua, internet, alquiler, comida", list:true },
+    { key:"transporte",  ic:"⛽", cvar:"--s-transp", name:"Gasolina / transporte", desc:"Combustible y traslados", list:true },
+    { key:"fondoEmergencia", ic:"🛟", cvar:"--s-emerg", name:"Fondo de emergencia", desc:"Sólo para imprevistos", list:false, fund:"emergencia" },
+    { key:"ahorroGeneral",   ic:"🌱", cvar:"--s-ahorro", name:"Ahorro general", desc:"Para tus metas y el futuro", list:false, fund:"general" },
+  ];
+  const cv = v => `var(${v})`;
+
+  const nowQ = () => new Date().getDate() <= 15 ? "q1" : "q2";
+  let qView = nowQ(); // "q1" | "q2" | "mes"
+  const lastDay = () => new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
+
+  function qTotals(q){
+    const b = state.budget[q];
+    const ingreso = sum(b.ingreso, x=>x.monto);
+    const fijos = sum(b.gastosFijos, x=>x.monto);
+    const transp = sum(b.transporte, x=>x.monto);
+    const emerg = +b.fondoEmergencia||0, ahorro = +b.ahorroGeneral||0;
+    const apartado = fijos+transp+emerg+ahorro;
+    return { ingreso, fijos, transp, emerg, ahorro, apartado, saldo: ingreso-apartado };
+  }
+  const catVal = (t, key) => ({ gastosFijos:t.fijos, transporte:t.transp, fondoEmergencia:t.emerg, ahorroGeneral:t.ahorro })[key];
+
+  // --- stacked distribution bar + legend (shared by quincena & month) ---
+  function distChart(t, title){
+    const pct = v => t.ingreso>0 ? Math.round(v/t.ingreso*100) : 0;
+    const segs = CATS.map(c=>({ name:c.name, val:catVal(t,c.key), color:cv(c.cvar) }));
+    if (t.saldo > 0) segs.push({ name:"Saldo (te queda)", val:t.saldo, color:"var(--s-saldo)" });
+    const base = t.saldo > 0 ? t.ingreso : t.apartado;
+    const segHtml = segs.filter(s=>s.val>0).map(s=>{
+      const w = base? (s.val/base*100) : 0;
+      return `<div class="seg" style="flex:${s.val} 0 0;background:${s.color}" title="${esc(s.name)}: ${money(s.val)} (${pct(s.val)}%)">${w>=14?`<span class="seg-lab">${pct(s.val)}%</span>`:""}</div>`;
+    }).join("");
+    const legend = segs.map((s,i)=>`
+      <div class="legend-row" data-leg="${i}">
+        <span class="sw" style="background:${s.color}"></span>
+        <span>${s.name}</span>
+        <span class="lv">${money(s.val)}</span>
+        <span class="lp">${pct(s.val)}%</span>
+      </div>`).join("");
+    const overWarn = t.saldo < 0 ? `<div class="over"><span>⚠️</span><span>Lo que apartas (${money(t.apartado)}) supera tu ingreso (${money(t.ingreso)}). Baja gastos o ajusta el ahorro.</span></div>` : "";
+    return `<div class="card">
+      <div class="dist"><h3>${title}</h3><div class="dist-bar">${segHtml||'<div class="empty" style="padding:4px;width:100%">Sin datos</div>'}</div></div>
+      <div class="legend">${legend}
+        <div class="legend-row total"><span class="sw" style="background:transparent"></span><span>Ingreso de referencia</span>
+        <span class="lv" style="color:var(--good)">${money(t.ingreso)}</span><span class="lp">100%</span></div>
+      </div>${overWarn}</div>`;
+  }
+
+  function qtabsHtml(){
+    const cur = nowQ();
+    const y = new Date().getFullYear(), m = new Date().getMonth();
+    const tabs = [
+      { id:"q1", t:"1ª quincena", s:`1 – 15 ${MESES[m]}` },
+      { id:"q2", t:"2ª quincena", s:`16 – ${lastDay()} ${MESES[m]}` },
+      { id:"mes", t:"Mes completo", s:`${MESES_L[m]} ${y}` },
+    ];
+    return `<div class="qtabs">${tabs.map(x=>`
+      <button class="qtab ${qView===x.id?'active':''}" data-q="${x.id}">${x.t}${x.id===cur?'<span class="now">Actual</span>':''}<small>${x.s}</small></button>`).join("")}</div>`;
+  }
+
+  function renderPresupuesto(){
+    const wrap = $("#view-presupuesto");
+    if (qView === "mes") return renderMes(wrap);
+    const q = qView, b = state.budget[q];
+    const t = qTotals(q);
+    const pct = v => t.ingreso>0 ? Math.round(v/t.ingreso*100) : 0;
+    const qName = q==="q1" ? "1ª quincena" : "2ª quincena";
+
+    const catCards = CATS.map(c=>{
+      const total = catVal(t, c.key);
+      const head = `
+        <div class="cat-head">
+          <div class="cat-ic">${c.ic}</div>
+          <div class="cat-title"><b>${c.name}</b><small>${c.desc}</small></div>
+          <div class="cat-amt">${money(total)}<small>${pct(total)}% del ingreso</small></div>
+          <div class="cat-bar"><i style="width:${Math.min(100,pct(total))}%;background:${cv(c.cvar)}"></i></div>
+        </div>`;
+      let body;
+      if (c.list) {
+        const rows = b[c.key].map(r=>`
+          <div class="line">
+            <span class="dot" style="background:${cv(c.cvar)}"></span>
+            <input class="line-name" data-store="${c.key}" data-id="${r.id}" data-f="concepto" value="${esc(r.concepto)}" aria-label="Concepto">
+            <input class="line-amt" type="number" min="0" step="any" data-store="${c.key}" data-id="${r.id}" data-f="monto" value="${r.monto}" aria-label="Monto">
+            <button class="icon-x" data-delline="${c.key}" data-id="${r.id}" title="Quitar">✕</button>
+          </div>`).join("");
+        body = `<div class="cat-body">${rows}
+          <form class="add-line" data-addline="${c.key}">
+            <input class="nm" name="concepto" placeholder="Nuevo concepto..." required>
+            <input class="am" name="monto" type="number" min="0" step="any" placeholder="0" required>
+            <button class="btn sm primary">+ Agregar</button>
+          </form></div>`;
+      } else {
+        body = `<div class="cat-body" style="padding-bottom:14px">
+          <div class="line" style="grid-template-columns:26px 1fr auto">
+            <span class="dot" style="background:${cv(c.cvar)}"></span>
+            <span class="mono-note">Apartado esta quincena (plan)</span>
+            <input class="amt-input-big" type="number" min="0" step="any" data-single="${c.key}" value="${+b[c.key]||0}">
+          </div>
+          <div class="line" style="grid-template-columns:26px 1fr auto">
+            <span class="dot" style="background:${cv(c.cvar)};opacity:.35"></span>
+            <span class="mono-note">Guardado hasta hoy: <b style="color:var(--text)">${money(fundBalance(c.fund))}</b></span>
+            <button class="btn sm" data-goview="ahorros">Ver registro →</button>
+          </div>
+        </div>`;
+      }
+      return `<div class="card">${head}${body}</div>`;
+    }).join("");
+
+    const incRows = b.ingreso.map(r=>`
+      <div class="line">
+        <span class="dot" style="background:var(--accent)"></span>
+        <input class="line-name" data-store="ingreso" data-id="${r.id}" data-f="concepto" value="${esc(r.concepto)}" aria-label="Fuente">
+        <input class="line-amt" type="number" min="0" step="any" data-store="ingreso" data-id="${r.id}" data-f="monto" value="${r.monto}" aria-label="Monto">
+        <button class="icon-x" data-delline="ingreso" data-id="${r.id}" title="Quitar">✕</button>
+      </div>`).join("");
+    const incomeCard = `
+      <div class="card">
+        <div class="cat-head">
+          <div class="cat-ic" style="background:color-mix(in srgb,var(--accent) 20%,var(--surface-2))">💰</div>
+          <div class="cat-title"><b>Ingreso de la ${qName}</b><small>Tu pago de quincena + extras (ventas, taller...)</small></div>
+          <div class="cat-amt" style="color:var(--good)">${money(t.ingreso)}<small>100%</small></div>
+        </div>
+        <div class="cat-body">${incRows}
+          <form class="add-line" data-addline="ingreso">
+            <input class="nm" name="concepto" placeholder="Nueva fuente de ingreso..." required>
+            <input class="am" name="monto" type="number" min="0" step="any" placeholder="0" required>
+            <button class="btn sm primary">+ Agregar</button>
+          </form></div>
+      </div>`;
+
+    const saldoCard = `
+      <div class="saldo-hero">
+        <div class="lab">Saldo de la ${qName} — lo que te queda</div>
+        <div class="big ${t.saldo<0?'neg':''}">${money(t.saldo)}</div>
+        <div class="cap">${t.saldo>=0
+          ? `Después de gastos fijos, gasolina, fondo de emergencia y ahorro.`
+          : `⚠️ Estás apartando ${money(-t.saldo)} más de lo que ingresa esta quincena.`}</div>
+      </div>`;
+
+    const copyBtn = `<button class="btn sm" id="copyQ" title="Copia conceptos y montos de la otra quincena">⧉ Copiar de la ${q==="q1"?"2ª":"1ª"} quincena</button>`;
+
+    wrap.innerHTML = `
+      <div class="view-head">
+        <h2 class="big">Presupuesto por quincena</h2>
+        <p class="section-lead">Ganas por quincena, así que el plan es quincenal: del <b>pago</b> restas cada categoría y el <b>saldo</b> es lo que te queda libre. Toca cualquier cantidad para editarla.</p>
+      </div>
+      ${qtabsHtml()}
+      <div class="budget-grid">
+        <div class="stack">
+          ${incomeCard}
+          ${catCards}
+          <div>${copyBtn}</div>
+        </div>
+        <div class="rail">
+          ${saldoCard}
+          ${distChart(t, "¿A dónde se va esta quincena?")}
+        </div>
+      </div>`;
+
+    // handlers
+    bindQtabs(wrap);
+    wrap.querySelectorAll(".line-name, .line-amt").forEach(inp=> inp.addEventListener("change", ()=>{
+      const arr = b[inp.dataset.store]; const it = arr.find(x=>x.id===inp.dataset.id);
+      if(!it) return; it[inp.dataset.f] = inp.dataset.f==="monto" ? (+inp.value||0) : inp.value; commit();
+    }));
+    wrap.querySelectorAll("[data-delline]").forEach(btn=> btn.addEventListener("click", ()=>{
+      const st = btn.dataset.delline; b[st] = b[st].filter(x=>x.id!==btn.dataset.id); commit();
+    }));
+    wrap.querySelectorAll("[data-addline]").forEach(f=> f.addEventListener("submit", e=>{
+      e.preventDefault(); const st=f.dataset.addline; const fd=new FormData(f);
+      b[st].push({ id:uid(), concepto:fd.get("concepto"), monto:+fd.get("monto")||0 }); f.reset(); commit();
+    }));
+    wrap.querySelectorAll("[data-single]").forEach(inp=> inp.addEventListener("change", ()=>{ b[inp.dataset.single] = +inp.value||0; commit(); }));
+    wrap.querySelectorAll("[data-goview]").forEach(btn=> btn.addEventListener("click", ()=> go(btn.dataset.goview)));
+    $("#copyQ", wrap).addEventListener("click", ()=>{
+      const other = state.budget[q==="q1"?"q2":"q1"];
+      const clone = o => structuredClone(o).map(x=>({ ...x, id: uid() }));
+      b.ingreso = clone(other.ingreso); b.gastosFijos = clone(other.gastosFijos); b.transporte = clone(other.transporte);
+      b.fondoEmergencia = other.fondoEmergencia; b.ahorroGeneral = other.ahorroGeneral; commit();
+    });
+  }
+
+  // --- MONTH SUMMARY ---
+  function renderMes(wrap){
+    const t1 = qTotals("q1"), t2 = qTotals("q2");
+    const tm = { ingreso:t1.ingreso+t2.ingreso, fijos:t1.fijos+t2.fijos, transp:t1.transp+t2.transp,
+      emerg:t1.emerg+t2.emerg, ahorro:t1.ahorro+t2.ahorro, apartado:t1.apartado+t2.apartado, saldo:t1.saldo+t2.saldo };
+
+    const rows = [
+      { name:"Ingreso", color:"var(--accent)", v1:t1.ingreso, v2:t2.ingreso },
+      ...CATS.map(c=>({ name:c.name, color:cv(c.cvar), v1:catVal(t1,c.key), v2:catVal(t2,c.key) })),
+      { name:"Saldo", color:"var(--s-saldo)", v1:t1.saldo, v2:t2.saldo },
+    ];
+    const maxV = Math.max(1, ...rows.flatMap(r=>[Math.abs(r.v1), Math.abs(r.v2)]));
+    const track = (q, v, color) => `
+      <div class="cmp-track ${q==='Q2'?'q2':''}">
+        <span class="q">${q}</span>
+        <div class="cmp-lane">
+          <div class="cmp-fill" style="width:${Math.abs(v)/maxV*100}%;background:${v<0?'var(--bad)':color}"></div>
+          <span class="cmp-val">${money(v)}</span>
+        </div>
+      </div>`;
+    const cmpRows = rows.map(r=>`
+      <div class="cmp-row">
+        <div class="cmp-name"><span class="sw" style="background:${r.color}"></span>${r.name}</div>
+        <div class="cmp-tracks">${track("Q1", r.v1, r.color)}${track("Q2", r.v2, r.color)}</div>
+      </div>`).join("");
+
+    wrap.innerHTML = `
+      <div class="view-head">
+        <h2 class="big">Presupuesto por quincena</h2>
+        <p class="section-lead">Resumen del mes: las dos quincenas juntas y comparadas lado a lado.</p>
+      </div>
+      ${qtabsHtml()}
+      <div class="tiles">
+        <div class="tile hero"><div class="lab">Saldo del mes</div><div class="val ${tm.saldo<0?'bad':''}" style="${tm.saldo>=0?'color:var(--s-saldo)':''}">${money(tm.saldo)}</div><div class="note">Q1 ${money(t1.saldo)} · Q2 ${money(t2.saldo)}</div></div>
+        <div class="tile"><div class="lab">Ingreso del mes</div><div class="val good">${money(tm.ingreso)}</div><div class="note">Las dos quincenas</div></div>
+        <div class="tile"><div class="lab">Apartado del mes</div><div class="val">${money(tm.apartado)}</div><div class="note">Gastos + fondo + ahorro</div></div>
+        <div class="tile"><div class="lab">Guardado total</div><div class="val good">${money(fundBalance("emergencia")+fundBalance("general"))}</div><div class="note">Emergencia ${money(fundBalance("emergencia"))} · Ahorro ${money(fundBalance("general"))}</div></div>
+      </div>
+      <div class="budget-grid">
+        <div class="card">
+          <div class="card-head"><h2>1ª vs 2ª quincena</h2><div class="spacer"></div><span class="sub">Misma escala en todas las barras</span></div>
+          <div class="cmp">${cmpRows}</div>
+        </div>
+        <div class="rail">${distChart(tm, "¿A dónde se va el mes?")}</div>
+      </div>`;
+    bindQtabs(wrap);
+  }
+
+  function bindQtabs(wrap){
+    wrap.querySelectorAll("[data-q]").forEach(b=> b.addEventListener("click", ()=>{ qView = b.dataset.q; renderPresupuesto(); }));
+  }
+
+  // =========================================================
+  //  AHORROS — fondos, metas y registro de movimientos
+  // =========================================================
+  const FUNDS = [
+    { id:"emergencia", ic:"🛟", cvar:"--s-emerg", name:"Fondo de emergencia", desc:"Sólo se toca en imprevistos", metaKey:"metaEmerg", budgetKey:"fondoEmergencia" },
+    { id:"general", ic:"🌱", cvar:"--s-ahorro", name:"Ahorro general", desc:"Para tus metas y el futuro", metaKey:"metaGeneral", budgetKey:"ahorroGeneral" },
+  ];
+
+  function renderAhorros(){
+    const wrap = $("#view-ahorros");
+    const A = state.ahorros;
+    const q = nowQ(), qName = q==="q1" ? "1ª quincena" : "2ª quincena";
+    const totalGuardado = fundBalance("emergencia") + fundBalance("general");
+    const planMes = FUNDS.reduce((a,f)=> a + (+state.budget.q1[f.budgetKey]||0) + (+state.budget.q2[f.budgetKey]||0), 0);
+
+    const fundCards = FUNDS.map(f=>{
+      const bal = fundBalance(f.id);
+      const meta = +A[f.metaKey]||0;
+      const p = meta>0 ? Math.min(100, Math.round(bal/meta*100)) : 0;
+      const plan = +state.budget[q][f.budgetKey]||0;
+      return `<div class="card">
+        <div class="cat-head">
+          <div class="cat-ic">${f.ic}</div>
+          <div class="cat-title"><b>${f.name}</b><small>${f.desc}</small></div>
+          <div class="cat-amt" style="color:${cv(f.cvar)}">${money(bal)}<small>guardado hoy</small></div>
+          <div class="cat-bar"><i style="width:${p}%;background:${cv(f.cvar)}"></i></div>
+        </div>
+        <div class="cat-body" style="padding-bottom:14px">
+          <div class="line" style="grid-template-columns:26px 1fr auto">
+            <span class="dot" style="background:${cv(f.cvar)}"></span>
+            <span class="mono-note">Meta del fondo · vas al <b style="color:var(--text)">${meta>0?p+"%":"—"}</b>${meta>0?` · faltan ${money(Math.max(0,meta-bal))}`:""}</span>
+            <input class="amt-input-big" type="number" min="0" step="any" data-meta="${f.metaKey}" value="${meta}" style="font-size:14px;width:130px">
+          </div>
+          <div class="line" style="grid-template-columns:26px 1fr auto">
+            <span class="dot" style="background:${cv(f.cvar)};opacity:.35"></span>
+            <span class="mono-note">Plan del presupuesto: <b style="color:var(--text)">${money(plan)}</b> esta ${qName}</span>
+            ${plan>0?`<button class="btn sm primary" data-abonar="${f.id}">+ Abonar ${money(plan)}</button>`:`<span class="mono-note">sin plan</span>`}
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+
+    const fundTag = fid => { const f = FUNDS.find(x=>x.id===fid)||FUNDS[1];
+      return `<span class="tag" style="border-color:${cv(f.cvar)};color:${cv(f.cvar)}">${f.ic} ${f.id==="emergencia"?"Emergencia":"General"}</span>`; };
+    const movs = [...A.movimientos].sort((a,b)=> (b.fecha||"").localeCompare(a.fecha||""));
+    const movRows = movs.length ? movs.map(m=>`
+      <tr><td class="num">${fdate(m.fecha)}</td><td>${fundTag(m.fondo)}</td><td>${esc(m.concepto)}</td>
+      <td>${m.tipo==="retiro"?'<span class="pill r">Retiro</span>':'<span class="pill g">Depósito</span>'}</td>
+      <td class="num" style="color:${m.tipo==="retiro"?"var(--bad)":"var(--good)"}">${m.tipo==="retiro"?"−":"+"}${money(m.monto)}</td>${delCell(m.id)}</tr>`).join("")
+      : `<tr><td colspan="6"><div class="empty">Sin movimientos. Registra tu primer depósito abajo 👇</div></td></tr>`;
+
+    wrap.innerHTML = `
+      <div class="view-head">
+        <h2 class="big">◈ Ahorros</h2>
+        <p class="section-lead">Tus dos fondos en un solo lugar, conectados con el presupuesto: lo que planeas apartar cada quincena lo <b>abonas aquí con un clic</b>, y cada depósito o retiro queda en el registro.</p>
+      </div>
+      <div class="tiles">
+        <div class="tile hero"><div class="lab">Guardado total</div><div class="val good">${money(totalGuardado)}</div><div class="note">Emergencia + ahorro general</div></div>
+        <div class="tile"><div class="lab">Plan de ahorro del mes</div><div class="val">${money(planMes)}</div><div class="note">Según tu presupuesto (Q1 + Q2)</div></div>
+        <div class="tile"><div class="lab">Movimientos registrados</div><div class="val">${A.movimientos.length}</div><div class="note">Depósitos y retiros</div></div>
+      </div>
+      <div class="stack">
+        ${fundCards}
+        <div class="card">
+          <div class="card-head"><h2>📒 Registro de movimientos</h2><div class="spacer"></div><span class="sub">Del más reciente al más antiguo</span></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th class="num">Fecha</th><th>Fondo</th><th>Concepto</th><th>Tipo</th><th class="num">Monto</th><th></th></tr></thead>
+            <tbody>${movRows}</tbody>
+          </table></div>
+          <form class="form-row" id="movForm">
+            <div class="fld"><label>Fecha</label><input type="date" name="fecha" value="${today(0)}" required></div>
+            <div class="fld"><label>Fondo</label><select name="fondo"><option value="general">🌱 Ahorro general</option><option value="emergencia">🛟 Emergencia</option></select></div>
+            <div class="fld"><label>Tipo</label><select name="tipo"><option value="deposito">Depósito (entra)</option><option value="retiro">Retiro (sale)</option></select></div>
+            <div class="fld"><label>Concepto</label><input name="concepto" placeholder="Apartado de quincena, imprevisto..." required></div>
+            <div class="fld"><label>Monto</label><input type="number" name="monto" min="0" step="any" placeholder="0" required></div>
+            <div class="fld act"><button class="btn primary">+ Registrar</button></div>
+          </form>
+        </div>
+      </div>`;
+
+    // handlers
+    wrap.querySelectorAll("[data-meta]").forEach(inp=> inp.addEventListener("change", ()=>{ A[inp.dataset.meta] = +inp.value||0; commit(); }));
+    wrap.querySelectorAll("[data-abonar]").forEach(btn=> btn.addEventListener("click", ()=>{
+      const f = FUNDS.find(x=>x.id===btn.dataset.abonar);
+      const plan = +state.budget[q][f.budgetKey]||0; if (plan<=0) return;
+      A.movimientos.push({ id: uid(), fecha: today(0), fondo: f.id, tipo: "deposito", concepto: `Apartado ${qName}`, monto: plan });
+      commit();
+    }));
+    $("#movForm", wrap).addEventListener("submit", e=>{
+      e.preventDefault(); const fd = new FormData(e.target);
+      A.movimientos.push({ id: uid(), fecha: fd.get("fecha"), fondo: fd.get("fondo"), tipo: fd.get("tipo"), concepto: fd.get("concepto"), monto: +fd.get("monto")||0 });
+      e.target.reset(); commit();
+    });
+    wrap.querySelectorAll("[data-del]").forEach(b=> b.addEventListener("click", ()=>{
+      A.movimientos = A.movimientos.filter(x=>x.id!==b.dataset.del); commit();
+    }));
+  }
+
+  // =========================================================
+  //  Generic modules (tarjetas, deudas, operaciones)
+  // =========================================================
+  const delCell = id => `<td class="act-cell" style="text-align:right"><button class="icon-x" data-del="${id}" title="Eliminar">✕</button></td>`;
+  const prioPill = p => { const m={alta:["r","Alta"],media:["w","Media"],baja:["n","Baja"]}; const [c,l]=m[p]||m.media; return `<span class="pill ${c}">${l}</span>`; };
+
+  function moduleView(cfg){
+    const wrap = $("#view-"+cfg.id); const rows = state[cfg.store];
+    const foot = cfg.footer ? cfg.footer(rows) : "";
+    wrap.innerHTML = `
+      <div class="view-head"><h2 class="big">${cfg.icon} ${cfg.title}</h2><p class="section-lead">${cfg.lead}</p></div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h2>${cfg.listTitle||cfg.title}</h2><div class="spacer"></div><span class="sub">${rows.length} registro${rows.length===1?"":"s"}</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr>${cfg.cols.map(c=>`<th class="${c.num?'num':''}">${c.h}</th>`).join("")}<th></th></tr></thead>
+          <tbody>${rows.length? rows.map(r=>cfg.row(r)).join("") : `<tr><td colspan="${cfg.cols.length+1}"><div class="empty">Sin registros. Agrega el primero abajo 👇</div></td></tr>`}${foot}</tbody>
+        </table></div>
+        <form class="form-row" data-add="${cfg.id}">${cfg.form}</form>
+      </div>`;
+    wrap.querySelector("form").addEventListener("submit", e=>{ e.preventDefault(); cfg.add(new FormData(e.target)); e.target.reset(); });
+    wrap.querySelectorAll("[data-del]").forEach(b=> b.addEventListener("click", ()=>{ state[cfg.store]=state[cfg.store].filter(x=>x.id!==b.dataset.del); commit(); }));
+    if (cfg.after) cfg.after(wrap);
+  }
+  function commit(){ save(); renderCurrent(); refreshBadges(); }
+
+  const modules = {
+    ahorros: renderAhorros,
+    tarjetas: () => moduleView({
+      id:"tarjetas", store:"tarjetas", icon:"▭", title:"Tarjetas de crédito",
+      lead:"Cuánto debes en cada tarjeta, tu límite y las fechas de corte y pago.",
+      cols:[{h:"Tarjeta"},{h:"Banco"},{h:"Deuda",num:true},{h:"Límite",num:true},{h:"Uso"},{h:"Corte",num:true},{h:"Pago",num:true}],
+      row:r=>{ const uso=r.limite?Math.round(r.deuda/r.limite*100):0;
+        return `<tr><td><b>${esc(r.nombre)}</b></td><td>${esc(r.banco)}</td><td class="num" style="color:var(--bad)">${money(r.deuda)}</td><td class="num">${money(r.limite)}</td>
+        <td><div class="bar ${uso>70?'':'g'}"><i style="width:${uso}%"></i></div><span style="font-size:11px;color:var(--text-mute)">${uso}%</span></td>
+        <td class="num">día ${r.corte}</td><td class="num">día ${r.pago}</td>${delCell(r.id)}</tr>`; },
+      footer:rows=>`<tr style="font-weight:650"><td colspan="2" style="color:var(--text-mute)">Total deuda tarjetas</td><td class="num" style="color:var(--bad)">${money(sum(rows,x=>x.deuda))}</td><td colspan="5"></td></tr>`,
+      form:`
+        <div class="fld"><label>Nombre</label><input name="nombre" placeholder="BBVA Azul" required></div>
+        <div class="fld"><label>Banco</label><input name="banco" placeholder="BBVA"></div>
+        <div class="fld"><label>Deuda actual</label><input type="number" name="deuda" min="0" step="any" value="0"></div>
+        <div class="fld"><label>Límite</label><input type="number" name="limite" min="0" step="any"></div>
+        <div class="fld"><label>Día corte</label><input type="number" name="corte" min="1" max="31" placeholder="12"></div>
+        <div class="fld"><label>Día pago</label><input type="number" name="pago" min="1" max="31" placeholder="30"></div>
+        <div class="fld act"><button class="btn primary">+ Agregar</button></div>`,
+      add:f=>{ state.tarjetas.unshift({id:uid(), nombre:f.get("nombre"), banco:f.get("banco")||"", deuda:+f.get("deuda")||0, limite:+f.get("limite")||0, corte:+f.get("corte")||1, pago:+f.get("pago")||1}); commit(); },
+    }),
+    deudas: () => moduleView({
+      id:"deudas", store:"deudas", icon:"⚑", title:"Deudas y préstamos",
+      lead:"Deudas fuera de tarjetas: financiamientos, préstamos o dinero que te prestaron.",
+      cols:[{h:"Acreedor / concepto"},{h:"Avance"},{h:"Pagado",num:true},{h:"Total",num:true},{h:"Restante",num:true},{h:"Plazo"}],
+      row:r=>{ const p=r.monto?Math.round(r.pagado/r.monto*100):0;
+        return `<tr><td><b>${esc(r.acreedor)}</b></td><td style="width:22%"><div class="bar g"><i style="width:${p}%"></i></div></td>
+        <td class="num" style="color:var(--good)">${money(r.pagado)}</td><td class="num">${money(r.monto)}</td>
+        <td class="num" style="color:var(--bad)">${money(r.monto-r.pagado)}</td><td class="num">${esc(r.plazo||"—")}</td>${delCell(r.id)}</tr>`; },
+      footer:rows=>`<tr style="font-weight:650"><td colspan="4" style="text-align:right;color:var(--text-mute)">Total por pagar</td><td class="num" style="color:var(--bad)">${money(sum(rows,x=>x.monto-x.pagado))}</td><td colspan="2"></td></tr>`,
+      form:`
+        <div class="fld"><label>Acreedor / concepto</label><input name="acreedor" placeholder="Financiamiento camioneta" required></div>
+        <div class="fld"><label>Monto total</label><input type="number" name="monto" min="0" step="any" required></div>
+        <div class="fld"><label>Ya pagado</label><input type="number" name="pagado" min="0" step="any" value="0"></div>
+        <div class="fld"><label>Plazo (AAAA-MM)</label><input name="plazo" placeholder="2026-12"></div>
+        <div class="fld act"><button class="btn primary">+ Agregar</button></div>`,
+      add:f=>{ state.deudas.unshift({id:uid(), acreedor:f.get("acreedor"), monto:+f.get("monto")||0, pagado:+f.get("pagado")||0, plazo:f.get("plazo")||""}); commit(); },
+    }),
+    tareas: () => moduleView({
+      id:"tareas", store:"tareas", icon:"✓", title:"Tareas pendientes",
+      lead:"Todo lo que no quieres que se te olvide: cambios de proveedor, trámites, seguimientos, pagos.",
+      cols:[{h:""},{h:"Tarea"},{h:"Prioridad"},{h:"Para cuándo"},{h:"Estado"}],
+      row:r=>`<tr class="${r.estado==='hecho'?'done':''}"><td class="act-cell"><input type="checkbox" class="checkbox" data-chk="${r.id}" ${r.estado==='hecho'?'checked':''}></td>
+        <td class="titlecell">${esc(r.titulo)}</td><td>${prioPill(r.prioridad)}</td><td class="num">${fdate(r.fecha)}</td>
+        <td>${r.estado==='hecho'?'<span class="pill g">Hecho</span>':'<span class="pill n">Pendiente</span>'}</td>${delCell(r.id)}</tr>`,
+      form:`
+        <div class="fld" style="grid-column:span 2"><label>Tarea</label><input name="titulo" placeholder="Ej. Revisar cambios del contenedor..." required></div>
+        <div class="fld"><label>Prioridad</label><select name="prioridad"><option value="alta">Alta</option><option value="media" selected>Media</option><option value="baja">Baja</option></select></div>
+        <div class="fld"><label>Para cuándo</label><input type="date" name="fecha"></div>
+        <div class="fld act"><button class="btn primary">+ Agregar</button></div>`,
+      add:f=>{ state.tareas.unshift({id:uid(), titulo:f.get("titulo"), prioridad:f.get("prioridad"), fecha:f.get("fecha")||"", estado:"pendiente"}); commit(); },
+      after:wrap=>{ wrap.querySelectorAll("[data-chk]").forEach(c=> c.addEventListener("change", ()=>{ const t=state.tareas.find(x=>x.id===c.dataset.chk); if(t){ t.estado=c.checked?"hecho":"pendiente"; commit(); } })); },
+    }),
+    proveedores: () => moduleView({
+      id:"proveedores", store:"proveedores", icon:"⇄", title:"Proveedores y cambios",
+      lead:"Qué llegó de cada proveedor y qué cambios o devoluciones hay que hacerle.",
+      cols:[{h:"Proveedor"},{h:"Qué llegó"},{h:"Cambio a hacer"},{h:"Contacto"},{h:"Estado"}],
+      row:r=>`<tr><td><b>${esc(r.proveedor)}</b></td><td>${esc(r.queLlego)}</td><td>${esc(r.cambio)}</td><td style="font-size:12px;color:var(--text-dim)">${esc(r.contacto)}</td>
+        <td><button class="pill ${r.estado==='resuelto'?'g':'w'}" style="border:0;cursor:pointer;font:inherit;font-weight:600" data-toggle="${r.id}">${r.estado==='resuelto'?'Resuelto':'Pendiente'}</button></td>${delCell(r.id)}</tr>`,
+      form:`
+        <div class="fld"><label>Proveedor</label><input name="proveedor" placeholder="Motopartes del Norte" required></div>
+        <div class="fld"><label>Qué llegó</label><input name="queLlego" placeholder="Lote de defensas"></div>
+        <div class="fld"><label>Cambio a hacer</label><input name="cambio" placeholder="Cambiar 4 dañadas" required></div>
+        <div class="fld"><label>Contacto</label><input name="contacto" placeholder="Tel / correo"></div>
+        <div class="fld act"><button class="btn primary">+ Agregar</button></div>`,
+      add:f=>{ state.proveedores.unshift({id:uid(), proveedor:f.get("proveedor"), queLlego:f.get("queLlego")||"", cambio:f.get("cambio"), contacto:f.get("contacto")||"", estado:"pendiente"}); commit(); },
+      after:wrap=>{ wrap.querySelectorAll("[data-toggle]").forEach(b=> b.addEventListener("click", ()=>{ const p=state.proveedores.find(x=>x.id===b.dataset.toggle); if(p){ p.estado=p.estado==="resuelto"?"pendiente":"resuelto"; commit(); } })); },
+    }),
+    contenedores: () => moduleView({
+      id:"contenedores", store:"contenedores", icon:"▣", title:"Contenedores pedidos",
+      lead:"Lista de todos los contenedores que se han pedido y en qué estado va cada uno.",
+      cols:[{h:"Contenedor"},{h:"Contenido"},{h:"Proveedor"},{h:"Fecha"},{h:"Estado"}],
+      row:r=>`<tr><td><b>${esc(r.nombre)}</b></td><td>${esc(r.contenido)}</td><td>${esc(r.proveedor)}</td><td class="num">${fdate(r.fecha)}</td>
+        <td><select data-est="${r.id}" class="est-sel"><option value="pedido"${r.estado==='pedido'?' selected':''}>Pedido</option><option value="en camino"${r.estado==='en camino'?' selected':''}>En camino</option><option value="recibido"${r.estado==='recibido'?' selected':''}>Recibido</option></select></td>${delCell(r.id)}</tr>`,
+      form:`
+        <div class="fld"><label>Contenedor</label><input name="nombre" placeholder="CNT-004" required></div>
+        <div class="fld"><label>Contenido</label><input name="contenido" placeholder="Motos, refacciones..." required></div>
+        <div class="fld"><label>Proveedor</label><input name="proveedor" placeholder="Import China"></div>
+        <div class="fld"><label>Fecha</label><input type="date" name="fecha" value="${today(0)}"></div>
+        <div class="fld"><label>Estado</label><select name="estado"><option value="pedido">Pedido</option><option value="en camino">En camino</option><option value="recibido">Recibido</option></select></div>
+        <div class="fld act"><button class="btn primary">+ Agregar</button></div>`,
+      add:f=>{ state.contenedores.unshift({id:uid(), nombre:f.get("nombre"), contenido:f.get("contenido"), proveedor:f.get("proveedor")||"", fecha:f.get("fecha")||today(0), estado:f.get("estado")}); commit(); },
+      after:wrap=>{ wrap.querySelectorAll("[data-est]").forEach(s=> s.addEventListener("change", ()=>{ const c=state.contenedores.find(x=>x.id===s.dataset.est); if(c){ c.estado=s.value; commit(); } })); },
+    }),
+    archivos: () => moduleView({
+      id:"archivos", store:"archivos", icon:"▤", title:"Archivos importantes",
+      lead:"Un directorio de los documentos y archivos de ayuda que necesitas tener siempre a la mano.",
+      cols:[{h:"Documento"},{h:"Tipo"},{h:"Dónde está / nota"}],
+      row:r=>`<tr><td><b>${esc(r.nombre)}</b></td><td><span class="tag">${esc(r.tipo)}</span></td><td style="color:var(--text-dim)">${esc(r.nota)}</td>${delCell(r.id)}</tr>`,
+      form:`
+        <div class="fld"><label>Documento</label><input name="nombre" placeholder="Acta constitutiva, factura..." required></div>
+        <div class="fld"><label>Tipo</label><input name="tipo" placeholder="Legal, Precios..." value="General"></div>
+        <div class="fld" style="grid-column:span 2"><label>Dónde está / nota</label><input name="nota" placeholder="Carpeta física, link de Drive, etc."></div>
+        <div class="fld act"><button class="btn primary">+ Agregar</button></div>`,
+      add:f=>{ state.archivos.unshift({id:uid(), nombre:f.get("nombre"), tipo:f.get("tipo")||"General", nota:f.get("nota")||""}); commit(); },
+    }),
+  };
+
+  // ---------- navigation ----------
+  const titles = { presupuesto:"Presupuesto", tarjetas:"Tarjetas de crédito", deudas:"Deudas y préstamos", ahorros:"Ahorros",
+    tareas:"Tareas pendientes", proveedores:"Proveedores y cambios", contenedores:"Contenedores pedidos", archivos:"Archivos importantes" };
+  let current = "presupuesto";
+  function renderCurrent(){ if(current==="presupuesto") renderPresupuesto(); else if(modules[current]) modules[current](); }
+  function refreshBadges(){
+    $("#badge-tareas").textContent = state.tareas.filter(x=>x.estado!=="hecho").length;
+    $("#badge-cont").textContent = state.contenedores.filter(x=>x.estado!=="recibido").length;
+  }
+  function go(view){
+    current = view;
+    document.querySelectorAll(".view").forEach(v=> v.hidden = (v.id!=="view-"+view));
+    document.querySelectorAll(".nav-btn").forEach(b=> b.classList.toggle("active", b.dataset.view===view));
+    $("#viewTitle").textContent = titles[view] || "";
+    renderCurrent(); closeMenu(); window.scrollTo(0,0);
+  }
+  document.querySelectorAll(".nav-btn").forEach(b=> b.addEventListener("click", ()=> go(b.dataset.view)));
+
+  // ---------- theme ----------
+  const root = document.documentElement;
+  (function(){ const t=localStorage.getItem("tm_theme"); if(t) root.setAttribute("data-theme", t); })();
+  $("#themeBtn").addEventListener("click", ()=>{
+    const cur = root.getAttribute("data-theme") || (matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");
+    const next = cur==="dark"?"light":"dark"; root.setAttribute("data-theme", next); localStorage.setItem("tm_theme", next);
+  });
+
+  // ---------- mobile menu ----------
+  function closeMenu(){ $("#side").classList.remove("open"); $("#scrim").classList.remove("show"); }
+  $("#menuBtn").addEventListener("click", ()=>{ $("#side").classList.add("open"); $("#scrim").classList.add("show"); });
+  $("#scrim").addEventListener("click", closeMenu);
+
+  // =========================================================
+  //  NUBE — respaldo en Google Drive vía claude.ai
+  //  Guarda un archivo "todomotos-datos.json" en tu Drive y
+  //  carga el más reciente al abrir desde cualquier dispositivo.
+  // =========================================================
+  const CLOUD_SERVER = "Google Drive";
+  const CLOUD_FILE = "todomotos-datos";
+  const mcpReady = () => typeof window !== "undefined" && window.claude && window.claude.mcp !== undefined;
+  const fmtIso = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString("es-MX", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" }); };
+  const b64decode = s => { try { return new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s+/g,"")), c=>c.charCodeAt(0))); } catch(e){ return null; } };
+
+  function toast(msg){
+    const d = document.createElement("div"); d.className = "toast"; d.textContent = msg;
+    document.body.appendChild(d); setTimeout(()=>d.remove(), 2800);
+  }
+
+  function renderCloudBar(cls, msg, opts){
+    opts = opts || {};
+    const bar = $("#cloudbar"); if (!bar) return;
+    bar.hidden = false; bar.className = "cloudbar " + (cls||"");
+    bar.innerHTML = `<span class="st">☁ ${msg}</span><span class="spacer"></span>` +
+      (opts.apply ? `<button class="btn sm primary" data-c="apply">↓ Cargar respaldo</button>` : "") +
+      (opts.load ? `<button class="btn sm" data-c="load">↓ Cargar último</button>` : "") +
+      (opts.save ? `<button class="btn sm ${opts.apply?'':'primary'}" data-c="save">☁ Guardar en la nube</button>` : "") +
+      `<button class="btn sm" data-c="exp" title="Descarga tus datos como archivo">⬇ Exportar</button>` +
+      `<button class="btn sm" data-c="imp" title="Carga un archivo de respaldo">⬆ Importar</button>`;
+    const h = { apply: ()=>applyCloud(opts.apply), load: cloudLoad, save: cloudSave, exp: exportBackup, imp: importBackup };
+    bar.querySelectorAll("[data-c]").forEach(b=> b.addEventListener("click", h[b.dataset.c]));
+  }
+
+  const backupBody = () => JSON.stringify({ app:"todomotos-centro", version:4, savedAt: new Date().toISOString(), state });
+  async function exportBackup(){
+    const body = backupBody();
+    const name = "todomotos-datos-" + today(0) + ".json";
+    if (window.claude && window.claude.downloads) {
+      try { await window.claude.downloads.save({ filename: name, data: body }); toast("⬇ Respaldo descargado"); }
+      catch(e){ if (e && e.code === "declined") return; toast("No se pudo descargar el respaldo"); }
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([body], { type: "application/json" }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+    toast("⬇ Respaldo descargado");
+  }
+  function importBackup(){
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = ".json,application/json";
+    inp.onchange = () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      f.text().then(t => {
+        const b = parseBackup(t);
+        if (!b) { toast("Ese archivo no es un respaldo válido de Todo Motos"); return; }
+        state = b.state; save(); refreshBadges(); renderCurrent();
+        toast("⬆ Respaldo cargado" + (b.savedAt ? " (del " + fmtIso(b.savedAt) + ")" : ""));
+      }).catch(()=> toast("No se pudo leer el archivo"));
+    };
+    inp.click();
+  }
+
+  function cloudErrMsg(e){
+    switch (e && e.code) {
+      case "needs_reauth": return "Tu Google Drive necesita reconectarse: ve a claude.ai → Ajustes → Conectores";
+      case "server_not_connected": return "Agrega el conector de Google Drive en claude.ai → Ajustes → Conectores";
+      case "selection_required": return "Tienes más de un Google Drive conectado: elige uno cuando claude.ai lo pregunte y reintenta";
+      case "not_granted": case "capability_disabled": case "capability_removed": return null;
+      case "blocked_by_policy": case "approval_required": return "Tu organización no permite usar Google Drive desde esta página";
+      case "tool_error": return "Google Drive reportó un error: " + ((e.message||"").slice(0,120) || "operación rechazada");
+      case "server_unavailable": return "Google Drive no responde en este momento; intenta de nuevo en un rato";
+      default: return "No se pudo conectar con la nube — tus datos siguen guardados en este dispositivo";
+    }
+  }
+  function cloudFail(e){
+    const m = cloudErrMsg(e);
+    if (m === null) { localBar(); return; }
+    renderCloudBar("err", m, { save:true, load:true });
+  }
+  function localBar(){
+    renderCloudBar("", "Datos guardados en este dispositivo — usa Exportar/Importar para llevarlos a otro", {});
+  }
+
+  async function callDrive(tool, input, isRead){
+    try { return await window.claude.mcp.callTool(CLOUD_SERVER, tool, input); }
+    catch(e){
+      if (isRead && e && e.retryable === true) {
+        await new Promise(r=>setTimeout(r, Math.min(e.retryAfterMs||1500, 60000) + Math.random()*700));
+        return window.claude.mcp.callTool(CLOUD_SERVER, tool, input);
+      }
+      throw e;
+    }
+  }
+
+  // tolerant extraction: the connector's exact result shapes were not
+  // observable at build time, so scan for the pieces we need
+  function extractFiles(p){
+    const out = [];
+    const push = it => { if (it && typeof it === "object") {
+      const id = it.id || it.fileId || it.file_id;
+      if (typeof id === "string" && id) out.push({ id,
+        title: String(it.title || it.name || ""),
+        when: String(it.modifiedTime || it.modified_time || it.createdTime || it.created_time || "") });
+    } };
+    if (Array.isArray(p)) p.forEach(push);
+    else if (p && typeof p === "object") {
+      Object.values(p).forEach(v => { if (Array.isArray(v)) v.forEach(push); });
+      push(p);
+    }
+    return out.filter(f => f.title.includes(CLOUD_FILE));
+  }
+  function parseBackup(p){
+    const tryParse = s => { if (typeof s !== "string" || !s) return null;
+      try { const o = JSON.parse(s); return o && o.app === "todomotos-centro" && o.state ? o : null; } catch(e){ return null; } };
+    if (typeof p === "string") return tryParse(p) || tryParse(b64decode(p));
+    if (p && typeof p === "object") {
+      if (p.app === "todomotos-centro" && p.state) return p;
+      for (const v of Object.values(p)) {
+        const o = tryParse(v) || (typeof v === "string" ? tryParse(b64decode(v)) : null);
+        if (o) return o;
+      }
+    }
+    return null;
+  }
+
+  async function findNewest(){
+    const r = await callDrive("search_files", { query: `title contains '${CLOUD_FILE}'`, pageSize: 10, excludeContentSnippets: true }, true);
+    const files = extractFiles(r && r.payload).sort((a,b)=> b.when.localeCompare(a.when));
+    return files[0] || null;
+  }
+
+  async function cloudSave(){
+    if (!mcpReady()) return;
+    renderCloudBar("", "Guardando en tu Google Drive…");
+    const body = JSON.stringify({ app:"todomotos-centro", version:4, savedAt: new Date().toISOString(), state });
+    try {
+      await callDrive("create_file", { title: CLOUD_FILE + ".json", textContent: body,
+        contentMimeType: "application/json", disableConversionToGoogleType: true }, false);
+      renderCloudBar("ok", "Guardado en la nube · " + fmtIso(new Date().toISOString()), { save:true, load:true });
+      toast("☁ Respaldo guardado en tu Google Drive");
+    } catch(e){ cloudFail(e); }
+  }
+
+  async function applyCloud(fileId){
+    renderCloudBar("", "Descargando respaldo…");
+    try {
+      const r = await callDrive("download_file_content", { fileId }, true);
+      const backup = parseBackup(r && r.payload);
+      if (!backup) { renderCloudBar("err", "No pude leer el respaldo (formato inesperado); tus datos locales siguen intactos", { save:true, load:true }); return; }
+      state = backup.state; save(); refreshBadges(); renderCurrent();
+      renderCloudBar("ok", "Respaldo cargado" + (backup.savedAt ? " · guardado el " + fmtIso(backup.savedAt) : ""), { save:true, load:true });
+      toast("☁ Datos cargados desde tu Google Drive");
+    } catch(e){ cloudFail(e); }
+  }
+
+  async function cloudLoad(){
+    renderCloudBar("", "Buscando tu respaldo en Google Drive…");
+    try {
+      const f = await findNewest();
+      if (!f) { renderCloudBar("", "Aún no hay respaldo en la nube — guarda el primero:", { save:true }); return; }
+      await applyCloud(f.id);
+    } catch(e){ cloudFail(e); }
+  }
+
+  async function cloudBoot(){
+    if (!mcpReady()) { localBar(); return; } // fuera de claude.ai: modo local con exportar/importar
+    renderCloudBar("", "Conectando con tu Google Drive…");
+    try {
+      const f = await findNewest();
+      if (f) renderCloudBar("ok", "Respaldo en tu Drive" + (f.when ? " del " + fmtIso(f.when) : "") + " — cárgalo o guarda encima", { apply: f.id, save:true });
+      else renderCloudBar("", "Sin respaldo en la nube todavía — guarda el primero:", { save:true });
+    } catch(e){ cloudFail(e); }
+  }
+
+  // ---------- boot ----------
+  $("#viewDate").textContent = new Date().toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+  refreshBadges();
+  renderPresupuesto();
+  cloudBoot();
+})();
+</script>
+
+</body>
+</html>
