@@ -243,6 +243,17 @@
   .done .titlecell { text-decoration: line-through; }
   .est-sel { padding: 5px 8px; font-size: 12.5px; }
 
+  /* cloud bar */
+  .cloudbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 30px;
+    border-bottom: 1px solid var(--line); background: var(--bg-2); font-size: 12.5px; color: var(--text-dim); }
+  .cloudbar[hidden] { display: none; }
+  .cloudbar .st { display: inline-flex; align-items: center; gap: 8px; }
+  .cloudbar .st::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--text-mute); flex: none; }
+  .cloudbar.ok .st::before { background: var(--good); }
+  .cloudbar.err .st::before { background: var(--bad); }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg);
+    padding: 10px 18px; border-radius: 10px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,.4); z-index: 100; }
+
   .menu-btn { display: none; }
   .scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 30; }
   @media (max-width: 860px) {
@@ -253,6 +264,7 @@
     .scrim.show { display: block; }
     .view { padding: 18px 15px; }
     .topbar { padding: 13px 15px; }
+    .cloudbar { padding: 9px 15px; }
     .rail { position: static; }
     .cmp-row { grid-template-columns: 1fr; }
     .add-line { flex-wrap: wrap; padding-left: 0; }
@@ -292,6 +304,7 @@
       <div class="spacer"></div>
       <button class="icon-btn" id="themeBtn" title="Cambiar tema">◑</button>
     </header>
+    <div class="cloudbar" id="cloudbar" hidden></div>
 
     <section class="view" id="view-presupuesto"></section>
     <section class="view" id="view-tarjetas" hidden></section>
@@ -878,9 +891,147 @@
   $("#menuBtn").addEventListener("click", ()=>{ $("#side").classList.add("open"); $("#scrim").classList.add("show"); });
   $("#scrim").addEventListener("click", closeMenu);
 
+  // =========================================================
+  //  NUBE — respaldo en Google Drive vía claude.ai
+  //  Guarda un archivo "todomotos-datos.json" en tu Drive y
+  //  carga el más reciente al abrir desde cualquier dispositivo.
+  // =========================================================
+  const CLOUD_SERVER = "Google Drive";
+  const CLOUD_FILE = "todomotos-datos";
+  const mcpReady = () => typeof window !== "undefined" && window.claude && window.claude.mcp !== undefined;
+  const fmtIso = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString("es-MX", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" }); };
+  const b64decode = s => { try { return new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s+/g,"")), c=>c.charCodeAt(0))); } catch(e){ return null; } };
+
+  function toast(msg){
+    const d = document.createElement("div"); d.className = "toast"; d.textContent = msg;
+    document.body.appendChild(d); setTimeout(()=>d.remove(), 2800);
+  }
+
+  function renderCloudBar(cls, msg, opts){
+    opts = opts || {};
+    const bar = $("#cloudbar"); if (!bar) return;
+    bar.hidden = false; bar.className = "cloudbar " + (cls||"");
+    bar.innerHTML = `<span class="st">☁ ${msg}</span><span class="spacer"></span>` +
+      (opts.apply ? `<button class="btn sm primary" data-c="apply">↓ Cargar respaldo</button>` : "") +
+      (opts.load ? `<button class="btn sm" data-c="load">↓ Cargar último</button>` : "") +
+      (opts.save ? `<button class="btn sm ${opts.apply?'':'primary'}" data-c="save">☁ Guardar en la nube</button>` : "");
+    const h = { apply: ()=>applyCloud(opts.apply), load: cloudLoad, save: cloudSave };
+    bar.querySelectorAll("[data-c]").forEach(b=> b.addEventListener("click", h[b.dataset.c]));
+  }
+
+  function cloudErrMsg(e){
+    switch (e && e.code) {
+      case "needs_reauth": return "Tu Google Drive necesita reconectarse: ve a claude.ai → Ajustes → Conectores";
+      case "server_not_connected": return "Agrega el conector de Google Drive en claude.ai → Ajustes → Conectores";
+      case "selection_required": return "Tienes más de un Google Drive conectado: elige uno cuando claude.ai lo pregunte y reintenta";
+      case "not_granted": case "capability_disabled": case "capability_removed": return null;
+      case "blocked_by_policy": case "approval_required": return "Tu organización no permite usar Google Drive desde esta página";
+      case "tool_error": return "Google Drive reportó un error: " + ((e.message||"").slice(0,120) || "operación rechazada");
+      case "server_unavailable": return "Google Drive no responde en este momento; intenta de nuevo en un rato";
+      default: return "No se pudo conectar con la nube — tus datos siguen guardados en este dispositivo";
+    }
+  }
+  function cloudFail(e){
+    const m = cloudErrMsg(e);
+    if (m === null) { const bar = $("#cloudbar"); if (bar) bar.hidden = true; return; }
+    renderCloudBar("err", m, { save:true, load:true });
+  }
+
+  async function callDrive(tool, input, isRead){
+    try { return await window.claude.mcp.callTool(CLOUD_SERVER, tool, input); }
+    catch(e){
+      if (isRead && e && e.retryable === true) {
+        await new Promise(r=>setTimeout(r, Math.min(e.retryAfterMs||1500, 60000) + Math.random()*700));
+        return window.claude.mcp.callTool(CLOUD_SERVER, tool, input);
+      }
+      throw e;
+    }
+  }
+
+  // tolerant extraction: the connector's exact result shapes were not
+  // observable at build time, so scan for the pieces we need
+  function extractFiles(p){
+    const out = [];
+    const push = it => { if (it && typeof it === "object") {
+      const id = it.id || it.fileId || it.file_id;
+      if (typeof id === "string" && id) out.push({ id,
+        title: String(it.title || it.name || ""),
+        when: String(it.modifiedTime || it.modified_time || it.createdTime || it.created_time || "") });
+    } };
+    if (Array.isArray(p)) p.forEach(push);
+    else if (p && typeof p === "object") {
+      Object.values(p).forEach(v => { if (Array.isArray(v)) v.forEach(push); });
+      push(p);
+    }
+    return out.filter(f => f.title.includes(CLOUD_FILE));
+  }
+  function parseBackup(p){
+    const tryParse = s => { if (typeof s !== "string" || !s) return null;
+      try { const o = JSON.parse(s); return o && o.app === "todomotos-centro" && o.state ? o : null; } catch(e){ return null; } };
+    if (typeof p === "string") return tryParse(p) || tryParse(b64decode(p));
+    if (p && typeof p === "object") {
+      if (p.app === "todomotos-centro" && p.state) return p;
+      for (const v of Object.values(p)) {
+        const o = tryParse(v) || (typeof v === "string" ? tryParse(b64decode(v)) : null);
+        if (o) return o;
+      }
+    }
+    return null;
+  }
+
+  async function findNewest(){
+    const r = await callDrive("search_files", { query: `title contains '${CLOUD_FILE}'`, pageSize: 10, excludeContentSnippets: true }, true);
+    const files = extractFiles(r && r.payload).sort((a,b)=> b.when.localeCompare(a.when));
+    return files[0] || null;
+  }
+
+  async function cloudSave(){
+    if (!mcpReady()) return;
+    renderCloudBar("", "Guardando en tu Google Drive…");
+    const body = JSON.stringify({ app:"todomotos-centro", version:4, savedAt: new Date().toISOString(), state });
+    try {
+      await callDrive("create_file", { title: CLOUD_FILE + ".json", textContent: body,
+        contentMimeType: "application/json", disableConversionToGoogleType: true }, false);
+      renderCloudBar("ok", "Guardado en la nube · " + fmtIso(new Date().toISOString()), { save:true, load:true });
+      toast("☁ Respaldo guardado en tu Google Drive");
+    } catch(e){ cloudFail(e); }
+  }
+
+  async function applyCloud(fileId){
+    renderCloudBar("", "Descargando respaldo…");
+    try {
+      const r = await callDrive("download_file_content", { fileId }, true);
+      const backup = parseBackup(r && r.payload);
+      if (!backup) { renderCloudBar("err", "No pude leer el respaldo (formato inesperado); tus datos locales siguen intactos", { save:true, load:true }); return; }
+      state = backup.state; save(); refreshBadges(); renderCurrent();
+      renderCloudBar("ok", "Respaldo cargado" + (backup.savedAt ? " · guardado el " + fmtIso(backup.savedAt) : ""), { save:true, load:true });
+      toast("☁ Datos cargados desde tu Google Drive");
+    } catch(e){ cloudFail(e); }
+  }
+
+  async function cloudLoad(){
+    renderCloudBar("", "Buscando tu respaldo en Google Drive…");
+    try {
+      const f = await findNewest();
+      if (!f) { renderCloudBar("", "Aún no hay respaldo en la nube — guarda el primero:", { save:true }); return; }
+      await applyCloud(f.id);
+    } catch(e){ cloudFail(e); }
+  }
+
+  async function cloudBoot(){
+    if (!mcpReady()) return; // sin nube en este entorno: la app sigue funcionando local
+    renderCloudBar("", "Conectando con tu Google Drive…");
+    try {
+      const f = await findNewest();
+      if (f) renderCloudBar("ok", "Respaldo en tu Drive" + (f.when ? " del " + fmtIso(f.when) : "") + " — cárgalo o guarda encima", { apply: f.id, save:true });
+      else renderCloudBar("", "Sin respaldo en la nube todavía — guarda el primero:", { save:true });
+    } catch(e){ cloudFail(e); }
+  }
+
   // ---------- boot ----------
   $("#viewDate").textContent = new Date().toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
   refreshBadges();
   renderPresupuesto();
+  cloudBoot();
 })();
 </script>
