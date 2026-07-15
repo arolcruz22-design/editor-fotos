@@ -36,7 +36,8 @@ La idea es tener **una sola herramienta** donde yo pueda ver de un vistazo:
 - **Gastos**: registro de todo lo que sale (personales y del negocio).
 - **Tarjetas de crédito**: nombre, banco, límite, deuda actual, fecha de corte y pago.
 - **Deudas**: a quién le debo, cuánto, plazo y avance de pago.
-- **Ahorros / metas**: cuánto quiero ahorrar y para qué.
+- **Ahorro para el futuro** 🌱: dinero que aparto para metas a largo plazo (crecer el negocio, inversión, patrimonio). Con meta y avance.
+- **Ahorro de emergencia** 🛟: fondo aparte solo para imprevistos (fallas, urgencias, meses malos). Con meta y avance.
 
 ### 3. Todo Motos (Negocio)
 - **Inventario**: motos, refacciones, accesorios.
