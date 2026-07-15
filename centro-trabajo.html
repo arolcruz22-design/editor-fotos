@@ -272,6 +272,7 @@
     <button class="nav-btn active" data-view="presupuesto"><span class="ic">◧</span> Presupuesto</button>
     <button class="nav-btn" data-view="tarjetas"><span class="ic">▭</span> Tarjetas</button>
     <button class="nav-btn" data-view="deudas"><span class="ic">⚑</span> Deudas</button>
+    <button class="nav-btn" data-view="ahorros"><span class="ic">◈</span> Ahorros</button>
 
     <div class="nav-group">Trabajo / Operaciones</div>
     <button class="nav-btn" data-view="tareas"><span class="ic">✓</span> Tareas pendientes <span class="badge" id="badge-tareas">0</span></button>
@@ -295,6 +296,7 @@
     <section class="view" id="view-presupuesto"></section>
     <section class="view" id="view-tarjetas" hidden></section>
     <section class="view" id="view-deudas" hidden></section>
+    <section class="view" id="view-ahorros" hidden></section>
     <section class="view" id="view-tareas" hidden></section>
     <section class="view" id="view-proveedores" hidden></section>
     <section class="view" id="view-contenedores" hidden></section>
@@ -305,8 +307,8 @@
 <script>
 (function () {
   "use strict";
-  const KEY = "todomotos_centro_v3";
-  const OLD_KEY = "todomotos_centro_v2";
+  const KEY = "todomotos_centro_v4";
+  const OLD_KEY = "todomotos_centro_v3";
   const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
   const MESES_L = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   const uid = () => Math.random().toString(36).slice(2, 9);
@@ -325,7 +327,14 @@
   });
 
   const seed = {
-    budget: { q1: mkQ("1ª"), q2: mkQ("2ª"), emergAcum: 12000, ahorroAcum: 15000 },
+    budget: { q1: mkQ("1ª"), q2: mkQ("2ª") },
+    ahorros: {
+      metaEmerg: 30000, metaGeneral: 60000,
+      movimientos: [
+        { id: uid(), fecha: today(-30), fondo: "emergencia", tipo: "deposito", concepto: "Saldo inicial", monto: 12000 },
+        { id: uid(), fecha: today(-30), fondo: "general", tipo: "deposito", concepto: "Saldo inicial", monto: 15000 },
+      ],
+    },
     tarjetas: [
       { id: uid(), nombre: "BBVA Azul", banco: "BBVA", limite: 40000, deuda: 18500, corte: 12, pago: 30 },
       { id: uid(), nombre: "Nu", banco: "Nu", limite: 15000, deuda: 4200, corte: 5, pago: 22 },
@@ -353,15 +362,24 @@
 
   let state = load();
   function load(){
-    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.budget && s.budget.q1) return s; } catch(e){}
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.budget && s.budget.q1 && s.ahorros) return s; } catch(e){}
     const fresh = structuredClone(seed);
-    // carry over operations data entered in the previous version, if any
+    // carry over data from the previous version, if any
     try {
       const old = JSON.parse(localStorage.getItem(OLD_KEY));
-      if (old) ["tarjetas","deudas","tareas","proveedores","contenedores","archivos"].forEach(k=>{ if (Array.isArray(old[k])) fresh[k] = old[k]; });
+      if (old) {
+        ["tarjetas","deudas","tareas","proveedores","contenedores","archivos"].forEach(k=>{ if (Array.isArray(old[k])) fresh[k] = old[k]; });
+        if (old.budget && old.budget.q1) {
+          fresh.budget = { q1: old.budget.q1, q2: old.budget.q2 };
+          fresh.ahorros.movimientos = [];
+          if (+old.budget.emergAcum) fresh.ahorros.movimientos.push({ id: uid(), fecha: today(0), fondo: "emergencia", tipo: "deposito", concepto: "Saldo inicial", monto: +old.budget.emergAcum });
+          if (+old.budget.ahorroAcum) fresh.ahorros.movimientos.push({ id: uid(), fecha: today(0), fondo: "general", tipo: "deposito", concepto: "Saldo inicial", monto: +old.budget.ahorroAcum });
+        }
+      }
     } catch(e){}
     return fresh;
   }
+  const fundBalance = f => sum(state.ahorros.movimientos.filter(m=>m.fondo===f), m=> m.tipo==="retiro" ? -m.monto : +m.monto);
   function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
 
   const money = n => "$" + Math.round(n||0).toLocaleString("es-MX");
@@ -375,8 +393,8 @@
   const CATS = [
     { key:"gastosFijos", ic:"🏠", cvar:"--s-fijos",  name:"Gastos fijos", desc:"Luz, agua, internet, alquiler, comida", list:true },
     { key:"transporte",  ic:"⛽", cvar:"--s-transp", name:"Gasolina / transporte", desc:"Combustible y traslados", list:true },
-    { key:"fondoEmergencia", ic:"🛟", cvar:"--s-emerg", name:"Fondo de emergencia", desc:"Sólo para imprevistos", list:false, acumKey:"emergAcum" },
-    { key:"ahorroGeneral",   ic:"🌱", cvar:"--s-ahorro", name:"Ahorro general", desc:"Para tus metas y el futuro", list:false, acumKey:"ahorroAcum" },
+    { key:"fondoEmergencia", ic:"🛟", cvar:"--s-emerg", name:"Fondo de emergencia", desc:"Sólo para imprevistos", list:false, fund:"emergencia" },
+    { key:"ahorroGeneral",   ic:"🌱", cvar:"--s-ahorro", name:"Ahorro general", desc:"Para tus metas y el futuro", list:false, fund:"general" },
   ];
   const cv = v => `var(${v})`;
 
@@ -469,13 +487,13 @@
         body = `<div class="cat-body" style="padding-bottom:14px">
           <div class="line" style="grid-template-columns:26px 1fr auto">
             <span class="dot" style="background:${cv(c.cvar)}"></span>
-            <span class="mono-note">Apartado esta quincena</span>
+            <span class="mono-note">Apartado esta quincena (plan)</span>
             <input class="amt-input-big" type="number" min="0" step="any" data-single="${c.key}" value="${+b[c.key]||0}">
           </div>
           <div class="line" style="grid-template-columns:26px 1fr auto">
             <span class="dot" style="background:${cv(c.cvar)};opacity:.35"></span>
-            <span class="mono-note">Acumulado total hasta hoy</span>
-            <input class="amt-input-big" type="number" min="0" step="any" data-acum="${c.acumKey}" value="${+state.budget[c.acumKey]||0}" style="font-size:14px;width:130px">
+            <span class="mono-note">Guardado hasta hoy: <b style="color:var(--text)">${money(fundBalance(c.fund))}</b></span>
+            <button class="btn sm" data-goview="ahorros">Ver registro →</button>
           </div>
         </div>`;
       }
@@ -547,7 +565,7 @@
       b[st].push({ id:uid(), concepto:fd.get("concepto"), monto:+fd.get("monto")||0 }); f.reset(); commit();
     }));
     wrap.querySelectorAll("[data-single]").forEach(inp=> inp.addEventListener("change", ()=>{ b[inp.dataset.single] = +inp.value||0; commit(); }));
-    wrap.querySelectorAll("[data-acum]").forEach(inp=> inp.addEventListener("change", ()=>{ state.budget[inp.dataset.acum] = +inp.value||0; commit(); }));
+    wrap.querySelectorAll("[data-goview]").forEach(btn=> btn.addEventListener("click", ()=> go(btn.dataset.goview)));
     $("#copyQ", wrap).addEventListener("click", ()=>{
       const other = state.budget[q==="q1"?"q2":"q1"];
       const clone = o => structuredClone(o).map(x=>({ ...x, id: uid() }));
@@ -592,7 +610,7 @@
         <div class="tile hero"><div class="lab">Saldo del mes</div><div class="val ${tm.saldo<0?'bad':''}" style="${tm.saldo>=0?'color:var(--s-saldo)':''}">${money(tm.saldo)}</div><div class="note">Q1 ${money(t1.saldo)} · Q2 ${money(t2.saldo)}</div></div>
         <div class="tile"><div class="lab">Ingreso del mes</div><div class="val good">${money(tm.ingreso)}</div><div class="note">Las dos quincenas</div></div>
         <div class="tile"><div class="lab">Apartado del mes</div><div class="val">${money(tm.apartado)}</div><div class="note">Gastos + fondo + ahorro</div></div>
-        <div class="tile"><div class="lab">Guardado total</div><div class="val good">${money((+state.budget.emergAcum||0)+(+state.budget.ahorroAcum||0))}</div><div class="note">Emergencia ${money(state.budget.emergAcum)} · Ahorro ${money(state.budget.ahorroAcum)}</div></div>
+        <div class="tile"><div class="lab">Guardado total</div><div class="val good">${money(fundBalance("emergencia")+fundBalance("general"))}</div><div class="note">Emergencia ${money(fundBalance("emergencia"))} · Ahorro ${money(fundBalance("general"))}</div></div>
       </div>
       <div class="budget-grid">
         <div class="card">
@@ -606,6 +624,104 @@
 
   function bindQtabs(wrap){
     wrap.querySelectorAll("[data-q]").forEach(b=> b.addEventListener("click", ()=>{ qView = b.dataset.q; renderPresupuesto(); }));
+  }
+
+  // =========================================================
+  //  AHORROS — fondos, metas y registro de movimientos
+  // =========================================================
+  const FUNDS = [
+    { id:"emergencia", ic:"🛟", cvar:"--s-emerg", name:"Fondo de emergencia", desc:"Sólo se toca en imprevistos", metaKey:"metaEmerg", budgetKey:"fondoEmergencia" },
+    { id:"general", ic:"🌱", cvar:"--s-ahorro", name:"Ahorro general", desc:"Para tus metas y el futuro", metaKey:"metaGeneral", budgetKey:"ahorroGeneral" },
+  ];
+
+  function renderAhorros(){
+    const wrap = $("#view-ahorros");
+    const A = state.ahorros;
+    const q = nowQ(), qName = q==="q1" ? "1ª quincena" : "2ª quincena";
+    const totalGuardado = fundBalance("emergencia") + fundBalance("general");
+    const planMes = FUNDS.reduce((a,f)=> a + (+state.budget.q1[f.budgetKey]||0) + (+state.budget.q2[f.budgetKey]||0), 0);
+
+    const fundCards = FUNDS.map(f=>{
+      const bal = fundBalance(f.id);
+      const meta = +A[f.metaKey]||0;
+      const p = meta>0 ? Math.min(100, Math.round(bal/meta*100)) : 0;
+      const plan = +state.budget[q][f.budgetKey]||0;
+      return `<div class="card">
+        <div class="cat-head">
+          <div class="cat-ic">${f.ic}</div>
+          <div class="cat-title"><b>${f.name}</b><small>${f.desc}</small></div>
+          <div class="cat-amt" style="color:${cv(f.cvar)}">${money(bal)}<small>guardado hoy</small></div>
+          <div class="cat-bar"><i style="width:${p}%;background:${cv(f.cvar)}"></i></div>
+        </div>
+        <div class="cat-body" style="padding-bottom:14px">
+          <div class="line" style="grid-template-columns:26px 1fr auto">
+            <span class="dot" style="background:${cv(f.cvar)}"></span>
+            <span class="mono-note">Meta del fondo · vas al <b style="color:var(--text)">${meta>0?p+"%":"—"}</b>${meta>0?` · faltan ${money(Math.max(0,meta-bal))}`:""}</span>
+            <input class="amt-input-big" type="number" min="0" step="any" data-meta="${f.metaKey}" value="${meta}" style="font-size:14px;width:130px">
+          </div>
+          <div class="line" style="grid-template-columns:26px 1fr auto">
+            <span class="dot" style="background:${cv(f.cvar)};opacity:.35"></span>
+            <span class="mono-note">Plan del presupuesto: <b style="color:var(--text)">${money(plan)}</b> esta ${qName}</span>
+            ${plan>0?`<button class="btn sm primary" data-abonar="${f.id}">+ Abonar ${money(plan)}</button>`:`<span class="mono-note">sin plan</span>`}
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+
+    const fundTag = fid => { const f = FUNDS.find(x=>x.id===fid)||FUNDS[1];
+      return `<span class="tag" style="border-color:${cv(f.cvar)};color:${cv(f.cvar)}">${f.ic} ${f.id==="emergencia"?"Emergencia":"General"}</span>`; };
+    const movs = [...A.movimientos].sort((a,b)=> (b.fecha||"").localeCompare(a.fecha||""));
+    const movRows = movs.length ? movs.map(m=>`
+      <tr><td class="num">${fdate(m.fecha)}</td><td>${fundTag(m.fondo)}</td><td>${esc(m.concepto)}</td>
+      <td>${m.tipo==="retiro"?'<span class="pill r">Retiro</span>':'<span class="pill g">Depósito</span>'}</td>
+      <td class="num" style="color:${m.tipo==="retiro"?"var(--bad)":"var(--good)"}">${m.tipo==="retiro"?"−":"+"}${money(m.monto)}</td>${delCell(m.id)}</tr>`).join("")
+      : `<tr><td colspan="6"><div class="empty">Sin movimientos. Registra tu primer depósito abajo 👇</div></td></tr>`;
+
+    wrap.innerHTML = `
+      <div class="view-head">
+        <h2 class="big">◈ Ahorros</h2>
+        <p class="section-lead">Tus dos fondos en un solo lugar, conectados con el presupuesto: lo que planeas apartar cada quincena lo <b>abonas aquí con un clic</b>, y cada depósito o retiro queda en el registro.</p>
+      </div>
+      <div class="tiles">
+        <div class="tile hero"><div class="lab">Guardado total</div><div class="val good">${money(totalGuardado)}</div><div class="note">Emergencia + ahorro general</div></div>
+        <div class="tile"><div class="lab">Plan de ahorro del mes</div><div class="val">${money(planMes)}</div><div class="note">Según tu presupuesto (Q1 + Q2)</div></div>
+        <div class="tile"><div class="lab">Movimientos registrados</div><div class="val">${A.movimientos.length}</div><div class="note">Depósitos y retiros</div></div>
+      </div>
+      <div class="stack">
+        ${fundCards}
+        <div class="card">
+          <div class="card-head"><h2>📒 Registro de movimientos</h2><div class="spacer"></div><span class="sub">Del más reciente al más antiguo</span></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th class="num">Fecha</th><th>Fondo</th><th>Concepto</th><th>Tipo</th><th class="num">Monto</th><th></th></tr></thead>
+            <tbody>${movRows}</tbody>
+          </table></div>
+          <form class="form-row" id="movForm">
+            <div class="fld"><label>Fecha</label><input type="date" name="fecha" value="${today(0)}" required></div>
+            <div class="fld"><label>Fondo</label><select name="fondo"><option value="general">🌱 Ahorro general</option><option value="emergencia">🛟 Emergencia</option></select></div>
+            <div class="fld"><label>Tipo</label><select name="tipo"><option value="deposito">Depósito (entra)</option><option value="retiro">Retiro (sale)</option></select></div>
+            <div class="fld"><label>Concepto</label><input name="concepto" placeholder="Apartado de quincena, imprevisto..." required></div>
+            <div class="fld"><label>Monto</label><input type="number" name="monto" min="0" step="any" placeholder="0" required></div>
+            <div class="fld act"><button class="btn primary">+ Registrar</button></div>
+          </form>
+        </div>
+      </div>`;
+
+    // handlers
+    wrap.querySelectorAll("[data-meta]").forEach(inp=> inp.addEventListener("change", ()=>{ A[inp.dataset.meta] = +inp.value||0; commit(); }));
+    wrap.querySelectorAll("[data-abonar]").forEach(btn=> btn.addEventListener("click", ()=>{
+      const f = FUNDS.find(x=>x.id===btn.dataset.abonar);
+      const plan = +state.budget[q][f.budgetKey]||0; if (plan<=0) return;
+      A.movimientos.push({ id: uid(), fecha: today(0), fondo: f.id, tipo: "deposito", concepto: `Apartado ${qName}`, monto: plan });
+      commit();
+    }));
+    $("#movForm", wrap).addEventListener("submit", e=>{
+      e.preventDefault(); const fd = new FormData(e.target);
+      A.movimientos.push({ id: uid(), fecha: fd.get("fecha"), fondo: fd.get("fondo"), tipo: fd.get("tipo"), concepto: fd.get("concepto"), monto: +fd.get("monto")||0 });
+      e.target.reset(); commit();
+    });
+    wrap.querySelectorAll("[data-del]").forEach(b=> b.addEventListener("click", ()=>{
+      A.movimientos = A.movimientos.filter(x=>x.id!==b.dataset.del); commit();
+    }));
   }
 
   // =========================================================
@@ -634,6 +750,7 @@
   function commit(){ save(); renderCurrent(); refreshBadges(); }
 
   const modules = {
+    ahorros: renderAhorros,
     tarjetas: () => moduleView({
       id:"tarjetas", store:"tarjetas", icon:"▭", title:"Tarjetas de crédito",
       lead:"Cuánto debes en cada tarjeta, tu límite y las fechas de corte y pago.",
@@ -731,7 +848,7 @@
   };
 
   // ---------- navigation ----------
-  const titles = { presupuesto:"Presupuesto", tarjetas:"Tarjetas de crédito", deudas:"Deudas y préstamos",
+  const titles = { presupuesto:"Presupuesto", tarjetas:"Tarjetas de crédito", deudas:"Deudas y préstamos", ahorros:"Ahorros",
     tareas:"Tareas pendientes", proveedores:"Proveedores y cambios", contenedores:"Contenedores pedidos", archivos:"Archivos importantes" };
   let current = "presupuesto";
   function renderCurrent(){ if(current==="presupuesto") renderPresupuesto(); else if(modules[current]) modules[current](); }
