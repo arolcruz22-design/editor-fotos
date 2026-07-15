@@ -6,7 +6,13 @@
     --good: #2FA363;   --good-soft: rgba(47,163,99,.14);
     --bad: #E0503A;    --bad-soft: rgba(224,80,58,.14);
     --warn: #E8A32C;   --warn-soft: rgba(232,163,44,.16);
-    --info: #3E9DB0;   --info-soft: rgba(62,157,176,.16);
+
+    /* series (validated, dark mode steps) */
+    --s-fijos: #d55181;
+    --s-transp: #c98500;
+    --s-emerg: #008300;
+    --s-ahorro: #3987e5;
+    --s-saldo: #d95926;
 
     --bg: #17130E; --bg-2: #1F1A13; --surface: #241E16; --surface-2: #2C2519;
     --line: #3A3123; --line-soft: #2E2719;
@@ -22,25 +28,28 @@
       --line: #E2D9C9; --line-soft: #ECE4D6;
       --text: #241E15; --text-dim: #6C6252; --text-mute: #948A76;
       --shadow: 0 1px 2px rgba(60,45,20,.05), 0 14px 30px -20px rgba(80,60,25,.35);
+      --s-fijos: #e87ba4; --s-transp: #eda100; --s-emerg: #008300; --s-ahorro: #2a78d6; --s-saldo: #eb6834;
     }
   }
   :root[data-theme="light"] {
     --bg: #F4F0E9; --bg-2: #EDE7DC; --surface: #FFFFFF; --surface-2: #F8F4EC;
     --line: #E2D9C9; --line-soft: #ECE4D6; --text: #241E15; --text-dim: #6C6252;
     --text-mute: #948A76; --shadow: 0 1px 2px rgba(60,45,20,.05), 0 14px 30px -20px rgba(80,60,25,.35);
+    --s-fijos: #e87ba4; --s-transp: #eda100; --s-emerg: #008300; --s-ahorro: #2a78d6; --s-saldo: #eb6834;
   }
   :root[data-theme="dark"] {
     --bg: #17130E; --bg-2: #1F1A13; --surface: #241E16; --surface-2: #2C2519;
     --line: #3A3123; --line-soft: #2E2719; --text: #F3ECE0; --text-dim: #B7AC98;
     --text-mute: #8A8069; --shadow: 0 1px 0 rgba(255,255,255,.02), 0 12px 26px -16px rgba(0,0,0,.7);
+    --s-fijos: #d55181; --s-transp: #c98500; --s-emerg: #008300; --s-ahorro: #3987e5; --s-saldo: #d95926;
   }
 
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans);
     line-height: 1.5; -webkit-font-smoothing: antialiased; }
   @media (prefers-reduced-motion: no-preference) {
-    .nav-btn, .btn, .icon-btn, .tile, .line-name, input, select, .pill { transition: background-color .16s, border-color .16s, color .16s; }
-    .bar > i, .donut-hole, .seg-fill { transition: width .4s ease; }
+    .nav-btn, .btn, .icon-btn, .line-name, input, select, .pill, .qtab, .seg { transition: background-color .16s, border-color .16s, color .16s, opacity .16s; }
+    .bar > i, .cmp-fill { transition: width .4s ease; }
   }
 
   .app { display: grid; grid-template-columns: 256px 1fr; min-height: 100vh; }
@@ -79,23 +88,31 @@
 
   .view { padding: 26px 30px; max-width: 1240px; }
   .view[hidden] { display: none; }
-  .view-head { margin-bottom: 18px; }
+  .view-head { margin-bottom: 16px; }
   .view-head h2.big { font-size: 21px; margin: 0 0 3px; letter-spacing: -.02em; }
   .section-lead { color: var(--text-dim); font-size: 13.5px; margin: 0; max-width: 66ch; }
 
-  /* ===== Presupuesto layout ===== */
-  .budget-grid { display: grid; grid-template-columns: 1fr 356px; gap: 22px; align-items: start; }
+  /* quincena tabs */
+  .qtabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0 20px; }
+  .qtab { font: inherit; font-size: 13px; font-weight: 550; padding: 9px 16px; border-radius: 22px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--text-dim); cursor: pointer; }
+  .qtab small { display: block; font-size: 10.5px; color: var(--text-mute); font-weight: 500; }
+  .qtab.active { background: var(--accent); border-color: var(--accent); color: #1a1206; }
+  .qtab.active small { color: rgba(26,18,6,.65); }
+  .qtab .now { font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700;
+    background: var(--good-soft); color: var(--good); border-radius: 8px; padding: 1px 6px; margin-left: 5px; }
+  .qtab.active .now { background: rgba(26,18,6,.18); color: #1a1206; }
+
+  /* ===== layout ===== */
+  .budget-grid { display: grid; grid-template-columns: 1fr 372px; gap: 22px; align-items: start; }
   @media (max-width: 980px) { .budget-grid { grid-template-columns: 1fr; } }
-
   .rail { display: flex; flex-direction: column; gap: 18px; position: sticky; top: 84px; }
-
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
     box-shadow: var(--shadow); overflow: hidden; }
   .stack { display: flex; flex-direction: column; gap: 18px; }
 
   .cat-head { display: grid; grid-template-columns: auto 1fr auto; gap: 12px 14px; align-items: center; padding: 15px 18px; }
-  .cat-ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 16px;
-    background: var(--surface-2); }
+  .cat-ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 16px; background: var(--surface-2); }
   .cat-title { min-width: 0; }
   .cat-title b { font-size: 14.5px; letter-spacing: -.01em; }
   .cat-title small { display: block; color: var(--text-mute); font-size: 11.5px; margin-top: 1px; }
@@ -103,12 +120,10 @@
   .cat-amt small { display: block; font: 500 11px/1 var(--sans); color: var(--text-mute); margin-top: 4px; }
   .cat-bar { grid-column: 1 / -1; height: 6px; border-radius: 20px; background: var(--surface-2); overflow: hidden; }
   .cat-bar > i { display: block; height: 100%; border-radius: 20px; }
-
   .cat-body { padding: 4px 18px 8px; border-top: 1px solid var(--line-soft); }
 
-  /* editable line items */
   .line { display: grid; grid-template-columns: 26px 1fr 128px 30px; gap: 8px; align-items: center; padding: 5px 0; }
-  .line .dot { width: 8px; height: 8px; border-radius: 50%; justify-self: center; opacity: .55; }
+  .line .dot { width: 8px; height: 8px; border-radius: 50%; justify-self: center; opacity: .7; }
   .line-name { border: 1px solid transparent; background: transparent; color: var(--text); font: inherit; font-size: 13.5px;
     padding: 6px 9px; border-radius: 7px; width: 100%; }
   .line-name:hover { border-color: var(--line); }
@@ -125,7 +140,6 @@
   .add-line input:focus { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); border-color: var(--accent); }
   .add-line .nm { flex: 1; min-width: 0; }
   .add-line .am { width: 120px; text-align: right; font-family: var(--mono); }
-
   .amt-input-big { border: 1px solid var(--line); background: var(--bg); color: var(--text); font-family: var(--mono);
     font-variant-numeric: tabular-nums; font-size: 16px; font-weight: 600; text-align: right; padding: 8px 12px;
     border-radius: var(--r-sm); width: 150px; }
@@ -136,26 +150,55 @@
   .saldo-hero { background: linear-gradient(155deg, color-mix(in srgb, var(--accent) 24%, var(--surface)), var(--surface));
     border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--line)); border-radius: var(--r); padding: 20px 22px; box-shadow: var(--shadow); }
   .saldo-hero .lab { font-size: 11.5px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-dim); font-weight: 600; }
-  .saldo-hero .big { font: 700 40px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; margin: 10px 0 4px; }
+  .saldo-hero .big { font: 700 38px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; margin: 10px 0 4px; }
   .saldo-hero .big.neg { color: var(--bad); }
   .saldo-hero .cap { font-size: 12.5px; color: var(--text-dim); }
 
-  /* donut */
-  .donut-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 20px; }
-  .donut { width: 170px; height: 170px; border-radius: 50%; position: relative; flex: none; }
-  .donut-hole { position: absolute; inset: 26px; border-radius: 50%; background: var(--surface);
-    display: grid; place-items: center; text-align: center; }
-  .donut-hole b { font: 650 22px/1 var(--mono); font-variant-numeric: tabular-nums; }
-  .donut-hole small { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-mute); margin-top: 4px; }
-  .legend { width: 100%; display: flex; flex-direction: column; gap: 2px; }
-  .legend-row { display: grid; grid-template-columns: 12px 1fr auto auto; gap: 10px; align-items: center; padding: 6px 4px; font-size: 12.5px; border-bottom: 1px solid var(--line-soft); }
+  /* ===== distribution stacked bar ===== */
+  .dist { padding: 18px 20px 6px; }
+  .dist h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-mute); margin: 0 0 12px; font-weight: 600; }
+  .dist-bar { display: flex; gap: 2px; height: 26px; border-radius: 7px; overflow: hidden; background: var(--surface-2); }
+  .seg { min-width: 3px; position: relative; cursor: default; }
+  .seg:hover { opacity: .82; }
+  .seg:first-child { border-radius: 6px 0 0 6px; }
+  .seg:last-child { border-radius: 0 6px 6px 0; }
+  .seg .seg-lab { position: absolute; inset: 0; display: grid; place-items: center;
+    font: 650 10.5px/1 var(--mono); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.45); white-space: nowrap; overflow: hidden; }
+  .legend { display: flex; flex-direction: column; padding: 8px 6px 12px; }
+  .legend-row { display: grid; grid-template-columns: 12px 1fr auto 44px; gap: 10px; align-items: center;
+    padding: 7px 8px; font-size: 12.5px; border-bottom: 1px solid var(--line-soft); border-radius: 6px; }
   .legend-row:last-child { border-bottom: 0; }
+  .legend-row.hl { background: var(--surface-2); }
   .legend-row .sw { width: 11px; height: 11px; border-radius: 3px; }
-  .legend-row .lv { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text-dim); }
-  .legend-row .lp { font-family: var(--mono); color: var(--text-mute); font-size: 11.5px; min-width: 36px; text-align: right; }
+  .legend-row .lv { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text); font-weight: 600; }
+  .legend-row .lp { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--text-mute); font-size: 11.5px; text-align: right; }
+  .legend-row.total { border-top: 1px solid var(--line); font-weight: 650; margin-top: 2px; }
 
   .over { display: flex; gap: 9px; align-items: flex-start; background: var(--bad-soft); color: var(--bad);
     border-radius: var(--r-sm); padding: 11px 13px; font-size: 12.5px; font-weight: 500; margin: 0 20px 18px; }
+
+  /* ===== month view ===== */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 17px; box-shadow: var(--shadow); }
+  .tile .lab { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-mute); font-weight: 600; }
+  .tile .val { font: 650 24px/1.1 var(--mono); font-variant-numeric: tabular-nums; margin-top: 9px; }
+  .tile .note { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+  .tile.hero { background: linear-gradient(155deg, color-mix(in srgb, var(--accent) 22%, var(--surface)), var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .val.good { color: var(--good); } .val.bad { color: var(--bad); }
+
+  .cmp { padding: 6px 20px 18px; }
+  .cmp-row { display: grid; grid-template-columns: 150px 1fr; gap: 8px 14px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
+  .cmp-row:last-child { border-bottom: 0; }
+  .cmp-name { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 550; }
+  .cmp-name .sw { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+  .cmp-tracks { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .cmp-track { display: grid; grid-template-columns: 26px 1fr; gap: 8px; align-items: center; }
+  .cmp-track .q { font: 600 10px/1 var(--mono); color: var(--text-mute); text-align: right; }
+  .cmp-lane { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .cmp-fill { height: 13px; border-radius: 0 4px 4px 0; min-width: 2px; }
+  .cmp-track.q2 .cmp-fill { opacity: .55; }
+  .cmp-val { font: 550 11.5px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--text-dim); white-space: nowrap; }
 
   /* generic module tables */
   .card-head { display: flex; align-items: center; gap: 12px; padding: 15px 18px; border-bottom: 1px solid var(--line-soft); }
@@ -195,25 +238,26 @@
   input:focus, select:focus { outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: 1px; border-color: var(--accent); }
   input::placeholder { color: var(--text-mute); }
   .fld.act .btn { width: 100%; justify-content: center; }
-  .alert-row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--line-soft); font-size: 13px; }
-  .alert-row:last-child { border-bottom: 0; }
-  .alert-row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
   .checkbox { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
   .done td:not(.act-cell) { opacity: .5; }
   .done .titlecell { text-decoration: line-through; }
   .est-sel { padding: 5px 8px; font-size: 12.5px; }
 
   .menu-btn { display: none; }
+  .scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 30; }
   @media (max-width: 860px) {
     .app { grid-template-columns: 1fr; }
     .side { position: fixed; z-index: 40; width: 262px; left: 0; top: 0; transform: translateX(-100%); box-shadow: 0 0 40px rgba(0,0,0,.5); }
     .side.open { transform: none; }
     .menu-btn { display: inline-grid; place-items: center; }
-    .scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 30; }
     .scrim.show { display: block; }
     .view { padding: 18px 15px; }
     .topbar { padding: 13px 15px; }
     .rail { position: static; }
+    .cmp-row { grid-template-columns: 1fr; }
+    .add-line { flex-wrap: wrap; padding-left: 0; }
+    .add-line .nm { flex: 1 1 100%; }
+    .add-line .am { flex: 1; }
   }
 </style>
 
@@ -225,7 +269,7 @@
     </div>
 
     <div class="nav-group">Mis finanzas</div>
-    <button class="nav-btn active" data-view="presupuesto"><span class="ic">◧</span> Presupuesto mensual</button>
+    <button class="nav-btn active" data-view="presupuesto"><span class="ic">◧</span> Presupuesto</button>
     <button class="nav-btn" data-view="tarjetas"><span class="ic">▭</span> Tarjetas</button>
     <button class="nav-btn" data-view="deudas"><span class="ic">⚑</span> Deudas</button>
 
@@ -241,7 +285,7 @@
     <header class="topbar">
       <button class="icon-btn menu-btn" id="menuBtn">☰</button>
       <div>
-        <h1 id="viewTitle">Presupuesto mensual</h1>
+        <h1 id="viewTitle">Presupuesto</h1>
         <div class="sub" id="viewDate"></div>
       </div>
       <div class="spacer"></div>
@@ -261,26 +305,27 @@
 <script>
 (function () {
   "use strict";
-  const KEY = "todomotos_centro_v2";
+  const KEY = "todomotos_centro_v3";
+  const OLD_KEY = "todomotos_centro_v2";
   const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const MESES_L = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   const uid = () => Math.random().toString(36).slice(2, 9);
   const $ = (s, r=document) => r.querySelector(s);
   const today = (o=0) => { const d=new Date(); d.setDate(d.getDate()+o); return d.toISOString().slice(0,10); };
 
+  const mkQ = (n) => ({
+    ingreso: [ { id: uid(), concepto: "Pago de la " + n + " quincena", monto: 17500 } ],
+    gastosFijos: n === "1ª"
+      ? [ { id: uid(), concepto: "Alquiler", monto: 8000 }, { id: uid(), concepto: "Comida / despensa", monto: 2500 } ]
+      : [ { id: uid(), concepto: "Luz", monto: 600 }, { id: uid(), concepto: "Agua", monto: 250 },
+          { id: uid(), concepto: "Internet", monto: 500 }, { id: uid(), concepto: "Comida / despensa", monto: 2500 } ],
+    transporte: [ { id: uid(), concepto: "Gasolina", monto: 1250 } ],
+    fondoEmergencia: 1500,
+    ahorroGeneral: 2000,
+  });
+
   const seed = {
-    budget: {
-      ingreso: [ { id: uid(), concepto: "Sueldo / ventas del negocio", monto: 35000 } ],
-      gastosFijos: [
-        { id: uid(), concepto: "Alquiler", monto: 8000 },
-        { id: uid(), concepto: "Comida / despensa", monto: 5000 },
-        { id: uid(), concepto: "Luz", monto: 600 },
-        { id: uid(), concepto: "Agua", monto: 250 },
-        { id: uid(), concepto: "Internet", monto: 500 },
-      ],
-      transporte: [ { id: uid(), concepto: "Gasolina", monto: 2500 } ],
-      fondoEmergencia: 3000, emergAcum: 12000,
-      ahorroGeneral: 4000, ahorroAcum: 15000,
-    },
+    budget: { q1: mkQ("1ª"), q2: mkQ("2ª"), emergAcum: 12000, ahorroAcum: 15000 },
     tarjetas: [
       { id: uid(), nombre: "BBVA Azul", banco: "BBVA", limite: 40000, deuda: 18500, corte: 12, pago: 30 },
       { id: uid(), nombre: "Nu", banco: "Nu", limite: 15000, deuda: 4200, corte: 5, pago: 22 },
@@ -307,7 +352,16 @@
   };
 
   let state = load();
-  function load(){ try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.budget) return s; } catch(e){} return structuredClone(seed); }
+  function load(){
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.budget && s.budget.q1) return s; } catch(e){}
+    const fresh = structuredClone(seed);
+    // carry over operations data entered in the previous version, if any
+    try {
+      const old = JSON.parse(localStorage.getItem(OLD_KEY));
+      if (old) ["tarjetas","deudas","tareas","proveedores","contenedores","archivos"].forEach(k=>{ if (Array.isArray(old[k])) fresh[k] = old[k]; });
+    } catch(e){}
+    return fresh;
+  }
   function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
 
   const money = n => "$" + Math.round(n||0).toLocaleString("es-MX");
@@ -316,62 +370,91 @@
   const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
   // =========================================================
-  //  PRESUPUESTO  (Ingreso → gastos fijos → gasolina → fondo → ahorro → Saldo)
+  //  PRESUPUESTO POR QUINCENA
   // =========================================================
-  function renderPresupuesto(){
-    const wrap = $("#view-presupuesto");
-    const b = state.budget;
+  const CATS = [
+    { key:"gastosFijos", ic:"🏠", cvar:"--s-fijos",  name:"Gastos fijos", desc:"Luz, agua, internet, alquiler, comida", list:true },
+    { key:"transporte",  ic:"⛽", cvar:"--s-transp", name:"Gasolina / transporte", desc:"Combustible y traslados", list:true },
+    { key:"fondoEmergencia", ic:"🛟", cvar:"--s-emerg", name:"Fondo de emergencia", desc:"Sólo para imprevistos", list:false, acumKey:"emergAcum" },
+    { key:"ahorroGeneral",   ic:"🌱", cvar:"--s-ahorro", name:"Ahorro general", desc:"Para tus metas y el futuro", list:false, acumKey:"ahorroAcum" },
+  ];
+  const cv = v => `var(${v})`;
+
+  const nowQ = () => new Date().getDate() <= 15 ? "q1" : "q2";
+  let qView = nowQ(); // "q1" | "q2" | "mes"
+  const lastDay = () => new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
+
+  function qTotals(q){
+    const b = state.budget[q];
     const ingreso = sum(b.ingreso, x=>x.monto);
-    const fijos   = sum(b.gastosFijos, x=>x.monto);
-    const transp  = sum(b.transporte, x=>x.monto);
-    const emerg   = +b.fondoEmergencia || 0;
-    const ahorro  = +b.ahorroGeneral || 0;
-    const apartado = fijos + transp + emerg + ahorro;
-    const saldo = ingreso - apartado;
-    const pct = v => ingreso>0 ? Math.round(v/ingreso*100) : 0;
+    const fijos = sum(b.gastosFijos, x=>x.monto);
+    const transp = sum(b.transporte, x=>x.monto);
+    const emerg = +b.fondoEmergencia||0, ahorro = +b.ahorroGeneral||0;
+    const apartado = fijos+transp+emerg+ahorro;
+    return { ingreso, fijos, transp, emerg, ahorro, apartado, saldo: ingreso-apartado };
+  }
+  const catVal = (t, key) => ({ gastosFijos:t.fijos, transporte:t.transp, fondoEmergencia:t.emerg, ahorroGeneral:t.ahorro })[key];
 
-    const cats = [
-      { key:"gastosFijos", ic:"🏠", color:"var(--bad)",  name:"Gastos fijos", desc:"Luz, agua, internet, alquiler, comida", total:fijos, list:true },
-      { key:"transporte",  ic:"⛽", color:"var(--warn)", name:"Gasolina / transporte", desc:"Combustible y traslados", total:transp, list:true },
-      { key:"fondoEmergencia", ic:"🛟", color:"var(--info)", name:"Fondo de emergencia", desc:"Sólo para imprevistos", total:emerg, list:false, acum:b.emergAcum },
-      { key:"ahorroGeneral",   ic:"🌱", color:"var(--good)", name:"Ahorro general", desc:"Para tus metas y el futuro", total:ahorro, list:false, acum:b.ahorroAcum },
-    ];
-
-    // ----- donut segments -----
-    const segs = [
-      { name:"Gastos fijos", val:fijos, color:"var(--bad)" },
-      { name:"Gasolina / transporte", val:transp, color:"var(--warn)" },
-      { name:"Fondo de emergencia", val:emerg, color:"var(--info)" },
-      { name:"Ahorro general", val:ahorro, color:"var(--good)" },
-    ];
-    if (saldo > 0) segs.push({ name:"Saldo (te queda)", val:saldo, color:"var(--accent)" });
-    const base = saldo > 0 ? ingreso : apartado;
-    let acc = 0; const stops = [];
-    segs.forEach(s=>{ const a0 = base? acc/base*360:0; acc += s.val; const a1 = base? acc/base*360:0; stops.push(`${s.color} ${a0}deg ${a1}deg`); });
-    const donutBg = base>0 ? `conic-gradient(${stops.join(",")})` : "var(--surface-2)";
-
-    const legend = segs.map(s=>`
-      <div class="legend-row">
+  // --- stacked distribution bar + legend (shared by quincena & month) ---
+  function distChart(t, title){
+    const pct = v => t.ingreso>0 ? Math.round(v/t.ingreso*100) : 0;
+    const segs = CATS.map(c=>({ name:c.name, val:catVal(t,c.key), color:cv(c.cvar) }));
+    if (t.saldo > 0) segs.push({ name:"Saldo (te queda)", val:t.saldo, color:"var(--s-saldo)" });
+    const base = t.saldo > 0 ? t.ingreso : t.apartado;
+    const segHtml = segs.filter(s=>s.val>0).map(s=>{
+      const w = base? (s.val/base*100) : 0;
+      return `<div class="seg" style="flex:${s.val} 0 0;background:${s.color}" title="${esc(s.name)}: ${money(s.val)} (${pct(s.val)}%)">${w>=14?`<span class="seg-lab">${pct(s.val)}%</span>`:""}</div>`;
+    }).join("");
+    const legend = segs.map((s,i)=>`
+      <div class="legend-row" data-leg="${i}">
         <span class="sw" style="background:${s.color}"></span>
         <span>${s.name}</span>
         <span class="lv">${money(s.val)}</span>
         <span class="lp">${pct(s.val)}%</span>
       </div>`).join("");
+    const overWarn = t.saldo < 0 ? `<div class="over"><span>⚠️</span><span>Lo que apartas (${money(t.apartado)}) supera tu ingreso (${money(t.ingreso)}). Baja gastos o ajusta el ahorro.</span></div>` : "";
+    return `<div class="card">
+      <div class="dist"><h3>${title}</h3><div class="dist-bar">${segHtml||'<div class="empty" style="padding:4px;width:100%">Sin datos</div>'}</div></div>
+      <div class="legend">${legend}
+        <div class="legend-row total"><span class="sw" style="background:transparent"></span><span>Ingreso de referencia</span>
+        <span class="lv" style="color:var(--good)">${money(t.ingreso)}</span><span class="lp">100%</span></div>
+      </div>${overWarn}</div>`;
+  }
 
-    // ----- category cards -----
-    const catCards = cats.map(c=>{
+  function qtabsHtml(){
+    const cur = nowQ();
+    const y = new Date().getFullYear(), m = new Date().getMonth();
+    const tabs = [
+      { id:"q1", t:"1ª quincena", s:`1 – 15 ${MESES[m]}` },
+      { id:"q2", t:"2ª quincena", s:`16 – ${lastDay()} ${MESES[m]}` },
+      { id:"mes", t:"Mes completo", s:`${MESES_L[m]} ${y}` },
+    ];
+    return `<div class="qtabs">${tabs.map(x=>`
+      <button class="qtab ${qView===x.id?'active':''}" data-q="${x.id}">${x.t}${x.id===cur?'<span class="now">Actual</span>':''}<small>${x.s}</small></button>`).join("")}</div>`;
+  }
+
+  function renderPresupuesto(){
+    const wrap = $("#view-presupuesto");
+    if (qView === "mes") return renderMes(wrap);
+    const q = qView, b = state.budget[q];
+    const t = qTotals(q);
+    const pct = v => t.ingreso>0 ? Math.round(v/t.ingreso*100) : 0;
+    const qName = q==="q1" ? "1ª quincena" : "2ª quincena";
+
+    const catCards = CATS.map(c=>{
+      const total = catVal(t, c.key);
       const head = `
         <div class="cat-head">
           <div class="cat-ic">${c.ic}</div>
           <div class="cat-title"><b>${c.name}</b><small>${c.desc}</small></div>
-          <div class="cat-amt">${money(c.total)}<small>${pct(c.total)}% del ingreso</small></div>
-          <div class="cat-bar"><i style="width:${Math.min(100,pct(c.total))}%;background:${c.color}"></i></div>
+          <div class="cat-amt">${money(total)}<small>${pct(total)}% del ingreso</small></div>
+          <div class="cat-bar"><i style="width:${Math.min(100,pct(total))}%;background:${cv(c.cvar)}"></i></div>
         </div>`;
-      let body = "";
+      let body;
       if (c.list) {
         const rows = b[c.key].map(r=>`
           <div class="line">
-            <span class="dot" style="background:${c.color}"></span>
+            <span class="dot" style="background:${cv(c.cvar)}"></span>
             <input class="line-name" data-store="${c.key}" data-id="${r.id}" data-f="concepto" value="${esc(r.concepto)}" aria-label="Concepto">
             <input class="line-amt" type="number" min="0" step="any" data-store="${c.key}" data-id="${r.id}" data-f="monto" value="${r.monto}" aria-label="Monto">
             <button class="icon-x" data-delline="${c.key}" data-id="${r.id}" title="Quitar">✕</button>
@@ -385,21 +468,20 @@
       } else {
         body = `<div class="cat-body" style="padding-bottom:14px">
           <div class="line" style="grid-template-columns:26px 1fr auto">
-            <span class="dot" style="background:${c.color}"></span>
-            <span class="mono-note">Apartado este mes</span>
-            <input class="amt-input-big" type="number" min="0" step="any" data-single="${c.key}" value="${c.total}">
+            <span class="dot" style="background:${cv(c.cvar)}"></span>
+            <span class="mono-note">Apartado esta quincena</span>
+            <input class="amt-input-big" type="number" min="0" step="any" data-single="${c.key}" value="${+b[c.key]||0}">
           </div>
           <div class="line" style="grid-template-columns:26px 1fr auto">
-            <span class="dot" style="background:${c.color};opacity:.35"></span>
-            <span class="mono-note">Acumulado hasta hoy</span>
-            <input class="amt-input-big" type="number" min="0" step="any" data-acum="${c.key==='fondoEmergencia'?'emergAcum':'ahorroAcum'}" value="${c.acum||0}" style="font-size:14px;width:130px">
+            <span class="dot" style="background:${cv(c.cvar)};opacity:.35"></span>
+            <span class="mono-note">Acumulado total hasta hoy</span>
+            <input class="amt-input-big" type="number" min="0" step="any" data-acum="${c.acumKey}" value="${+state.budget[c.acumKey]||0}" style="font-size:14px;width:130px">
           </div>
         </div>`;
       }
       return `<div class="card">${head}${body}</div>`;
     }).join("");
 
-    // ----- income card -----
     const incRows = b.ingreso.map(r=>`
       <div class="line">
         <span class="dot" style="background:var(--accent)"></span>
@@ -411,8 +493,8 @@
       <div class="card">
         <div class="cat-head">
           <div class="cat-ic" style="background:color-mix(in srgb,var(--accent) 20%,var(--surface-2))">💰</div>
-          <div class="cat-title"><b>Ingreso del mes</b><small>Todo lo que entra: sueldo, ventas, taller...</small></div>
-          <div class="cat-amt" style="color:var(--good)">${money(ingreso)}<small>100%</small></div>
+          <div class="cat-title"><b>Ingreso de la ${qName}</b><small>Tu pago de quincena + extras (ventas, taller...)</small></div>
+          <div class="cat-amt" style="color:var(--good)">${money(t.ingreso)}<small>100%</small></div>
         </div>
         <div class="cat-body">${incRows}
           <form class="add-line" data-addline="ingreso">
@@ -422,53 +504,37 @@
           </form></div>
       </div>`;
 
-    // ----- saldo hero + donut -----
     const saldoCard = `
       <div class="saldo-hero">
-        <div class="lab">Saldo — lo que te queda</div>
-        <div class="big ${saldo<0?'neg':''}">${money(saldo)}</div>
-        <div class="cap">${saldo>=0
+        <div class="lab">Saldo de la ${qName} — lo que te queda</div>
+        <div class="big ${t.saldo<0?'neg':''}">${money(t.saldo)}</div>
+        <div class="cap">${t.saldo>=0
           ? `Después de gastos fijos, gasolina, fondo de emergencia y ahorro.`
-          : `⚠️ Estás apartando ${money(-saldo)} más de lo que ingresas. Ajusta alguna categoría.`}</div>
+          : `⚠️ Estás apartando ${money(-t.saldo)} más de lo que ingresa esta quincena.`}</div>
       </div>`;
 
-    const overWarn = saldo < 0 ? `<div class="over"><span>⚠️</span><span>Lo que apartas (${money(apartado)}) supera tu ingreso (${money(ingreso)}). Baja gastos o ajusta el ahorro.</span></div>` : "";
-
-    const donutCard = `
-      <div class="card">
-        <div class="donut-wrap">
-          <div class="donut" style="background:${donutBg}">
-            <div class="donut-hole">
-              <div><b style="color:${saldo>=0?'var(--accent)':'var(--bad)'}">${pct(Math.max(0,saldo))}%</b><small>Saldo libre</small></div>
-            </div>
-          </div>
-          <div class="legend">${legend}
-            <div class="legend-row" style="border-top:1px solid var(--line);margin-top:2px;font-weight:600">
-              <span class="sw" style="background:transparent"></span><span>Ingreso total</span>
-              <span class="lv" style="color:var(--good)">${money(ingreso)}</span><span class="lp">100%</span>
-            </div>
-          </div>
-        </div>
-        ${overWarn}
-      </div>`;
+    const copyBtn = `<button class="btn sm" id="copyQ" title="Copia conceptos y montos de la otra quincena">⧉ Copiar de la ${q==="q1"?"2ª":"1ª"} quincena</button>`;
 
     wrap.innerHTML = `
       <div class="view-head">
-        <h2 class="big">Presupuesto mensual</h2>
-        <p class="section-lead">Tu dinero de arriba hacia abajo: partes del <b>ingreso</b>, le restas cada categoría, y el <b>saldo</b> es lo que te queda libre. Toca cualquier cantidad para editarla.</p>
+        <h2 class="big">Presupuesto por quincena</h2>
+        <p class="section-lead">Ganas por quincena, así que el plan es quincenal: del <b>pago</b> restas cada categoría y el <b>saldo</b> es lo que te queda libre. Toca cualquier cantidad para editarla.</p>
       </div>
+      ${qtabsHtml()}
       <div class="budget-grid">
         <div class="stack">
           ${incomeCard}
           ${catCards}
+          <div>${copyBtn}</div>
         </div>
         <div class="rail">
           ${saldoCard}
-          ${donutCard}
+          ${distChart(t, "¿A dónde se va esta quincena?")}
         </div>
       </div>`;
 
-    // ---- handlers ----
+    // handlers
+    bindQtabs(wrap);
     wrap.querySelectorAll(".line-name, .line-amt").forEach(inp=> inp.addEventListener("change", ()=>{
       const arr = b[inp.dataset.store]; const it = arr.find(x=>x.id===inp.dataset.id);
       if(!it) return; it[inp.dataset.f] = inp.dataset.f==="monto" ? (+inp.value||0) : inp.value; commit();
@@ -481,11 +547,69 @@
       b[st].push({ id:uid(), concepto:fd.get("concepto"), monto:+fd.get("monto")||0 }); f.reset(); commit();
     }));
     wrap.querySelectorAll("[data-single]").forEach(inp=> inp.addEventListener("change", ()=>{ b[inp.dataset.single] = +inp.value||0; commit(); }));
-    wrap.querySelectorAll("[data-acum]").forEach(inp=> inp.addEventListener("change", ()=>{ b[inp.dataset.acum] = +inp.value||0; commit(); }));
+    wrap.querySelectorAll("[data-acum]").forEach(inp=> inp.addEventListener("change", ()=>{ state.budget[inp.dataset.acum] = +inp.value||0; commit(); }));
+    $("#copyQ", wrap).addEventListener("click", ()=>{
+      const other = state.budget[q==="q1"?"q2":"q1"];
+      const clone = o => structuredClone(o).map(x=>({ ...x, id: uid() }));
+      b.ingreso = clone(other.ingreso); b.gastosFijos = clone(other.gastosFijos); b.transporte = clone(other.transporte);
+      b.fondoEmergencia = other.fondoEmergencia; b.ahorroGeneral = other.ahorroGeneral; commit();
+    });
+  }
+
+  // --- MONTH SUMMARY ---
+  function renderMes(wrap){
+    const t1 = qTotals("q1"), t2 = qTotals("q2");
+    const tm = { ingreso:t1.ingreso+t2.ingreso, fijos:t1.fijos+t2.fijos, transp:t1.transp+t2.transp,
+      emerg:t1.emerg+t2.emerg, ahorro:t1.ahorro+t2.ahorro, apartado:t1.apartado+t2.apartado, saldo:t1.saldo+t2.saldo };
+
+    const rows = [
+      { name:"Ingreso", color:"var(--accent)", v1:t1.ingreso, v2:t2.ingreso },
+      ...CATS.map(c=>({ name:c.name, color:cv(c.cvar), v1:catVal(t1,c.key), v2:catVal(t2,c.key) })),
+      { name:"Saldo", color:"var(--s-saldo)", v1:t1.saldo, v2:t2.saldo },
+    ];
+    const maxV = Math.max(1, ...rows.flatMap(r=>[Math.abs(r.v1), Math.abs(r.v2)]));
+    const track = (q, v, color) => `
+      <div class="cmp-track ${q==='Q2'?'q2':''}">
+        <span class="q">${q}</span>
+        <div class="cmp-lane">
+          <div class="cmp-fill" style="width:${Math.abs(v)/maxV*100}%;background:${v<0?'var(--bad)':color}"></div>
+          <span class="cmp-val">${money(v)}</span>
+        </div>
+      </div>`;
+    const cmpRows = rows.map(r=>`
+      <div class="cmp-row">
+        <div class="cmp-name"><span class="sw" style="background:${r.color}"></span>${r.name}</div>
+        <div class="cmp-tracks">${track("Q1", r.v1, r.color)}${track("Q2", r.v2, r.color)}</div>
+      </div>`).join("");
+
+    wrap.innerHTML = `
+      <div class="view-head">
+        <h2 class="big">Presupuesto por quincena</h2>
+        <p class="section-lead">Resumen del mes: las dos quincenas juntas y comparadas lado a lado.</p>
+      </div>
+      ${qtabsHtml()}
+      <div class="tiles">
+        <div class="tile hero"><div class="lab">Saldo del mes</div><div class="val ${tm.saldo<0?'bad':''}" style="${tm.saldo>=0?'color:var(--s-saldo)':''}">${money(tm.saldo)}</div><div class="note">Q1 ${money(t1.saldo)} · Q2 ${money(t2.saldo)}</div></div>
+        <div class="tile"><div class="lab">Ingreso del mes</div><div class="val good">${money(tm.ingreso)}</div><div class="note">Las dos quincenas</div></div>
+        <div class="tile"><div class="lab">Apartado del mes</div><div class="val">${money(tm.apartado)}</div><div class="note">Gastos + fondo + ahorro</div></div>
+        <div class="tile"><div class="lab">Guardado total</div><div class="val good">${money((+state.budget.emergAcum||0)+(+state.budget.ahorroAcum||0))}</div><div class="note">Emergencia ${money(state.budget.emergAcum)} · Ahorro ${money(state.budget.ahorroAcum)}</div></div>
+      </div>
+      <div class="budget-grid">
+        <div class="card">
+          <div class="card-head"><h2>1ª vs 2ª quincena</h2><div class="spacer"></div><span class="sub">Misma escala en todas las barras</span></div>
+          <div class="cmp">${cmpRows}</div>
+        </div>
+        <div class="rail">${distChart(tm, "¿A dónde se va el mes?")}</div>
+      </div>`;
+    bindQtabs(wrap);
+  }
+
+  function bindQtabs(wrap){
+    wrap.querySelectorAll("[data-q]").forEach(b=> b.addEventListener("click", ()=>{ qView = b.dataset.q; renderPresupuesto(); }));
   }
 
   // =========================================================
-  //  Generic module builder (tarjetas, deudas, operaciones)
+  //  Generic modules (tarjetas, deudas, operaciones)
   // =========================================================
   const delCell = id => `<td class="act-cell" style="text-align:right"><button class="icon-x" data-del="${id}" title="Eliminar">✕</button></td>`;
   const prioPill = p => { const m={alta:["r","Alta"],media:["w","Media"],baja:["n","Baja"]}; const [c,l]=m[p]||m.media; return `<span class="pill ${c}">${l}</span>`; };
@@ -495,7 +619,7 @@
     const foot = cfg.footer ? cfg.footer(rows) : "";
     wrap.innerHTML = `
       <div class="view-head"><h2 class="big">${cfg.icon} ${cfg.title}</h2><p class="section-lead">${cfg.lead}</p></div>
-      <div class="card">
+      <div class="card" style="margin-top:16px">
         <div class="card-head"><h2>${cfg.listTitle||cfg.title}</h2><div class="spacer"></div><span class="sub">${rows.length} registro${rows.length===1?"":"s"}</span></div>
         <div class="table-wrap"><table>
           <thead><tr>${cfg.cols.map(c=>`<th class="${c.num?'num':''}">${c.h}</th>`).join("")}<th></th></tr></thead>
@@ -607,7 +731,7 @@
   };
 
   // ---------- navigation ----------
-  const titles = { presupuesto:"Presupuesto mensual", tarjetas:"Tarjetas de crédito", deudas:"Deudas y préstamos",
+  const titles = { presupuesto:"Presupuesto", tarjetas:"Tarjetas de crédito", deudas:"Deudas y préstamos",
     tareas:"Tareas pendientes", proveedores:"Proveedores y cambios", contenedores:"Contenedores pedidos", archivos:"Archivos importantes" };
   let current = "presupuesto";
   function renderCurrent(){ if(current==="presupuesto") renderPresupuesto(); else if(modules[current]) modules[current](); }
