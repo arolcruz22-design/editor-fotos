@@ -290,6 +290,7 @@
 
     <div class="nav-group">Mis finanzas</div>
     <button class="nav-btn active" data-view="presupuesto"><span class="ic">◧</span> Presupuesto</button>
+    <button class="nav-btn" data-view="gastos"><span class="ic">↘</span> Gastos del día <span class="badge" id="badge-gastos">0</span></button>
     <button class="nav-btn" data-view="tarjetas"><span class="ic">▭</span> Tarjetas</button>
     <button class="nav-btn" data-view="deudas"><span class="ic">⚑</span> Deudas</button>
     <button class="nav-btn" data-view="ahorros"><span class="ic">◈</span> Ahorros</button>
@@ -315,6 +316,7 @@
     <div class="cloudbar" id="cloudbar" hidden></div>
 
     <section class="view" id="view-presupuesto"></section>
+    <section class="view" id="view-gastos" hidden></section>
     <section class="view" id="view-tarjetas" hidden></section>
     <section class="view" id="view-deudas" hidden></section>
     <section class="view" id="view-ahorros" hidden></section>
@@ -345,6 +347,7 @@
 
   const seed = {
     budget: { q1: mkQ("1ª"), q2: mkQ("2ª") },
+    gastos: [],
     ahorros: { metaEmerg: 0, metaGeneral: 0, movimientos: [] },
     tarjetas: [],
     deudas: [],
@@ -356,7 +359,7 @@
 
   let state = load();
   function load(){
-    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.budget && s.budget.q1 && s.ahorros) return s; } catch(e){}
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.budget && s.budget.q1 && s.ahorros) { if (!Array.isArray(s.gastos)) s.gastos = []; return s; } } catch(e){}
     return structuredClone(seed);
   }
   const fundBalance = f => sum(state.ahorros.movimientos.filter(m=>m.fondo===f), m=> m.tipo==="retiro" ? -m.monto : +m.monto);
@@ -450,6 +453,13 @@
         </div>`;
       let body;
       if (c.list) {
+        const spentReal = spentCat(q, c.key);
+        const dispReal = total - spentReal;
+        const realLine = `<div class="line" style="grid-template-columns:26px 1fr auto">
+          <span class="dot" style="background:${spentReal>total?'var(--bad)':'var(--good)'}"></span>
+          <span class="mono-note">Gastado real: <b style="color:${spentReal>total?'var(--bad)':'var(--text)'}">${money(spentReal)}</b> · ${dispReal>=0?`quedan ${money(dispReal)}`:`<b style="color:var(--bad)">excedido por ${money(-dispReal)}</b>`}</span>
+          <button class="btn sm" data-goview="gastos">Ver gastos →</button>
+        </div>`;
         const rows = b[c.key].map(r=>`
           <div class="line">
             <span class="dot" style="background:${cv(c.cvar)}"></span>
@@ -457,7 +467,7 @@
             <input class="line-amt" type="number" min="0" step="any" data-store="${c.key}" data-id="${r.id}" data-f="monto" value="${r.monto}" aria-label="Monto">
             <button class="icon-x" data-delline="${c.key}" data-id="${r.id}" title="Quitar">✕</button>
           </div>`).join("");
-        body = `<div class="cat-body">${rows}
+        body = `<div class="cat-body">${realLine}${rows}
           <form class="add-line" data-addline="${c.key}">
             <input class="nm" name="concepto" placeholder="Nuevo concepto..." required>
             <input class="am" name="monto" type="number" min="0" step="any" placeholder="0" required>
@@ -589,7 +599,8 @@
       <div class="tiles">
         <div class="tile hero"><div class="lab">Saldo del mes</div><div class="val ${tm.saldo<0?'bad':''}" style="${tm.saldo>=0?'color:var(--s-saldo)':''}">${money(tm.saldo)}</div><div class="note">Q1 ${money(t1.saldo)} · Q2 ${money(t2.saldo)}</div></div>
         <div class="tile"><div class="lab">Ingreso del mes</div><div class="val good">${money(tm.ingreso)}</div><div class="note">Las dos quincenas</div></div>
-        <div class="tile"><div class="lab">Apartado del mes</div><div class="val">${money(tm.apartado)}</div><div class="note">Gastos + fondo + ahorro</div></div>
+        <div class="tile"><div class="lab">Apartado del mes</div><div class="val">${money(tm.apartado)}</div><div class="note">Gastos + fondo + ahorro (plan)</div></div>
+        <div class="tile"><div class="lab">Gastado real del mes</div><div class="val bad">${money(sum(gastosScope("mes"), g=>g.monto))}</div><div class="note">${state.gastos.filter(g=>inScope(g.fecha,"mes")).length} gastos posteados</div></div>
         <div class="tile"><div class="lab">Guardado total</div><div class="val good">${money(fundBalance("emergencia")+fundBalance("general"))}</div><div class="note">Emergencia ${money(fundBalance("emergencia"))} · Ahorro ${money(fundBalance("general"))}</div></div>
       </div>
       <div class="budget-grid">
@@ -603,7 +614,174 @@
   }
 
   function bindQtabs(wrap){
-    wrap.querySelectorAll("[data-q]").forEach(b=> b.addEventListener("click", ()=>{ qView = b.dataset.q; renderPresupuesto(); }));
+    wrap.querySelectorAll("[data-q]").forEach(b=> b.addEventListener("click", ()=>{ qView = b.dataset.q; renderCurrent(); }));
+  }
+
+  // =========================================================
+  //  GASTOS REALES — lo que de verdad gastas, contra el plan
+  // =========================================================
+  const GCATS = [
+    { key:"gastosFijos", name:"Gastos fijos", cvar:"--s-fijos", ic:"🏠", plan:true },
+    { key:"transporte", name:"Gasolina / transporte", cvar:"--s-transp", ic:"⛽", plan:true },
+    { key:"fuera", name:"Fuera de presupuesto", cvar:"--s-saldo", ic:"🧾", plan:false },
+  ];
+  const gcat = k => GCATS.find(c=>c.key===k) || GCATS[2];
+
+  function inScope(fecha, scope){
+    if (!fecha || fecha.length < 10) return false;
+    const now = new Date();
+    if (fecha.slice(0,7) !== now.toISOString().slice(0,7)) return false;
+    if (scope === "mes") return true;
+    const day = +fecha.slice(8,10);
+    return scope === "q1" ? day <= 15 : day >= 16;
+  }
+  const gastosScope = scope => state.gastos.filter(g => inScope(g.fecha, scope));
+  function planCat(scope, key){
+    if (key === "fuera") return 0;
+    if (scope === "mes") return sum(state.budget.q1[key], x=>x.monto) + sum(state.budget.q2[key], x=>x.monto);
+    return sum(state.budget[scope][key], x=>x.monto);
+  }
+  const spentCat = (scope, key) => sum(gastosScope(scope).filter(g=>g.categoria===key), g=>g.monto);
+
+  // chronological "does it fit the plan" flag per expense
+  function estadoMap(scope){
+    const map = {}; const run = {};
+    const ordered = [...gastosScope(scope)].sort((a,b)=> a.fecha.localeCompare(b.fecha) || (a.ts||0)-(b.ts||0));
+    ordered.forEach(g=>{
+      if (g.categoria === "fuera") { map[g.id] = "fuera"; return; }
+      run[g.categoria] = (run[g.categoria]||0) + (+g.monto||0);
+      map[g.id] = run[g.categoria] <= planCat(scope, g.categoria) ? "dentro" : "excedido";
+    });
+    return map;
+  }
+  const estadoPill = e => e==="dentro" ? '<span class="pill g">Dentro</span>'
+    : e==="excedido" ? '<span class="pill r">Excedido</span>' : '<span class="pill n">Fuera de presup.</span>';
+
+  function renderGastos(){
+    const wrap = $("#view-gastos");
+    const scope = qView;
+    const scopeName = scope==="q1" ? "1ª quincena" : scope==="q2" ? "2ª quincena" : "mes";
+    const list = gastosScope(scope);
+    const gastado = sum(list, g=>g.monto);
+    const planTotal = planCat(scope,"gastosFijos") + planCat(scope,"transporte");
+    const disp = planTotal - sum(list.filter(g=>g.categoria!=="fuera"), g=>g.monto);
+    const hoy = sum(state.gastos.filter(g=>g.fecha===today(0)), g=>g.monto);
+    const now = new Date();
+    const daysElapsed = scope==="mes" ? now.getDate() : scope==="q1" ? Math.min(now.getDate(),15) : Math.max(1, now.getDate()-15);
+    const promedio = gastado / Math.max(1, daysElapsed);
+    const est = estadoMap(scope);
+
+    // --- per-category budget vs actual, with per-line breakdown ---
+    const catCards = GCATS.map(c=>{
+      const plan = planCat(scope, c.key);
+      const spent = spentCat(scope, c.key);
+      const over = c.plan && spent > plan;
+      const p = c.plan && plan>0 ? Math.min(100, Math.round(spent/plan*100)) : (spent>0?100:0);
+      let linesHtml = "";
+      if (c.plan) {
+        const lineNames = [...new Set([ ...state.budget.q1[c.key].map(x=>x.concepto), ...state.budget.q2[c.key].map(x=>x.concepto) ])];
+        const lineRows = lineNames.map(nm=>{
+          const lplan = scope==="mes"
+            ? sum(state.budget.q1[c.key].filter(x=>x.concepto===nm), x=>x.monto) + sum(state.budget.q2[c.key].filter(x=>x.concepto===nm), x=>x.monto)
+            : sum(state.budget[scope][c.key].filter(x=>x.concepto===nm), x=>x.monto);
+          const lspent = sum(list.filter(g=>g.categoria===c.key && g.linea===nm), g=>g.monto);
+          if (lplan<=0 && lspent<=0) return "";
+          const lp = lplan>0 ? Math.min(100, Math.round(lspent/lplan*100)) : 100;
+          const lover = lspent > lplan;
+          return `<div class="line" style="grid-template-columns:26px 1fr minmax(90px,22%) auto">
+            <span class="dot" style="background:${cv(c.cvar)};opacity:.5"></span>
+            <span style="font-size:13px">${esc(nm)}</span>
+            <div class="bar"><i style="width:${lp}%;background:${lover?'var(--bad)':cv(c.cvar)}"></i></div>
+            <span class="mono-note" style="font-family:var(--mono);${lover?'color:var(--bad)':''}">${money(lspent)} / ${money(lplan)}</span>
+          </div>`;
+        }).join("");
+        const sinLinea = sum(list.filter(g=>g.categoria===c.key && !g.linea), g=>g.monto);
+        linesHtml = `<div class="cat-body">${lineRows}${sinLinea>0?`<div class="line" style="grid-template-columns:26px 1fr auto"><span class="dot" style="background:${cv(c.cvar)};opacity:.3"></span><span style="font-size:13px;color:var(--text-dim)">Sin renglón asignado</span><span class="mono-note" style="font-family:var(--mono)">${money(sinLinea)}</span></div>`:""}</div>`;
+      } else if (spent > 0) {
+        linesHtml = `<div class="cat-body"><div class="line" style="grid-template-columns:26px 1fr"><span class="dot" style="background:${cv(c.cvar)};opacity:.5"></span><span class="mono-note">Gastos que no estaban planeados — revísalos para decidir si entran al presupuesto del próximo periodo.</span></div></div>`;
+      }
+      const statusTxt = !c.plan ? (spent>0 ? money(spent)+" no planeados" : "sin gastos")
+        : over ? "te pasaste por " + money(spent-plan)
+        : plan>0 ? "quedan " + money(plan-spent) : "sin plan asignado";
+      return `<div class="card">
+        <div class="cat-head">
+          <div class="cat-ic">${c.ic}</div>
+          <div class="cat-title"><b>${c.name}</b><small>${c.plan?`Asignado ${money(plan)} esta ${scopeName}`:"Lo que no cabe en ninguna categoría"}</small></div>
+          <div class="cat-amt" style="${over?'color:var(--bad)':''}">${money(spent)}<small style="${over?'color:var(--bad)':''}">${statusTxt}</small></div>
+          <div class="cat-bar"><i style="width:${p}%;background:${over?'var(--bad)':cv(c.cvar)}"></i></div>
+        </div>
+        ${linesHtml}
+      </div>`;
+    }).join("");
+
+    // --- expense log grouped by day ---
+    const byDay = {};
+    list.forEach(g=>{ (byDay[g.fecha] = byDay[g.fecha] || []).push(g); });
+    const days = Object.keys(byDay).sort((a,b)=> b.localeCompare(a));
+    const logRows = days.map(d=>{
+      const dayTotal = sum(byDay[d], g=>g.monto);
+      const dayName = new Date(d+"T12:00").toLocaleDateString("es-MX",{weekday:"long"});
+      const head = `<tr style="background:var(--surface-2)"><td colspan="4" style="font-weight:650;text-transform:capitalize">${dayName} ${fdate(d)}${d===today(0)?' · hoy':''}</td><td class="num" style="font-weight:650">${money(dayTotal)}</td><td></td></tr>`;
+      const rows = byDay[d].sort((a,b)=>(b.ts||0)-(a.ts||0)).map(g=>{
+        const c = gcat(g.categoria);
+        return `<tr><td></td><td>${esc(g.concepto)}</td>
+          <td><span class="tag" style="border-color:${cv(c.cvar)}">${c.ic} ${g.linea?esc(g.linea):c.name}</span></td>
+          <td>${estadoPill(est[g.id])}</td>
+          <td class="num" style="color:var(--bad)">-${money(g.monto)}</td>${delCell(g.id)}</tr>`;
+      }).join("");
+      return head + rows;
+    }).join("");
+
+    // --- category/line options for the form ---
+    const lineOpts = c => [...new Set([ ...state.budget.q1[c].map(x=>x.concepto), ...state.budget.q2[c].map(x=>x.concepto) ])]
+      .map(nm=>`<option value="${c}|${esc(nm)}">${esc(nm)}</option>`).join("");
+    const catSelect = `
+      <optgroup label="🏠 Gastos fijos"><option value="gastosFijos|">Gastos fijos — general</option>${lineOpts("gastosFijos")}</optgroup>
+      <optgroup label="⛽ Gasolina / transporte"><option value="transporte|">Transporte — general</option>${lineOpts("transporte")}</optgroup>
+      <optgroup label="🧾 Otros"><option value="fuera|">Fuera de presupuesto</option></optgroup>`;
+
+    wrap.innerHTML = `
+      <div class="view-head">
+        <h2 class="big">↘ Gastos del día a día</h2>
+        <p class="section-lead">Aquí posteas <b>cada gasto real</b>. El sistema lo compara contra lo asignado en tu presupuesto y te dice si vas <b>dentro</b>, si ya te <b>excediste</b>, o si fue algo <b>fuera del plan</b>.</p>
+      </div>
+      ${qtabsHtml()}
+      <div class="tiles">
+        <div class="tile hero"><div class="lab">Disponible del presupuesto</div><div class="val ${disp<0?'bad':''}" style="${disp>=0?'color:var(--s-saldo)':''}">${money(disp)}</div><div class="note">${disp>=0?"De "+money(planTotal)+" asignados esta "+scopeName:"⚠️ Excedido — ajusta o registra en fuera de presupuesto"}</div></div>
+        <div class="tile"><div class="lab">Gastado (${scopeName})</div><div class="val bad">${money(gastado)}</div><div class="note">${list.length} gasto${list.length===1?"":"s"} registrados</div></div>
+        <div class="tile"><div class="lab">Gastado hoy</div><div class="val">${money(hoy)}</div><div class="note">${today(0).slice(8,10)} de ${new Date().toLocaleDateString("es-MX",{month:"long"})}</div></div>
+        <div class="tile"><div class="lab">Promedio diario</div><div class="val">${money(promedio)}</div><div class="note">En ${daysElapsed} día${daysElapsed===1?"":"s"} de esta ${scopeName}</div></div>
+      </div>
+      <div class="card" style="margin-bottom:18px">
+        <div class="card-head"><h2>➕ Postear un gasto</h2><div class="spacer"></div><span class="sub">Se compara solo contra el presupuesto</span></div>
+        <form class="form-row" id="gastoForm">
+          <div class="fld"><label>Fecha</label><input type="date" name="fecha" value="${today(0)}" required></div>
+          <div class="fld"><label>¿De qué fue?</label><input name="concepto" placeholder="Gasolina moto, comida, refacción..." required></div>
+          <div class="fld"><label>Categoría / renglón</label><select name="cat">${catSelect}</select></div>
+          <div class="fld"><label>Monto</label><input type="number" name="monto" min="0.01" step="any" placeholder="0" required></div>
+          <div class="fld act"><button class="btn primary">+ Registrar gasto</button></div>
+        </form>
+      </div>
+      <div class="stack">${catCards}</div>
+      <div class="card" style="margin-top:18px">
+        <div class="card-head"><h2>📆 Diario de gastos</h2><div class="spacer"></div><span class="sub">${scopeName==="mes"?"Todo el mes":"Esta "+scopeName}, por día</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th style="width:12px"></th><th>Concepto</th><th>Categoría</th><th>Estado</th><th class="num">Monto</th><th></th></tr></thead>
+          <tbody>${logRows || `<tr><td colspan="6"><div class="empty">Sin gastos en este periodo. Postea el primero arriba ☝</div></td></tr>`}</tbody>
+        </table></div>
+      </div>`;
+
+    bindQtabs(wrap);
+    $("#gastoForm", wrap).addEventListener("submit", e=>{
+      e.preventDefault(); const fd = new FormData(e.target);
+      const [categoria, linea] = String(fd.get("cat")).split("|");
+      state.gastos.push({ id: uid(), ts: Date.now(), fecha: fd.get("fecha"), concepto: fd.get("concepto"),
+        categoria, linea: linea || "", monto: +fd.get("monto")||0 });
+      e.target.reset(); commit();
+    });
+    wrap.querySelectorAll("[data-del]").forEach(b=> b.addEventListener("click", ()=>{
+      state.gastos = state.gastos.filter(x=>x.id!==b.dataset.del); commit();
+    }));
   }
 
   // =========================================================
@@ -730,6 +908,7 @@
   function commit(){ save(); renderCurrent(); refreshBadges(); }
 
   const modules = {
+    gastos: renderGastos,
     ahorros: renderAhorros,
     tarjetas: () => moduleView({
       id:"tarjetas", store:"tarjetas", icon:"▭", title:"Tarjetas de crédito",
@@ -828,13 +1007,14 @@
   };
 
   // ---------- navigation ----------
-  const titles = { presupuesto:"Presupuesto", tarjetas:"Tarjetas de crédito", deudas:"Deudas y préstamos", ahorros:"Ahorros",
+  const titles = { presupuesto:"Presupuesto", gastos:"Gastos del día", tarjetas:"Tarjetas de crédito", deudas:"Deudas y préstamos", ahorros:"Ahorros",
     tareas:"Tareas pendientes", proveedores:"Proveedores y cambios", contenedores:"Contenedores pedidos", archivos:"Archivos importantes" };
   let current = "presupuesto";
   function renderCurrent(){ if(current==="presupuesto") renderPresupuesto(); else if(modules[current]) modules[current](); }
   function refreshBadges(){
     $("#badge-tareas").textContent = state.tareas.filter(x=>x.estado!=="hecho").length;
     $("#badge-cont").textContent = state.contenedores.filter(x=>x.estado!=="recibido").length;
+    $("#badge-gastos").textContent = state.gastos.filter(g=>g.fecha===today(0)).length;
   }
   function go(view){
     current = view;
