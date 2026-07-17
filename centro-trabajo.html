@@ -320,8 +320,7 @@
 <script>
 (function () {
   "use strict";
-  const KEY = "todomotos_centro_v4";
-  const OLD_KEY = "todomotos_centro_v3";
+  const KEY = "todomotos_centro_v5";
   const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
   const MESES_L = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   const uid = () => Math.random().toString(36).slice(2, 9);
@@ -329,68 +328,28 @@
   const today = (o=0) => { const d=new Date(); d.setDate(d.getDate()+o); return d.toISOString().slice(0,10); };
 
   const mkQ = (n) => ({
-    ingreso: [ { id: uid(), concepto: "Pago de la " + n + " quincena", monto: 17500 } ],
-    gastosFijos: n === "1ª"
-      ? [ { id: uid(), concepto: "Alquiler", monto: 8000 }, { id: uid(), concepto: "Comida / despensa", monto: 2500 } ]
-      : [ { id: uid(), concepto: "Luz", monto: 600 }, { id: uid(), concepto: "Agua", monto: 250 },
-          { id: uid(), concepto: "Internet", monto: 500 }, { id: uid(), concepto: "Comida / despensa", monto: 2500 } ],
-    transporte: [ { id: uid(), concepto: "Gasolina", monto: 1250 } ],
-    fondoEmergencia: 1500,
-    ahorroGeneral: 2000,
+    ingreso: [ { id: uid(), concepto: "Pago de la " + n + " quincena", monto: 12500 } ],
+    gastosFijos: [],
+    transporte: [],
+    fondoEmergencia: 0,
+    ahorroGeneral: 0,
   });
 
   const seed = {
     budget: { q1: mkQ("1ª"), q2: mkQ("2ª") },
-    ahorros: {
-      metaEmerg: 30000, metaGeneral: 60000,
-      movimientos: [
-        { id: uid(), fecha: today(-30), fondo: "emergencia", tipo: "deposito", concepto: "Saldo inicial", monto: 12000 },
-        { id: uid(), fecha: today(-30), fondo: "general", tipo: "deposito", concepto: "Saldo inicial", monto: 15000 },
-      ],
-    },
-    tarjetas: [
-      { id: uid(), nombre: "BBVA Azul", banco: "BBVA", limite: 40000, deuda: 18500, corte: 12, pago: 30 },
-      { id: uid(), nombre: "Nu", banco: "Nu", limite: 15000, deuda: 4200, corte: 5, pago: 22 },
-    ],
-    deudas: [ { id: uid(), acreedor: "Financiamiento camioneta", monto: 90000, pagado: 35000, plazo: "2026-12" } ],
-    tareas: [
-      { id: uid(), titulo: "Revisar cambios del contenedor de defensas", prioridad: "alta", fecha: today(2), estado: "pendiente" },
-      { id: uid(), titulo: "Cotizar cascos con proveedor nuevo", prioridad: "media", fecha: today(5), estado: "pendiente" },
-      { id: uid(), titulo: "Pagar tarjeta BBVA", prioridad: "alta", fecha: today(3), estado: "pendiente" },
-    ],
-    proveedores: [
-      { id: uid(), proveedor: "Motopartes del Norte", queLlego: "Lote de defensas", cambio: "Cambiar 4 defensas dañadas", contacto: "55-1234-5678", estado: "pendiente" },
-      { id: uid(), proveedor: "Cascos MX", queLlego: "20 cascos", cambio: "Devolver 2 talla equivocada", contacto: "cascosmx@mail.com", estado: "resuelto" },
-    ],
-    contenedores: [
-      { id: uid(), nombre: "CNT-001", contenido: "Motos 150cc (x8)", proveedor: "Import China", fecha: today(-20), estado: "recibido" },
-      { id: uid(), nombre: "CNT-002", contenido: "Refacciones surtidas", proveedor: "Import China", fecha: today(-3), estado: "en camino" },
-      { id: uid(), nombre: "CNT-003", contenido: "Llantas y cascos", proveedor: "AsiaMoto", fecha: today(1), estado: "pedido" },
-    ],
-    archivos: [
-      { id: uid(), nombre: "Acta constitutiva", tipo: "Legal", nota: "Carpeta física + PDF en Drive" },
-      { id: uid(), nombre: "Lista de precios proveedores", tipo: "Precios", nota: "Actualizar cada mes" },
-    ],
+    ahorros: { metaEmerg: 0, metaGeneral: 0, movimientos: [] },
+    tarjetas: [],
+    deudas: [],
+    tareas: [],
+    proveedores: [],
+    contenedores: [],
+    archivos: [],
   };
 
   let state = load();
   function load(){
     try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.budget && s.budget.q1 && s.ahorros) return s; } catch(e){}
-    const fresh = structuredClone(seed);
-    // carry over data from the previous version, if any
-    try {
-      const old = JSON.parse(localStorage.getItem(OLD_KEY));
-      if (old) {
-        ["tarjetas","deudas","tareas","proveedores","contenedores","archivos"].forEach(k=>{ if (Array.isArray(old[k])) fresh[k] = old[k]; });
-        if (old.budget && old.budget.q1) {
-          fresh.budget = { q1: old.budget.q1, q2: old.budget.q2 };
-          fresh.ahorros.movimientos = [];
-          if (+old.budget.emergAcum) fresh.ahorros.movimientos.push({ id: uid(), fecha: today(0), fondo: "emergencia", tipo: "deposito", concepto: "Saldo inicial", monto: +old.budget.emergAcum });
-          if (+old.budget.ahorroAcum) fresh.ahorros.movimientos.push({ id: uid(), fecha: today(0), fondo: "general", tipo: "deposito", concepto: "Saldo inicial", monto: +old.budget.ahorroAcum });
-        }
-      }
-    } catch(e){}
-    return fresh;
+    return structuredClone(seed);
   }
   const fundBalance = f => sum(state.ahorros.movimientos.filter(m=>m.fondo===f), m=> m.tipo==="retiro" ? -m.monto : +m.monto);
   function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
