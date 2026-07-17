@@ -898,12 +898,14 @@
       <div class="card" style="margin-bottom:18px">
         <div class="card-head"><h2>➕ Postear un gasto</h2><div class="spacer"></div><span class="sub">Se compara solo contra el presupuesto</span></div>
         <div class="foto-bar">
-          <button type="button" class="btn" id="fotoBtn">📷 ${aiAvailable() ? "Postear con foto (IA)" : "Adjuntar foto del recibo"}</button>
+          <button type="button" class="btn" id="fotoBtn">📷 Tomar foto${aiAvailable() ? " (IA)" : ""}</button>
+          <button type="button" class="btn" id="galBtn">🖼️ Galería / archivo${aiAvailable() ? " (IA)" : ""}</button>
           <span class="mono-note" id="fotoStatus" style="flex:1;min-width:180px">${aiAvailable()
-            ? "Toma la foto del recibo y la IA saca el concepto, monto y fecha — y postea el gasto sola."
+            ? "Foto o imagen del recibo y la IA saca el concepto, monto y fecha — y postea el gasto sola."
             : "Aquí dentro de Claude la foto solo se adjunta; la lectura con IA funciona en la versión web pública."}</span>
           ${aiAvailable() ? `<button type="button" class="link-btn" id="aiKeyBtn" title="Cambiar clave de API">⚙ clave IA</button>` : ""}
           <input type="file" id="fotoInput" accept="image/*" capture="environment" hidden>
+          <input type="file" id="galInput" accept="image/*" hidden>
         </div>
         <form class="form-row" id="gastoForm">
           <div class="fld"><label>Fecha</label><input type="date" name="fecha" value="${today(0)}" required></div>
@@ -928,9 +930,10 @@
     const fotoStatus = $("#fotoStatus", wrap);
     const setStatus = t => { if (fotoStatus) fotoStatus.innerHTML = t; };
     $("#fotoBtn", wrap).addEventListener("click", ()=> $("#fotoInput", wrap).click());
+    $("#galBtn", wrap).addEventListener("click", ()=> $("#galInput", wrap).click());
     const keyBtn = $("#aiKeyBtn", wrap);
     if (keyBtn) keyBtn.addEventListener("click", ()=> getApiKey(true));
-    $("#fotoInput", wrap).addEventListener("change", e=>{
+    const onFotoPicked = e => {
       const f = e.target.files && e.target.files[0]; if (!f) return;
       compressImage(f, async dataUrl => {
         pendingFoto = dataUrl;
@@ -954,7 +957,9 @@
         }
       });
       e.target.value = "";
-    });
+    };
+    $("#fotoInput", wrap).addEventListener("change", onFotoPicked);
+    $("#galInput", wrap).addEventListener("change", onFotoPicked);
     wrap.querySelectorAll("[data-verfoto]").forEach(b=> b.addEventListener("click", ()=> verFoto(b.dataset.verfoto)));
 
     $("#gastoForm", wrap).addEventListener("submit", e=>{
