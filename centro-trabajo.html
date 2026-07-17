@@ -243,6 +243,12 @@
   .done .titlecell { text-decoration: line-through; }
   .est-sel { padding: 5px 8px; font-size: 12.5px; }
 
+  /* fotos de recibos */
+  .foto-thumb { height: 36px; border-radius: 6px; border: 1px solid var(--line); vertical-align: middle; }
+  .fotoview { position: fixed; inset: 0; background: rgba(0,0,0,.88); display: grid; place-items: center; z-index: 200; cursor: zoom-out; }
+  .fotoview img { max-width: 92vw; max-height: 88vh; border-radius: 10px; }
+  .foto-bar { padding: 12px 18px; border-bottom: 1px solid var(--line-soft); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
   /* asistente */
   .asst-head { display: flex; gap: 13px; padding: 16px 18px; align-items: center; border-bottom: 1px solid var(--line-soft); }
   .asst-head .ava { width: 44px; height: 44px; border-radius: 50%; flex: none;
@@ -696,6 +702,104 @@
   const estadoPill = e => e==="dentro" ? '<span class="pill g">Dentro</span>'
     : e==="excedido" ? '<span class="pill r">Excedido</span>' : '<span class="pill n">Fuera de presup.</span>';
 
+  // =========================================================
+  //  FOTO DE RECIBO + LECTURA CON IA (Claude)
+  //  La IA funciona en la versión web pública; dentro del
+  //  artefacto de claude.ai las llamadas externas están bloqueadas.
+  // =========================================================
+  const API_KEY_STORE = "tm_apikey";
+  let pendingFoto = null;
+  const aiAvailable = () => typeof window === "undefined" || !window.claude;
+
+  function compressImage(file, cb){
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, 900 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.width * scale));
+      c.height = Math.max(1, Math.round(img.height * scale));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      const url = c.toDataURL("image/jpeg", 0.55);
+      URL.revokeObjectURL(img.src);
+      cb(url);
+    };
+    img.onerror = () => { URL.revokeObjectURL(img.src); toast("No pude leer esa imagen"); };
+    img.src = URL.createObjectURL(file);
+  }
+
+  function getApiKey(forceAsk){
+    let key = localStorage.getItem(API_KEY_STORE);
+    if (key && !forceAsk) return key;
+    key = window.prompt(
+      "Para que la IA lea tus recibos necesitas una clave de API de Claude (se guarda solo en este dispositivo, se pide una vez).\n\n" +
+      "1. Entra a console.anthropic.com\n2. Crea una API key\n3. Pégala aquí:", key || "");
+    if (!key || !key.trim()) return null;
+    key = key.trim();
+    localStorage.setItem(API_KEY_STORE, key);
+    return key;
+  }
+
+  async function analizarRecibo(dataUrl){
+    const key = getApiKey(false);
+    if (!key) throw new Error("Sin clave de API — no se puede leer el recibo");
+    const lineNames = c => [...new Set([ ...state.budget.q1[c].map(x=>x.concepto), ...state.budget.q2[c].map(x=>x.concepto) ])];
+    const schema = {
+      type: "object",
+      properties: {
+        concepto: { type: "string", description: "Descripción corta del gasto: comercio o producto principal" },
+        monto: { type: "number", description: "TOTAL pagado en lempiras" },
+        fecha: { type: "string", description: "Fecha del recibo en formato YYYY-MM-DD; si no se ve, la fecha de hoy" },
+        categoria: { type: "string", enum: ["gastosFijos", "transporte", "fuera"] },
+        linea: { type: "string", description: "Renglón exacto del presupuesto si aplica, o cadena vacía" },
+      },
+      required: ["concepto", "monto", "fecha", "categoria", "linea"],
+      additionalProperties: false,
+    };
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true",
+      },
+      body: JSON.stringify({
+        model: "claude-opus-4-8",
+        max_tokens: 1024,
+        output_config: { format: { type: "json_schema", schema } },
+        messages: [{ role: "user", content: [
+          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: dataUrl.split(",")[1] } },
+          { type: "text", text: "Analiza esta foto de un recibo o factura de Honduras. Hoy es " + today(0) +
+            ". Extrae qué se compró, el TOTAL pagado en lempiras y la fecha del recibo. Clasifícalo en el presupuesto: " +
+            "\"gastosFijos\" (renglones: " + (lineNames("gastosFijos").join(", ") || "ninguno") + "), " +
+            "\"transporte\" (renglones: " + (lineNames("transporte").join(", ") || "ninguno") + ") " +
+            "o \"fuera\" si no encaja en ninguno. En \"linea\" pon el renglón exacto de esas listas si corresponde, o \"\"." },
+        ]}],
+      }),
+    });
+    if (!res.ok) {
+      if (res.status === 401) { localStorage.removeItem(API_KEY_STORE); throw new Error("Clave de API inválida — inténtalo de nuevo con una clave válida"); }
+      if (res.status === 429) throw new Error("Demasiadas peticiones a la IA — espera un momento y reintenta");
+      throw new Error("La IA no pudo procesar el recibo (error " + res.status + ")");
+    }
+    const data = await res.json();
+    if (data.stop_reason === "refusal") throw new Error("La IA no pudo leer este recibo");
+    const txt = (data.content || []).find(b => b.type === "text");
+    if (!txt) throw new Error("La IA no devolvió datos");
+    return JSON.parse(txt.text);
+  }
+
+  function verFoto(id){
+    const g = state.gastos.find(x=>x.id===id);
+    if (!g || !g.foto) return;
+    const ov = document.createElement("div");
+    ov.className = "fotoview";
+    const im = document.createElement("img"); im.src = g.foto; im.alt = "Recibo";
+    ov.appendChild(im);
+    ov.addEventListener("click", ()=> ov.remove());
+    document.body.appendChild(ov);
+  }
+
   function renderGastos(){
     const wrap = $("#view-gastos");
     const scope = qView;
@@ -763,7 +867,7 @@
       const head = `<tr style="background:var(--surface-2)"><td colspan="4" style="font-weight:650;text-transform:capitalize">${dayName} ${fdate(d)}${d===today(0)?' · hoy':''}</td><td class="num" style="font-weight:650">${money(dayTotal)}</td><td></td></tr>`;
       const rows = byDay[d].sort((a,b)=>(b.ts||0)-(a.ts||0)).map(g=>{
         const c = gcat(g.categoria);
-        return `<tr><td></td><td>${esc(g.concepto)}</td>
+        return `<tr><td></td><td>${esc(g.concepto)}${g.foto?` <button class="link-btn" data-verfoto="${g.id}" title="Ver recibo">📷</button>`:""}</td>
           <td><span class="tag" style="border-color:${cv(c.cvar)}">${c.ic} ${g.linea?esc(g.linea):c.name}</span></td>
           <td>${estadoPill(est[g.id])}</td>
           <td class="num" style="color:var(--bad)">-${money(g.monto)}</td>${delCell(g.id)}</tr>`;
@@ -793,6 +897,14 @@
       </div>
       <div class="card" style="margin-bottom:18px">
         <div class="card-head"><h2>➕ Postear un gasto</h2><div class="spacer"></div><span class="sub">Se compara solo contra el presupuesto</span></div>
+        <div class="foto-bar">
+          <button type="button" class="btn" id="fotoBtn">📷 ${aiAvailable() ? "Postear con foto (IA)" : "Adjuntar foto del recibo"}</button>
+          <span class="mono-note" id="fotoStatus" style="flex:1;min-width:180px">${aiAvailable()
+            ? "Toma la foto del recibo y la IA saca el concepto, monto y fecha — y postea el gasto sola."
+            : "Aquí dentro de Claude la foto solo se adjunta; la lectura con IA funciona en la versión web pública."}</span>
+          ${aiAvailable() ? `<button type="button" class="link-btn" id="aiKeyBtn" title="Cambiar clave de API">⚙ clave IA</button>` : ""}
+          <input type="file" id="fotoInput" accept="image/*" capture="environment" hidden>
+        </div>
         <form class="form-row" id="gastoForm">
           <div class="fld"><label>Fecha</label><input type="date" name="fecha" value="${today(0)}" required></div>
           <div class="fld"><label>¿De qué fue?</label><input name="concepto" placeholder="Gasolina moto, comida, refacción..." required></div>
@@ -811,12 +923,47 @@
       </div>`;
 
     bindQtabs(wrap);
+
+    // --- foto del recibo + IA ---
+    const fotoStatus = $("#fotoStatus", wrap);
+    const setStatus = t => { if (fotoStatus) fotoStatus.innerHTML = t; };
+    $("#fotoBtn", wrap).addEventListener("click", ()=> $("#fotoInput", wrap).click());
+    const keyBtn = $("#aiKeyBtn", wrap);
+    if (keyBtn) keyBtn.addEventListener("click", ()=> getApiKey(true));
+    $("#fotoInput", wrap).addEventListener("change", e=>{
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      compressImage(f, async dataUrl => {
+        pendingFoto = dataUrl;
+        setStatus(`<img class="foto-thumb" src="${dataUrl}" alt="recibo"> Foto lista — ${aiAvailable()?"leyendo con IA…":"llena los datos y registra el gasto"}`);
+        if (!aiAvailable()) return;
+        try {
+          const r = await analizarRecibo(dataUrl);
+          const cat = ["gastosFijos","transporte","fuera"].includes(r.categoria) ? r.categoria : "fuera";
+          const fecha = /^\d{4}-\d{2}-\d{2}$/.test(r.fecha||"") ? r.fecha : today(0);
+          if (r.concepto && +r.monto > 0) {
+            state.gastos.push({ id: uid(), ts: Date.now(), fecha, concepto: String(r.concepto).slice(0,120),
+              categoria: cat, linea: cat==="fuera" ? "" : String(r.linea||""), monto: +r.monto, foto: dataUrl });
+            pendingFoto = null;
+            toast("🤖 Lía posteó: " + r.concepto + " — " + money(r.monto));
+            commit();
+          } else {
+            setStatus(`<img class="foto-thumb" src="${dataUrl}" alt="recibo"> La IA no encontró el monto — llena los datos y registra`);
+          }
+        } catch(err) {
+          setStatus(`<img class="foto-thumb" src="${dataUrl}" alt="recibo"> ${esc(err && err.message || "No se pudo leer con IA")} — llena los datos y registra`);
+        }
+      });
+      e.target.value = "";
+    });
+    wrap.querySelectorAll("[data-verfoto]").forEach(b=> b.addEventListener("click", ()=> verFoto(b.dataset.verfoto)));
+
     $("#gastoForm", wrap).addEventListener("submit", e=>{
       e.preventDefault(); const fd = new FormData(e.target);
       const [categoria, linea] = String(fd.get("cat")).split("|");
       const fech = String(fd.get("fecha"));
       state.gastos.push({ id: uid(), ts: Date.now(), fecha: fech, concepto: fd.get("concepto"),
-        categoria, linea: linea || "", monto: +fd.get("monto")||0 });
+        categoria, linea: linea || "", monto: +fd.get("monto")||0, foto: pendingFoto || undefined });
+      pendingFoto = null;
       // aviso de Lía al momento
       const sc2 = (+fech.slice(8,10) <= 15) ? "q1" : "q2";
       if (categoria !== "fuera" && inScope(fech, sc2)) {
