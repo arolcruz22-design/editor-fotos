@@ -731,26 +731,32 @@
     let key = localStorage.getItem(API_KEY_STORE);
     if (key && !forceAsk) return key;
     key = window.prompt(
-      "Para que la IA lea tus recibos necesitas una clave de API de Claude (se guarda solo en este dispositivo, se pide una vez).\n\n" +
-      "1. Entra a console.anthropic.com\n2. Crea una API key\n3. Pégala aquí:", key || "");
+      "Para que la IA lea tus recibos necesitas una clave de API GRATIS de Google Gemini (se guarda solo en este dispositivo, se pide una vez).\n\n" +
+      "1. Entra a aistudio.google.com/apikey con tu cuenta de Google (la de Gmail)\n" +
+      "2. Toca \"Crear clave de API\" / \"Create API key\"\n" +
+      "3. Cópiala y pégala aquí:\n\n" +
+      "(También sirve una clave de Claude si tienes una)", key || "");
     if (!key || !key.trim()) return null;
     key = key.trim();
     localStorage.setItem(API_KEY_STORE, key);
     return key;
   }
 
-  async function analizarRecibo(dataUrl){
-    const key = getApiKey(false);
-    if (!key) throw new Error("Sin clave de API — no se puede leer el recibo");
+  function reciboPrompt(){
     const lineNames = c => [...new Set([ ...state.budget.q1[c].map(x=>x.concepto), ...state.budget.q2[c].map(x=>x.concepto) ])];
+    return "Analiza esta foto de un recibo o factura de Honduras. Hoy es " + today(0) +
+      ". Extrae qué se compró (concepto corto), el TOTAL pagado en lempiras (monto) y la fecha del recibo (fecha, formato YYYY-MM-DD; si no se ve usa la de hoy). " +
+      "Clasifícalo en el presupuesto (categoria): \"gastosFijos\" (renglones: " + (lineNames("gastosFijos").join(", ") || "ninguno") + "), " +
+      "\"transporte\" (renglones: " + (lineNames("transporte").join(", ") || "ninguno") + ") " +
+      "o \"fuera\" si no encaja en ninguno. En \"linea\" pon el renglón exacto de esas listas si corresponde, o \"\".";
+  }
+
+  async function analizarClaude(key, b64){
     const schema = {
       type: "object",
       properties: {
-        concepto: { type: "string", description: "Descripción corta del gasto: comercio o producto principal" },
-        monto: { type: "number", description: "TOTAL pagado en lempiras" },
-        fecha: { type: "string", description: "Fecha del recibo en formato YYYY-MM-DD; si no se ve, la fecha de hoy" },
-        categoria: { type: "string", enum: ["gastosFijos", "transporte", "fuera"] },
-        linea: { type: "string", description: "Renglón exacto del presupuesto si aplica, o cadena vacía" },
+        concepto: { type: "string" }, monto: { type: "number" }, fecha: { type: "string" },
+        categoria: { type: "string", enum: ["gastosFijos", "transporte", "fuera"] }, linea: { type: "string" },
       },
       required: ["concepto", "monto", "fecha", "categoria", "linea"],
       additionalProperties: false,
@@ -768,17 +774,13 @@
         max_tokens: 1024,
         output_config: { format: { type: "json_schema", schema } },
         messages: [{ role: "user", content: [
-          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: dataUrl.split(",")[1] } },
-          { type: "text", text: "Analiza esta foto de un recibo o factura de Honduras. Hoy es " + today(0) +
-            ". Extrae qué se compró, el TOTAL pagado en lempiras y la fecha del recibo. Clasifícalo en el presupuesto: " +
-            "\"gastosFijos\" (renglones: " + (lineNames("gastosFijos").join(", ") || "ninguno") + "), " +
-            "\"transporte\" (renglones: " + (lineNames("transporte").join(", ") || "ninguno") + ") " +
-            "o \"fuera\" si no encaja en ninguno. En \"linea\" pon el renglón exacto de esas listas si corresponde, o \"\"." },
+          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } },
+          { type: "text", text: reciboPrompt() },
         ]}],
       }),
     });
     if (!res.ok) {
-      if (res.status === 401) { localStorage.removeItem(API_KEY_STORE); throw new Error("Clave de API inválida — inténtalo de nuevo con una clave válida"); }
+      if (res.status === 401) { localStorage.removeItem(API_KEY_STORE); throw new Error("Clave de Claude inválida — vuelve a intentar con una clave válida"); }
       if (res.status === 429) throw new Error("Demasiadas peticiones a la IA — espera un momento y reintenta");
       throw new Error("La IA no pudo procesar el recibo (error " + res.status + ")");
     }
@@ -787,6 +789,45 @@
     const txt = (data.content || []).find(b => b.type === "text");
     if (!txt) throw new Error("La IA no devolvió datos");
     return JSON.parse(txt.text);
+  }
+
+  async function analizarGemini(key, b64){
+    const schema = {
+      type: "OBJECT",
+      properties: {
+        concepto: { type: "STRING" }, monto: { type: "NUMBER" }, fecha: { type: "STRING" },
+        categoria: { type: "STRING", enum: ["gastosFijos", "transporte", "fuera"] }, linea: { type: "STRING" },
+      },
+      required: ["concepto", "monto", "fecha", "categoria", "linea"],
+    };
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + encodeURIComponent(key), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [
+          { inline_data: { mime_type: "image/jpeg", data: b64 } },
+          { text: reciboPrompt() },
+        ]}],
+        generationConfig: { responseMimeType: "application/json", responseSchema: schema },
+      }),
+    });
+    if (!res.ok) {
+      if (res.status === 400 || res.status === 403) { localStorage.removeItem(API_KEY_STORE); throw new Error("Clave de Gemini inválida — sácala gratis en aistudio.google.com/apikey y vuelve a intentar"); }
+      if (res.status === 429) throw new Error("Se agotó el límite gratis de la IA por ahora — espera un minuto y reintenta");
+      throw new Error("La IA no pudo procesar el recibo (error " + res.status + ")");
+    }
+    const data = await res.json();
+    const parts = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts;
+    const txt = (parts || []).map(p=>p.text||"").join("");
+    if (!txt) throw new Error("La IA no devolvió datos");
+    return JSON.parse(txt);
+  }
+
+  async function analizarRecibo(dataUrl){
+    const key = getApiKey(false);
+    if (!key) throw new Error("Sin clave de API — no se puede leer el recibo");
+    const b64 = dataUrl.split(",")[1];
+    return key.startsWith("sk-ant-") ? analizarClaude(key, b64) : analizarGemini(key, b64);
   }
 
   function verFoto(id){
