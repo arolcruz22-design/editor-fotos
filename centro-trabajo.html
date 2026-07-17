@@ -251,6 +251,20 @@
   .done .titlecell { text-decoration: line-through; }
   .est-sel { padding: 5px 8px; font-size: 12.5px; }
 
+  /* asistente */
+  .asst-head { display: flex; gap: 13px; padding: 16px 18px; align-items: center; border-bottom: 1px solid var(--line-soft); }
+  .asst-head .ava { width: 44px; height: 44px; border-radius: 50%; flex: none;
+    background: linear-gradient(150deg, var(--accent), var(--accent-2)); display: grid; place-items: center; font-size: 23px;
+    box-shadow: 0 6px 16px -6px rgba(242,106,27,.55); }
+  .asst-head b { display: block; font-size: 14.5px; }
+  .asst-head small { color: var(--text-mute); font-size: 12px; }
+  .informe { padding: 15px 18px; font-size: 13.5px; color: var(--text-dim); line-height: 1.7; border-bottom: 1px solid var(--line-soft); }
+  .informe b { color: var(--text); }
+  .plan-row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 10px 18px; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
+  .plan-row:last-of-type { border-bottom: 0; }
+  .plan-row .sw { width: 11px; height: 11px; border-radius: 3px; }
+  .plan-row .amt { font: 650 14px/1 var(--mono); font-variant-numeric: tabular-nums; }
+
   /* cloud bar */
   .cloudbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 9px 30px;
     border-bottom: 1px solid var(--line); background: var(--bg-2); font-size: 12.5px; color: var(--text-dim); }
@@ -288,8 +302,11 @@
       <div><b>Todo Motos</b><span>Centro de trabajo</span></div>
     </div>
 
+    <div class="nav-group">Panel</div>
+    <button class="nav-btn active" data-view="general"><span class="ic">◉</span> Vista general</button>
+
     <div class="nav-group">Mis finanzas</div>
-    <button class="nav-btn active" data-view="presupuesto"><span class="ic">◧</span> Presupuesto</button>
+    <button class="nav-btn" data-view="presupuesto"><span class="ic">◧</span> Presupuesto</button>
     <button class="nav-btn" data-view="gastos"><span class="ic">↘</span> Gastos del día <span class="badge" id="badge-gastos">0</span></button>
     <button class="nav-btn" data-view="tarjetas"><span class="ic">▭</span> Tarjetas</button>
     <button class="nav-btn" data-view="deudas"><span class="ic">⚑</span> Deudas</button>
@@ -307,7 +324,7 @@
     <header class="topbar">
       <button class="icon-btn menu-btn" id="menuBtn">☰</button>
       <div>
-        <h1 id="viewTitle">Presupuesto</h1>
+        <h1 id="viewTitle">Vista general</h1>
         <div class="sub" id="viewDate"></div>
       </div>
       <div class="spacer"></div>
@@ -315,7 +332,8 @@
     </header>
     <div class="cloudbar" id="cloudbar" hidden></div>
 
-    <section class="view" id="view-presupuesto"></section>
+    <section class="view" id="view-general"></section>
+    <section class="view" id="view-presupuesto" hidden></section>
     <section class="view" id="view-gastos" hidden></section>
     <section class="view" id="view-tarjetas" hidden></section>
     <section class="view" id="view-deudas" hidden></section>
@@ -337,10 +355,28 @@
   const $ = (s, r=document) => r.querySelector(s);
   const today = (o=0) => { const d=new Date(); d.setDate(d.getDate()+o); return d.toISOString().slice(0,10); };
 
+  // gastos fijos mensuales divididos en partes iguales entre las 2 quincenas
+  const FIJOS_Q = () => [
+    { id: uid(), concepto: "Casa", monto: 2500 },
+    { id: uid(), concepto: "Energía", monto: 1500 },
+    { id: uid(), concepto: "Wifi", monto: 128.75 },
+    { id: uid(), concepto: "Agua", monto: 100 },
+    { id: uid(), concepto: "Pago de crédito", monto: 1050 },
+    { id: uid(), concepto: "Comida", monto: 1500 },
+  ];
+  const TRANSP_Q = () => [
+    { id: uid(), concepto: "Gasolina", monto: 1500 },
+    { id: uid(), concepto: "Pago de revisión", monto: 406.5 },
+  ];
+  const TARJETAS_SEED = () => [
+    { id: uid(), nombre: "BAC EconoMía (Amex •0897)", banco: "BAC", deuda: 6420, limite: 10310, corte: 18, pago: 9 },
+    { id: uid(), nombre: "BAC Tn (MC •7894)", banco: "BAC", deuda: 13210, limite: 13310, corte: 18, pago: 9 },
+  ];
+
   const mkQ = (n) => ({
     ingreso: [ { id: uid(), concepto: "Pago de la " + n + " quincena", monto: 12500 } ],
-    gastosFijos: [],
-    transporte: [],
+    gastosFijos: FIJOS_Q(),
+    transporte: TRANSP_Q(),
     fondoEmergencia: 0,
     ahorroGeneral: 0,
   });
@@ -349,7 +385,8 @@
     budget: { q1: mkQ("1ª"), q2: mkQ("2ª") },
     gastos: [],
     ahorros: { metaEmerg: 0, metaGeneral: 0, movimientos: [] },
-    tarjetas: [],
+    bono: { monto: 5000, dia: 30 },
+    tarjetas: TARJETAS_SEED(),
     deudas: [],
     tareas: [],
     proveedores: [],
@@ -359,13 +396,23 @@
 
   let state = load();
   function load(){
-    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.budget && s.budget.q1 && s.ahorros) { if (!Array.isArray(s.gastos)) s.gastos = []; return s; } } catch(e){}
+    try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.budget && s.budget.q1 && s.ahorros) {
+      if (!Array.isArray(s.gastos)) s.gastos = [];
+      if (!s.bono) s.bono = { monto: 5000, dia: 30 };
+      // fill in the fixed-expense plan and cards only where still empty
+      ["q1","q2"].forEach(q=>{
+        if (!s.budget[q].gastosFijos.length) s.budget[q].gastosFijos = FIJOS_Q();
+        if (!s.budget[q].transporte.length) s.budget[q].transporte = TRANSP_Q();
+      });
+      if (!s.tarjetas.length) s.tarjetas = TARJETAS_SEED();
+      return s;
+    } } catch(e){}
     return structuredClone(seed);
   }
   const fundBalance = f => sum(state.ahorros.movimientos.filter(m=>m.fondo===f), m=> m.tipo==="retiro" ? -m.monto : +m.monto);
   function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
 
-  const money = n => "$" + Math.round(n||0).toLocaleString("es-MX");
+  const money = n => "L " + Math.round(n||0).toLocaleString("es-HN");
   const fdate = s => { if(!s) return "—"; const [y,m,d]=s.split("-"); return `${+d} ${MESES[+m-1]}`; };
   const sum = (arr, f) => arr.reduce((a,x)=>a+(+f(x)||0),0);
   const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -720,7 +767,7 @@
     const days = Object.keys(byDay).sort((a,b)=> b.localeCompare(a));
     const logRows = days.map(d=>{
       const dayTotal = sum(byDay[d], g=>g.monto);
-      const dayName = new Date(d+"T12:00").toLocaleDateString("es-MX",{weekday:"long"});
+      const dayName = new Date(d+"T12:00").toLocaleDateString("es-HN",{weekday:"long"});
       const head = `<tr style="background:var(--surface-2)"><td colspan="4" style="font-weight:650;text-transform:capitalize">${dayName} ${fdate(d)}${d===today(0)?' · hoy':''}</td><td class="num" style="font-weight:650">${money(dayTotal)}</td><td></td></tr>`;
       const rows = byDay[d].sort((a,b)=>(b.ts||0)-(a.ts||0)).map(g=>{
         const c = gcat(g.categoria);
@@ -749,7 +796,7 @@
       <div class="tiles">
         <div class="tile hero"><div class="lab">Disponible del presupuesto</div><div class="val ${disp<0?'bad':''}" style="${disp>=0?'color:var(--s-saldo)':''}">${money(disp)}</div><div class="note">${disp>=0?"De "+money(planTotal)+" asignados esta "+scopeName:"⚠️ Excedido — ajusta o registra en fuera de presupuesto"}</div></div>
         <div class="tile"><div class="lab">Gastado (${scopeName})</div><div class="val bad">${money(gastado)}</div><div class="note">${list.length} gasto${list.length===1?"":"s"} registrados</div></div>
-        <div class="tile"><div class="lab">Gastado hoy</div><div class="val">${money(hoy)}</div><div class="note">${today(0).slice(8,10)} de ${new Date().toLocaleDateString("es-MX",{month:"long"})}</div></div>
+        <div class="tile"><div class="lab">Gastado hoy</div><div class="val">${money(hoy)}</div><div class="note">${today(0).slice(8,10)} de ${new Date().toLocaleDateString("es-HN",{month:"long"})}</div></div>
         <div class="tile"><div class="lab">Promedio diario</div><div class="val">${money(promedio)}</div><div class="note">En ${daysElapsed} día${daysElapsed===1?"":"s"} de esta ${scopeName}</div></div>
       </div>
       <div class="card" style="margin-bottom:18px">
@@ -775,13 +822,186 @@
     $("#gastoForm", wrap).addEventListener("submit", e=>{
       e.preventDefault(); const fd = new FormData(e.target);
       const [categoria, linea] = String(fd.get("cat")).split("|");
-      state.gastos.push({ id: uid(), ts: Date.now(), fecha: fd.get("fecha"), concepto: fd.get("concepto"),
+      const fech = String(fd.get("fecha"));
+      state.gastos.push({ id: uid(), ts: Date.now(), fecha: fech, concepto: fd.get("concepto"),
         categoria, linea: linea || "", monto: +fd.get("monto")||0 });
+      // aviso de Lía al momento
+      const sc2 = (+fech.slice(8,10) <= 15) ? "q1" : "q2";
+      if (categoria !== "fuera" && inScope(fech, sc2)) {
+        const pl = planCat(sc2, categoria), sp = spentCat(sc2, categoria);
+        if (pl > 0 && sp > pl) toast("⚠️ Lía: con este gasto excediste " + gcat(categoria).name + " por " + money(sp-pl));
+        else if (pl > 0 && sp >= pl*0.8) toast("👀 Lía: ya vas al " + Math.round(sp/pl*100) + "% de " + gcat(categoria).name);
+      }
       e.target.reset(); commit();
     });
     wrap.querySelectorAll("[data-del]").forEach(b=> b.addEventListener("click", ()=>{
       state.gastos = state.gastos.filter(x=>x.id!==b.dataset.del); commit();
     }));
+  }
+
+  // =========================================================
+  //  VISTA GENERAL — resumen, asistente Lía, informe y plan
+  // =========================================================
+  const bonoDoneThisMonth = () => state.ahorros.movimientos.some(m =>
+    (m.concepto||"").toLowerCase().includes("bono") && (m.fecha||"").slice(0,7) === new Date().toISOString().slice(0,7));
+  function registerBono(){
+    state.ahorros.movimientos.push({ id: uid(), fecha: today(0), fondo: "general", tipo: "deposito",
+      concepto: "Bono mensual (día " + (state.bono.dia||30) + ")", monto: +state.bono.monto||0 });
+    toast("☑ Bono de " + money(state.bono.monto) + " registrado en tu ahorro");
+    commit();
+  }
+
+  // reparto sugerido del sobrante de cada quincena, calculado de tus datos
+  function planSugerido(){
+    const t1 = qTotals("q1"), t2 = qTotals("q2");
+    const dispQ = ((t1.ingreso - t1.fijos - t1.transp) + (t2.ingreso - t2.fijos - t2.transp)) / 2;
+    const deudaT = sum(state.tarjetas, x=>x.deuda);
+    const gastosMes = t1.fijos + t1.transp + t2.fijos + t2.transp;
+    const fondoCompleto = fundBalance("emergencia") >= 3 * gastosMes;
+    const r10 = n => Math.max(0, Math.round(n/10)*10);
+    const pagoT = deudaT > 0 ? r10(dispQ * 0.5) : 0;
+    const fondo = r10(dispQ * (fondoCompleto ? 0.10 : 0.25));
+    const ahorro = r10(dispQ * 0.10);
+    const libre = Math.round(dispQ - pagoT - fondo - ahorro);
+    return { dispQ: Math.round(dispQ), deudaT, gastosMes, fondoCompleto, pagoT, fondo, ahorro, libre };
+  }
+
+  function buildAlerts(){
+    const q = nowQ(), qName = q==="q1" ? "1ª quincena" : "2ª quincena";
+    const A = [];
+    const add = (sev, html, action) => A.push({ sev, html, action }); // sev: bad|warn|info|good
+    // presupuesto vs real
+    GCATS.filter(c=>c.plan).forEach(c=>{
+      const plan = planCat(q, c.key), spent = spentCat(q, c.key);
+      if (plan > 0 && spent > plan) add("bad", `Te pasaste en <b>${c.name}</b> por <b>${money(spent-plan)}</b> esta ${qName}.`);
+      else if (plan > 0 && spent >= plan*0.8) add("warn", `Vas al <b>${Math.round(spent/plan*100)}%</b> de <b>${c.name}</b> — te quedan ${money(plan-spent)}.`);
+    });
+    const fueraSpent = spentCat(q, "fuera");
+    if (fueraSpent > 0) add("warn", `Llevas <b>${money(fueraSpent)}</b> en gastos fuera de presupuesto esta ${qName}.`);
+    // ritmo de gasto
+    const now = new Date();
+    const qEnd = q==="q1" ? 15 : lastDay();
+    const daysLeft = Math.max(0, qEnd - now.getDate());
+    const t = qTotals(q);
+    const planGastos = t.fijos + t.transp;
+    const gastadoPlan = spentCat(q,"gastosFijos") + spentCat(q,"transporte");
+    const daysElapsed = q==="q1" ? Math.min(now.getDate(),15) : Math.max(1, now.getDate()-15);
+    const ritmo = gastadoPlan / Math.max(1,daysElapsed);
+    if (planGastos > 0 && gastadoPlan <= planGastos && (gastadoPlan + ritmo*daysLeft) > planGastos)
+      add("warn", `A tu ritmo actual (${money(ritmo)}/día) el presupuesto no alcanza para los ${daysLeft} días que faltan de la ${qName}.`);
+    // tarjetas
+    state.tarjetas.forEach(c=>{
+      const uso = c.limite ? c.deuda/c.limite : 0;
+      if (uso >= 0.9) add("bad", `Tu tarjeta <b>${esc(c.nombre)}</b> está al <b>${Math.round(uso*100)}%</b> del límite — evita usarla y abónale más del mínimo.`);
+      else if (uso >= 0.7) add("warn", `Tu tarjeta <b>${esc(c.nombre)}</b> va al ${Math.round(uso*100)}% del límite.`);
+      const diff = (c.pago - now.getDate() + 31) % 31;
+      if (diff <= 5) add("warn", `El pago de <b>${esc(c.nombre)}</b> ${diff===0?"es <b>HOY</b>":"cae en <b>"+diff+" día"+(diff===1?"":"s")+"</b> (día "+c.pago+")"} — debes ${money(c.deuda)}.`);
+    });
+    // bono
+    if (state.bono && +state.bono.monto > 0 && !bonoDoneThisMonth()){
+      if (now.getDate() >= Math.min(state.bono.dia, lastDay()) )
+        add("bad", `Tu bono de <b>${money(state.bono.monto)}</b> ya cayó (día ${state.bono.dia}) — mándalo directo al ahorro sin tocarlo.`, { label:"☑ Registrar al ahorro", fn: registerBono });
+      else if (now.getDate() >= state.bono.dia - 3)
+        add("info", `Tu bono de <b>${money(state.bono.monto)}</b> cae el día ${state.bono.dia} — recuerda: directo al registro de ahorro.`);
+    }
+    // fondo de emergencia
+    const p = planSugerido();
+    if (!p.fondoCompleto && fundBalance("emergencia") < p.gastosMes)
+      add("info", `Tu fondo de emergencia (${money(fundBalance("emergencia"))}) aún no cubre 1 mes de gastos (${money(p.gastosMes)}) — dale prioridad.`);
+    // operaciones
+    const venc = state.tareas.filter(x=>x.estado!=="hecho" && x.fecha && x.fecha < today(0));
+    if (venc.length) add("warn", `Tienes <b>${venc.length} tarea${venc.length===1?"":"s"} vencida${venc.length===1?"":"s"}</b> en el trabajo.`);
+    state.contenedores.filter(x=>x.estado==="en camino").forEach(x=> add("info", `Contenedor <b>${esc(x.nombre)}</b> viene en camino (${esc(x.contenido)}).`));
+    const cambios = state.proveedores.filter(x=>x.estado==="pendiente").length;
+    if (cambios) add("info", `${cambios} cambio${cambios===1?"":"s"} de proveedor pendiente${cambios===1?"":"s"} de resolver.`);
+    if (!A.length) add("good", `Todo en orden ✨ Vas dentro del presupuesto y sin pendientes urgentes. ¡Sigue así!`);
+    return A;
+  }
+
+  function renderGeneral(){
+    const wrap = $("#view-general");
+    const q = nowQ(), qName = q==="q1" ? "1ª quincena" : "2ª quincena";
+    const now = new Date();
+    const t = qTotals(q);
+    const planGastos = t.fijos + t.transp;
+    const gastadoPlan = spentCat(q,"gastosFijos") + spentCat(q,"transporte");
+    const gastadoTodo = sum(gastosScope(q), g=>g.monto);
+    const dispReal = planGastos - gastadoPlan;
+    const hoyG = sum(state.gastos.filter(g=>g.fecha===today(0)), g=>g.monto);
+    const deudaT = sum(state.tarjetas, x=>x.deuda) + sum(state.deudas, x=>x.monto-x.pagado);
+    const ahorroTot = fundBalance("emergencia") + fundBalance("general");
+    const qEnd = q==="q1" ? 15 : lastDay();
+    const daysLeft = Math.max(0, qEnd - now.getDate());
+    const alerts = buildAlerts();
+    const p = planSugerido();
+    const sevColor = { bad:"var(--bad)", warn:"var(--warn)", info:"var(--accent)", good:"var(--good)" };
+    const pendTareas = state.tareas.filter(x=>x.estado!=="hecho").length;
+
+    // informe del día
+    const proxPago = state.tarjetas.map(c=>({ n:c.nombre, d:(c.pago-now.getDate()+31)%31, deuda:c.deuda }))
+      .sort((a,b)=>a.d-b.d)[0];
+    const consejo = alerts.find(a=>a.sev==="bad") || alerts.find(a=>a.sev==="warn") || alerts[0];
+    const informe = `Hoy es <b style="text-transform:capitalize">${now.toLocaleDateString("es-HN",{weekday:"long", day:"numeric", month:"long"})}</b>.
+      Llevas gastado <b>${money(hoyG)}</b> hoy y <b>${money(gastadoTodo)}</b> en la ${qName}.
+      Del presupuesto de gastos te quedan <b>${money(Math.max(0,dispReal))}</b>${dispReal<0?` (¡excedido por ${money(-dispReal)}!)`:""} y faltan <b>${daysLeft} día${daysLeft===1?"":"s"}</b> para que termine la quincena${daysLeft>0 ? ` (puedes gastar ~<b>${money(Math.max(0,dispReal)/Math.max(1,daysLeft))}</b> al día)` : ""}.
+      ${proxPago ? `El pago más próximo de tarjeta es <b>${esc(proxPago.n)}</b> ${proxPago.d===0?"<b>hoy</b>":"en "+proxPago.d+" días"}.` : ""}`;
+
+    const alertsHtml = alerts.map(a=>`
+      <div class="alert-row"><span class="dot" style="background:${sevColor[a.sev]}"></span>
+        <span style="flex:1">${a.html}</span>
+        ${a.action?`<button class="btn sm primary" data-alact>${a.action.label}</button>`:""}
+      </div>`).join("");
+
+    wrap.innerHTML = `
+      <div class="view-head">
+        <h2 class="big">◉ Vista general</h2>
+        <p class="section-lead">Todo tu centro de trabajo resumido: cómo vas hoy, en la quincena, y lo que Lía ve que necesita tu atención.</p>
+      </div>
+      <div class="tiles">
+        <div class="tile hero"><div class="lab">Disponible para gastar (${qName})</div><div class="val ${dispReal<0?'bad':''}" style="${dispReal>=0?'color:var(--s-saldo)':''}">${money(dispReal)}</div><div class="note">De ${money(planGastos)} presupuestados · ${daysLeft} días restantes</div></div>
+        <div class="tile"><div class="lab">Gastado hoy</div><div class="val">${money(hoyG)}</div><div class="note">${state.gastos.filter(g=>g.fecha===today(0)).length} gastos posteados</div></div>
+        <div class="tile"><div class="lab">Deuda total</div><div class="val bad">${money(deudaT)}</div><div class="note">Tarjetas + préstamos</div></div>
+        <div class="tile"><div class="lab">Ahorro total</div><div class="val good">${money(ahorroTot)}</div><div class="note">Emergencia ${money(fundBalance("emergencia"))} · General ${money(fundBalance("general"))}</div></div>
+        <div class="tile"><div class="lab">Trabajo</div><div class="val">${pendTareas}</div><div class="note">Tareas pendientes · ${state.contenedores.filter(x=>x.estado!=="recibido").length} contenedores activos</div></div>
+      </div>
+
+      <div class="card" style="margin-top:4px">
+        <div class="asst-head">
+          <div class="ava">👩‍💼</div>
+          <div><b>Lía — tu asistente financiera</b><small>Revisa tus números en vivo y te avisa antes de que algo se salga de control</small></div>
+        </div>
+        <div class="informe">${informe}</div>
+        ${alertsHtml}
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <div class="card-head"><h2>🧮 Plan sugerido por quincena</h2><div class="spacer"></div><span class="sub">Calculado de tus números reales</span></div>
+        <div class="informe" style="border-bottom:1px solid var(--line-soft)">Después de tus gastos fijos y transporte te quedan <b>${money(p.dispQ)}</b> libres por quincena. ${p.deudaT>0?`Como debes <b>${money(p.deudaT)}</b> en tarjetas (una casi al tope), la prioridad es bajarle a esa deuda — empieza por la de mayor interés y paga siempre más del mínimo.`:"Sin deuda de tarjetas: enfócate en tus fondos."} Tu bono de <b>${money(state.bono&&state.bono.monto||0)}</b> del día ${state.bono&&state.bono.dia||30} va directo al ahorro, aparte de esto.</div>
+        <div class="plan-row"><span class="sw" style="background:var(--bad)"></span><span>Abono extra a tarjetas <small style="color:var(--text-mute)">(prioridad: la más cargada)</small></span><span class="amt">${money(p.pagoT)}</span></div>
+        <div class="plan-row"><span class="sw" style="background:var(--s-emerg)"></span><span>Fondo de emergencia <small style="color:var(--text-mute)">(meta: 3 meses de gastos = ${money(p.gastosMes*3)})</small></span><span class="amt">${money(p.fondo)}</span></div>
+        <div class="plan-row"><span class="sw" style="background:var(--s-ahorro)"></span><span>Ahorro general <small style="color:var(--text-mute)">(+ bono ${money(state.bono&&state.bono.monto||0)} mensual directo)</small></span><span class="amt">${money(p.ahorro)}</span></div>
+        <div class="plan-row"><span class="sw" style="background:var(--s-saldo)"></span><span>Colchón libre para imprevistos del día a día</span><span class="amt">${money(p.libre)}</span></div>
+        <div style="padding:14px 18px;border-top:1px solid var(--line-soft)"><button class="btn primary" id="aplicarPlan">✓ Aplicar este plan a mi presupuesto</button>
+        <span class="mono-note" style="margin-left:10px">Llena fondo, ahorro y abono a tarjetas en ambas quincenas</span></div>
+      </div>`;
+
+    wrap.querySelectorAll("[data-alact]").forEach((b,i)=>{
+      const acts = alerts.filter(a=>a.action);
+      b.addEventListener("click", ()=> acts[i] && acts[i].action.fn());
+    });
+    $("#aplicarPlan", wrap).addEventListener("click", ()=>{
+      ["q1","q2"].forEach(qq=>{
+        const bq = state.budget[qq];
+        bq.fondoEmergencia = p.fondo;
+        bq.ahorroGeneral = p.ahorro;
+        if (p.pagoT > 0) {
+          const ln = bq.gastosFijos.find(x=>x.concepto === "Abono extra a tarjetas");
+          if (ln) ln.monto = p.pagoT; else bq.gastosFijos.push({ id: uid(), concepto: "Abono extra a tarjetas", monto: p.pagoT });
+        }
+      });
+      toast("✓ Plan aplicado a las dos quincenas");
+      commit();
+    });
   }
 
   // =========================================================
@@ -822,6 +1042,12 @@
             <span class="mono-note">Plan del presupuesto: <b style="color:var(--text)">${money(plan)}</b> esta ${qName}</span>
             ${plan>0?`<button class="btn sm primary" data-abonar="${f.id}">+ Abonar ${money(plan)}</button>`:`<span class="mono-note">sin plan</span>`}
           </div>
+          ${f.id==="general" && state.bono && +state.bono.monto>0 && !bonoDoneThisMonth() ? `
+          <div class="line" style="grid-template-columns:26px 1fr auto">
+            <span class="dot" style="background:var(--accent)"></span>
+            <span class="mono-note">Bono mensual: <b style="color:var(--text)">${money(state.bono.monto)}</b> cae el día ${state.bono.dia} — directo al ahorro, sin tocarlo</span>
+            <button class="btn sm" data-bono>☑ Registrar bono</button>
+          </div>` : ""}
         </div>
       </div>`;
     }).join("");
@@ -865,6 +1091,7 @@
       </div>`;
 
     // handlers
+    const bonoBtn = wrap.querySelector("[data-bono]"); if (bonoBtn) bonoBtn.addEventListener("click", registerBono);
     wrap.querySelectorAll("[data-meta]").forEach(inp=> inp.addEventListener("change", ()=>{ A[inp.dataset.meta] = +inp.value||0; commit(); }));
     wrap.querySelectorAll("[data-abonar]").forEach(btn=> btn.addEventListener("click", ()=>{
       const f = FUNDS.find(x=>x.id===btn.dataset.abonar);
@@ -908,6 +1135,7 @@
   function commit(){ save(); renderCurrent(); refreshBadges(); }
 
   const modules = {
+    general: renderGeneral,
     gastos: renderGastos,
     ahorros: renderAhorros,
     tarjetas: () => moduleView({
@@ -1007,9 +1235,9 @@
   };
 
   // ---------- navigation ----------
-  const titles = { presupuesto:"Presupuesto", gastos:"Gastos del día", tarjetas:"Tarjetas de crédito", deudas:"Deudas y préstamos", ahorros:"Ahorros",
+  const titles = { general:"Vista general", presupuesto:"Presupuesto", gastos:"Gastos del día", tarjetas:"Tarjetas de crédito", deudas:"Deudas y préstamos", ahorros:"Ahorros",
     tareas:"Tareas pendientes", proveedores:"Proveedores y cambios", contenedores:"Contenedores pedidos", archivos:"Archivos importantes" };
-  let current = "presupuesto";
+  let current = "general";
   function renderCurrent(){ if(current==="presupuesto") renderPresupuesto(); else if(modules[current]) modules[current](); }
   function refreshBadges(){
     $("#badge-tareas").textContent = state.tareas.filter(x=>x.estado!=="hecho").length;
@@ -1046,7 +1274,7 @@
   const CLOUD_SERVER = "Google Drive";
   const CLOUD_FILE = "todomotos-datos";
   const mcpReady = () => typeof window !== "undefined" && window.claude && window.claude.mcp !== undefined;
-  const fmtIso = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString("es-MX", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" }); };
+  const fmtIso = s => { const d = new Date(s); return isNaN(d) ? "" : d.toLocaleString("es-HN", { day:"numeric", month:"short", hour:"2-digit", minute:"2-digit" }); };
   const b64decode = s => { try { return new TextDecoder().decode(Uint8Array.from(atob(String(s).replace(/\s+/g,"")), c=>c.charCodeAt(0))); } catch(e){ return null; } };
 
   function toast(msg){
@@ -1211,9 +1439,9 @@
   }
 
   // ---------- boot ----------
-  $("#viewDate").textContent = new Date().toLocaleDateString("es-MX", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+  $("#viewDate").textContent = new Date().toLocaleDateString("es-HN", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
   refreshBadges();
-  renderPresupuesto();
+  renderCurrent();
   cloudBoot();
 })();
 </script>
