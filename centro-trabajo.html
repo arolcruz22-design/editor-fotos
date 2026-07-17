@@ -742,8 +742,7 @@
       "Para que la IA lea tus recibos necesitas una clave de API GRATIS de Google Gemini (se guarda solo en este dispositivo, se pide una vez).\n\n" +
       "1. Entra a aistudio.google.com/apikey con tu cuenta de Google (la de Gmail)\n" +
       "2. Toca \"Crear clave de API\" / \"Create API key\"\n" +
-      "3. Cópiala y pégala aquí:\n\n" +
-      "(También sirve una clave de Claude si tienes una)", key || "");
+      "3. Cópiala y pégala aquí:", key || "");
     if (!key || !key.trim()) return null;
     key = key.trim();
     localStorage.setItem(API_KEY_STORE, key);
@@ -757,46 +756,6 @@
       "Clasifícalo en el presupuesto (categoria): \"gastosFijos\" (renglones: " + (lineNames("gastosFijos").join(", ") || "ninguno") + "), " +
       "\"transporte\" (renglones: " + (lineNames("transporte").join(", ") || "ninguno") + ") " +
       "o \"fuera\" si no encaja en ninguno. En \"linea\" pon el renglón exacto de esas listas si corresponde, o \"\".";
-  }
-
-  async function analizarClaude(key, b64){
-    const schema = {
-      type: "object",
-      properties: {
-        concepto: { type: "string" }, monto: { type: "number" }, fecha: { type: "string" },
-        categoria: { type: "string", enum: ["gastosFijos", "transporte", "fuera"] }, linea: { type: "string" },
-      },
-      required: ["concepto", "monto", "fecha", "categoria", "linea"],
-      additionalProperties: false,
-    };
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body: JSON.stringify({
-        model: "claude-opus-4-8",
-        max_tokens: 1024,
-        output_config: { format: { type: "json_schema", schema } },
-        messages: [{ role: "user", content: [
-          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: b64 } },
-          { type: "text", text: reciboPrompt() },
-        ]}],
-      }),
-    });
-    if (!res.ok) {
-      if (res.status === 401) { localStorage.removeItem(API_KEY_STORE); throw new Error("Clave de Claude inválida — vuelve a intentar con una clave válida"); }
-      if (res.status === 429) throw new Error("Demasiadas peticiones a la IA — espera un momento y reintenta");
-      throw new Error("La IA no pudo procesar el recibo (error " + res.status + ")");
-    }
-    const data = await res.json();
-    if (data.stop_reason === "refusal") throw new Error("La IA no pudo leer este recibo");
-    const txt = (data.content || []).find(b => b.type === "text");
-    if (!txt) throw new Error("La IA no devolvió datos");
-    return JSON.parse(txt.text);
   }
 
   async function analizarGemini(key, b64){
@@ -834,8 +793,7 @@
   async function analizarRecibo(dataUrl){
     const key = getApiKey(false);
     if (!key) throw new Error("Sin clave de API — no se puede leer el recibo");
-    const b64 = dataUrl.split(",")[1];
-    return key.startsWith("sk-ant-") ? analizarClaude(key, b64) : analizarGemini(key, b64);
+    return analizarGemini(key, dataUrl.split(",")[1]);
   }
 
   function verFoto(id){
