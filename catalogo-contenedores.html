@@ -339,6 +339,10 @@ dialog .mod-body{flex:1; min-height:0}
 .ad-item .row .btn{flex:1; padding:6px 4px; font-size:12px; justify-content:center}
 .ads-progress{height:8px; background:var(--chip); border-radius:99px; overflow:hidden; margin-top:8px}
 .ads-progress i{display:block; height:100%; background:linear-gradient(90deg,var(--brand),var(--brand2)); width:0; transition:width .2s}
+.ad-item .adup{font-size:11px; font-weight:700; min-height:15px; margin-top:4px}
+.ad-item .adup.up{color:var(--accent)}
+.ad-item .adup.ok{color:var(--ok)}
+.ad-item .adup.err{color:var(--danger)}
 
 /* ============ IMPORTACIÓN MASIVA ============ */
 .bulk-bar{
@@ -448,6 +452,22 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
     <div class="mod-head"><h2>📢 Publicidad por producto</h2><button class="x" onclick="dlgAds.close()" aria-label="Cerrar">✕</button></div>
     <div class="mod-body">
       <div id="adsOpts" class="style-fields" style="gap:14px"></div>
+      <details id="adsUploadBox" style="border:1px solid var(--line); border-radius:12px; padding:0 14px; background:var(--panel2)">
+        <summary style="cursor:pointer; padding:12px 0; font-weight:700; font-size:14px">🔗 Conectar y subir a mi web (avanzado)</summary>
+        <div style="padding:0 0 14px; display:flex; flex-direction:column; gap:10px">
+          <div id="adsUploadWarn" class="hint-box" style="display:none; background:var(--danger-bg); color:var(--danger)"></div>
+          <p style="margin:0; font-size:13px; color:var(--muted)">Sube cada imagen de publicidad a tu propia web, identificada por su código. La app debe abrirse en un equipo de la misma red que tu servidor.</p>
+          <div><label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--muted)">Dirección para subir (endpoint)</label>
+            <input id="upUrl" placeholder="http://192.168.88.244:8888/…" oninput="saveUploadCfg()"></div>
+          <div class="f2">
+            <div><label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--muted)">Campo del archivo</label>
+              <input id="upFileField" placeholder="archivo" oninput="saveUploadCfg()"></div>
+            <div><label style="font-size:12px; font-weight:700; text-transform:uppercase; color:var(--muted)">Campo del código</label>
+              <input id="upCodeField" placeholder="codigo" oninput="saveUploadCfg()"></div>
+          </div>
+          <button class="btn primary" id="upBtn" onclick="uploadAllAds()">⬆️ Subir todas a mi web</button>
+        </div>
+      </details>
       <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:4px">
         <button class="btn primary" id="adsAllBtn" onclick="downloadAllAds()">⬇️ Descargar todas (ZIP)</button>
         <span id="adsCount" style="color:var(--muted); font-size:13px"></span>
@@ -2653,7 +2673,9 @@ function openAdsModal(){
         <button class="btn wa" onclick="shareAd('${p.id}')">📤 Compartir</button>
         <button class="btn" onclick="downloadAd('${p.id}')">⬇️</button>
       </div>
+      <div class="adup" id="adup-${p.id}"></div>
     </div>`).join("");
+  loadUploadCfgToForm();
   $("dlgAds").showModal();
   regenAdThumbs();
 }
@@ -2773,6 +2795,59 @@ async function downloadAllAds(){
   bar.style.display = "none"; btn.disabled = false;
   $("adsCount").textContent = `${ps.length} productos`;
   openExportModal(new Blob([zip], {type:"application/zip"}), name, `${ps.length} imágenes listas. Descarga el ZIP y ábrelo para tener todas las publicidades.`);
+}
+
+/* ===== Subida directa a tu web (con progreso en vivo) ===== */
+function defaultUploadCfg(){ return { url:"", fileField:"archivo", codeField:"codigo" }; }
+function getUploadCfg(){ return { ...defaultUploadCfg(), ...(state.upload||{}) }; }
+function loadUploadCfgToForm(){
+  const c = getUploadCfg();
+  $("upUrl").value = c.url; $("upFileField").value = c.fileField; $("upCodeField").value = c.codeField;
+  checkUploadWarn();
+}
+function saveUploadCfg(){
+  state.upload = { url:$("upUrl").value.trim(), fileField:$("upFileField").value.trim()||"archivo", codeField:$("upCodeField").value.trim()||"codigo" };
+  save(); checkUploadWarn();
+}
+function checkUploadWarn(){
+  const w = $("adsUploadWarn"); if(!w) return;
+  const url = ($("upUrl").value||"").trim();
+  let msg = "";
+  if(location.protocol === "https:" && /^http:\/\//i.test(url)){
+    msg = "⚠️ Esta página está abierta en HTTPS y tu servidor es HTTP local. El navegador bloqueará la subida. Abre la app <b>localmente</b> (archivo descargado) en un equipo de tu red para poder subir.";
+  }
+  w.innerHTML = msg; w.style.display = msg ? "" : "none";
+}
+async function uploadAllAds(){
+  const cfg = getUploadCfg();
+  if(!cfg.url){ toast("Escribe la dirección para subir de tu web"); $("adsUploadBox").open = true; return; }
+  const ps = adProducts();
+  const btn = $("upBtn"); btn.disabled = true;
+  const bar = $("adsProgress"); bar.style.display = ""; bar.firstElementChild.style.width = "0";
+  let ok = 0, fail = 0;
+  for(let i=0;i<ps.length;i++){
+    const p = ps[i], st = $("adup-"+p.id);
+    if(st){ st.className = "adup up"; st.textContent = "⬆️ Subiendo…"; }
+    try{
+      const blob = await adBlobFor(p);
+      const fd = new FormData();
+      fd.append(cfg.codeField, p.code);
+      fd.append(cfg.fileField, blob, adFileName(p));
+      const res = await fetch(cfg.url, { method:"POST", body:fd });
+      if(!res.ok) throw new Error("HTTP "+res.status);
+      if(st){ st.className = "adup ok"; st.textContent = "✅ Subida"; }
+      ok++;
+    }catch(e){
+      if(st){ st.className = "adup err"; st.textContent = "❌ " + (e.message||"error"); }
+      fail++;
+    }
+    bar.firstElementChild.style.width = Math.round((i+1)/ps.length*100)+"%";
+    $("adsCount").textContent = `Subiendo ${i+1} de ${ps.length}…`;
+    await new Promise(r=> setTimeout(r, 0));
+  }
+  bar.style.display = "none"; btn.disabled = false;
+  $("adsCount").textContent = `${ps.length} productos`;
+  toast(fail ? `Subidas ${ok} · fallaron ${fail}` : `✅ ${ok} imágenes subidas a tu web`);
 }
 
 /* ZIP sin compresión (store) — no requiere librerías */
