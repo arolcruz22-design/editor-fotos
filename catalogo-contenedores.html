@@ -312,80 +312,112 @@ kbd{
 .layout-toggle button{padding:6px 13px; border-radius:99px; font-size:13px; font-weight:700; color:var(--muted)}
 .layout-toggle button.sel{background:var(--panel); color:var(--text); box-shadow:var(--shadow)}
 
-/* ---- Layout B · Vitrina ---- */
-.vitrina{display:flex; flex-direction:column; gap:12px}
-.vrow{
-  display:grid; grid-template-columns:minmax(220px,42%) 1fr; gap:2px;
-  background:#14171d; border-radius:18px; overflow:hidden; box-shadow:var(--shadow-lg);
-}
-/* Fondo con degradados de color + textura de puntos: le da profundidad al
-   panel de la foto sin necesitar otra caja/fondo — la foto (ya recortada
-   con transparencia real) flota directo encima, sin costuras. */
-.vstage{
-  background:
-    radial-gradient(circle at 78% 14%, rgba(255,106,0,.20), transparent 42%),
-    radial-gradient(circle at 14% 88%, rgba(43,87,168,.16), transparent 46%),
-    radial-gradient(rgba(255,255,255,.055) 1px, transparent 1px) 0 0/20px 20px,
-    linear-gradient(160deg,#1c2028,#101317);
-  display:grid; place-items:center; min-height:250px; padding:20px; position:relative;
-}
-.vstage img{max-width:82%; max-height:280px; object-fit:contain; position:relative; z-index:1;
-  filter:drop-shadow(0 18px 22px rgba(0,0,0,.38))}
-.vstage .helm-illu{width:62%; position:relative; z-index:1; filter:drop-shadow(0 14px 18px rgba(20,22,28,.35))}
-.vcomplete{
-  position:absolute; bottom:10px; right:10px; font-size:11.5px; font-weight:800; color:#7a3a00;
-  background:#ffd28a; border:none; padding:6px 11px; border-radius:99px; box-shadow:var(--shadow); z-index:2;
-}
-.vinfo{background:linear-gradient(180deg,#20242b,#181b21); padding:24px 26px; color:#ECEAE5;
-  display:flex; flex-direction:column; justify-content:center; gap:12px}
-.vkick{font-size:11.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--brand2)}
-.vkick.pending{color:#7f858e; font-style:italic; letter-spacing:.04em; text-transform:none; font-weight:700}
-.vinfo h3{margin:0; font-size:clamp(19px,2.6vw,26px); font-weight:850; color:#fff; line-height:1.1}
-.vlead{margin:0; color:#B4B8BF; font-size:13.5px; max-width:48ch}
-.vspecs{display:flex; flex-wrap:wrap; gap:10px 26px; padding:12px 0;
-  border-top:1px solid rgba(255,255,255,.09); border-bottom:1px solid rgba(255,255,255,.09)}
-.vspecs .spec{display:flex; flex-direction:column; gap:2px}
-.vspecs .spec .k{font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#7f858e}
-.vspecs .spec .v{font-size:13.5px; font-weight:800; color:#F2EFE9}
-.vsizes{display:flex; gap:6px; flex-wrap:wrap; align-items:center}
-.vsizes .sz{font-size:11.5px; font-weight:800; padding:3px 9px; border-radius:7px;
-  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13); color:#D6D9DE}
-.vsizes .sz.off{opacity:.32; text-decoration:line-through}
-.vsz-pending{font-size:12.5px; color:#7f858e; font-style:italic; margin:0}
-.vbuy{display:flex; align-items:center; gap:16px; margin-top:2px}
-.vbuy .price{color:#fff; font-size:24px; font-weight:850; font-variant-numeric:tabular-nums}
-.vbuy .price small{color:#9aa0a8; font-size:12px; font-weight:700; margin-right:2px}
-.vbuy .mayor{color:#9aa0a8; font-size:11.5px}
-.vbuy .price.pending{color:#B4B8BF !important}
-.vitrina.upper .vinfo h3, .vitrina.upper .vlead{text-transform:uppercase}
+/* ---- Layout B1 · Pedestal (cuadrícula con luz cálida) ---- */
+.pedestal{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:18px}
+.pedcard{background:#FAF8F4; border:1px solid #EDE7DA; border-radius:18px; overflow:hidden; box-shadow:var(--shadow)}
+.pedcard .stage{position:relative; aspect-ratio:1/1; display:grid; place-items:center; overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 18%,#FFFFFF,#F3EEE3 78%)}
+.pedcard .glow{position:absolute; left:50%; bottom:16%; width:70%; height:22%; transform:translateX(-50%);
+  background:radial-gradient(closest-side,rgba(255,138,61,.35),rgba(255,138,61,0) 72%); filter:blur(2px)}
+.pedcard .shelf{position:absolute; left:12%; right:12%; bottom:16%; height:2px;
+  background:linear-gradient(90deg,transparent,#D8CFBC,transparent)}
+.pedcard .stage img{width:70%; height:70%; object-fit:contain; position:relative; z-index:1;
+  filter:drop-shadow(0 14px 14px rgba(60,40,20,.22))}
+.pedcard .stage .helm-illu{width:56%; position:relative; z-index:1; filter:drop-shadow(0 12px 12px rgba(60,40,20,.24))}
+.pedcard .complete{position:absolute; bottom:8px; right:8px; z-index:2; font-size:11px; font-weight:800; color:#7a3a00;
+  background:#ffd28a; border:none; padding:5px 10px; border-radius:99px; box-shadow:var(--shadow)}
+.pedcard .body{padding:16px 18px 18px}
+.pedcard .kick{font-size:10.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:#B5651D}
+.pedcard .kick.pending{color:#A69A85; font-style:italic; text-transform:none; letter-spacing:.03em}
+.pedcard h3{font-size:16px; font-weight:820; margin:3px 0 8px; color:#221D16}
+.pedcard .chips{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px}
+.pedcard .chips span{font-size:10.5px; font-weight:800; background:#F0E9DA; color:#6B5A3C; padding:3px 8px; border-radius:6px}
+.pedcard .chips .miss{background:transparent; color:#A69A85; font-style:italic; font-weight:700; padding:3px 0}
+.pedcard .foot{display:flex; align-items:baseline; justify-content:space-between; padding-top:10px; border-top:1px dashed #E3DBC9}
+.pedcard .price{font-size:20px; font-weight:850; color:#221D16; font-variant-numeric:tabular-nums}
+.pedcard .price small{font-size:12px; color:#8A7D63; font-weight:700; margin-right:2px}
+.pedcard .price.pending{color:#A69A85 !important}
+.pedcard .mayor{font-size:11px; color:#8A7D63; font-variant-numeric:tabular-nums}
+.pedcard .stock{font-size:11px; font-weight:700; color:var(--ok); white-space:nowrap}
+.pedcard .editmini{position:absolute; top:8px; right:8px; z-index:2; width:28px; height:28px; border-radius:50%;
+  background:rgba(255,255,255,.88); border:1px solid #EDE7DA; font-size:13px; display:grid; place-items:center;
+  box-shadow:var(--shadow)}
+.pedestal.upper h3{text-transform:uppercase}
 
-/* Tema claro de la vitrina: mismo esqueleto, paleta invertida */
-.vitrina.theme-light .vrow{background:#eeece7}
-.vitrina.theme-light .vstage{
-  background:
-    radial-gradient(circle at 78% 14%, rgba(226,74,27,.12), transparent 42%),
-    radial-gradient(circle at 14% 88%, rgba(43,87,168,.10), transparent 46%),
-    radial-gradient(rgba(20,22,28,.05) 1px, transparent 1px) 0 0/20px 20px,
-    linear-gradient(160deg,#ffffff,#f0efe9);
+/* ---- Layout B2 · Revista (editorial, un casco por fila) ---- */
+.revista{display:flex; flex-direction:column; gap:14px}
+.rrow{position:relative; background:#0A0B0E; border-radius:20px; overflow:hidden; box-shadow:var(--shadow-lg);
+  display:grid; grid-template-columns:1.1fr 1fr; min-height:280px}
+.rrow::before{content:""; position:absolute; inset:0;
+  background:radial-gradient(60% 90% at 20% 30%,rgba(255,138,61,.20),transparent 60%),
+             radial-gradient(40% 60% at 85% 80%,rgba(217,35,35,.14),transparent 65%);
+  pointer-events:none}
+.rrow::after{content:""; position:absolute; inset:0; opacity:.5; pointer-events:none;
+  background:repeating-linear-gradient(115deg,rgba(255,255,255,.025) 0 2px,transparent 2px 5px)}
+.rstage{position:relative; display:grid; place-items:center; padding:20px}
+.rstage img{width:78%; max-width:320px; object-fit:contain; position:relative; z-index:1;
+  filter:drop-shadow(0 24px 30px rgba(0,0,0,.55))}
+.rstage .helm-illu{width:56%; position:relative; z-index:1; filter:drop-shadow(0 20px 24px rgba(0,0,0,.55))}
+.rinfo{position:relative; padding:30px 30px 26px 8px; display:flex; flex-direction:column; justify-content:center; gap:12px; color:#EDEBE6}
+.rinfo .kick{font-size:12px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--brand2)}
+.rinfo .kick.pending{color:#7f858e; font-style:italic; text-transform:none; letter-spacing:.03em}
+.rinfo h3{font-size:clamp(22px,3.4vw,32px); font-weight:850; color:#fff; letter-spacing:-.01em; margin:0}
+.rinfo .feat{font-size:12.5px; color:#9CA0AC; letter-spacing:.02em}
+.rinfo .feat b{color:#D6D9E0; font-weight:700}
+.rinfo .complete{align-self:flex-start; font-size:11.5px; font-weight:800; color:#7a3a00;
+  background:#ffd28a; border:none; padding:6px 12px; border-radius:99px; box-shadow:var(--shadow)}
+.rinfo .editmini{align-self:flex-start; width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.2); color:#EDEBE6; font-size:13px; display:grid; place-items:center}
+.rprice{position:absolute; right:28px; bottom:24px; text-align:right}
+.rprice .lbl{font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; color:#7F8492; display:block; margin-bottom:2px}
+.rprice .price{font-size:clamp(24px,3.4vw,34px); font-weight:850; color:#fff; font-variant-numeric:tabular-nums; line-height:1}
+.rprice .price small{font-size:14px; color:#9CA0AC; font-weight:700; margin-right:3px}
+.rprice .price.pending{color:#9CA0AC !important; font-size:16px !important; font-weight:700 !important}
+.rprice .mayor{font-size:11.5px; color:#9CA0AC; margin-top:4px}
+.revista.upper .rinfo h3{text-transform:uppercase}
+@media(max-width:720px){
+  .rrow{grid-template-columns:1fr}
+  .rprice{position:static; text-align:left; padding:0 30px 24px}
 }
-.vitrina.theme-light .vstage img{filter:drop-shadow(0 16px 20px rgba(28,30,36,.16))}
-.vitrina.theme-light .vstage .helm-illu{filter:drop-shadow(0 12px 16px rgba(28,30,36,.18))}
-.vitrina.theme-light .vinfo{background:linear-gradient(180deg,#ffffff,#f7f5f1); color:var(--text)}
-.vitrina.theme-light .vkick{color:var(--accent)}
-.vitrina.theme-light .vkick.pending{color:var(--faint)}
-.vitrina.theme-light .vinfo h3{color:var(--text)}
-.vitrina.theme-light .vlead{color:var(--muted)}
-.vitrina.theme-light .vspecs{border-color:var(--line)}
-.vitrina.theme-light .vspecs .spec .k{color:var(--faint)}
-.vitrina.theme-light .vspecs .spec .v{color:var(--text)}
-.vitrina.theme-light .vsizes .sz{background:var(--chip); border-color:var(--line2); color:var(--text)}
-.vitrina.theme-light .vsz-pending{color:var(--faint)}
-.vitrina.theme-light .vbuy .price{color:var(--accent)}
-.vitrina.theme-light .vbuy .price small{color:var(--muted)}
-.vitrina.theme-light .vbuy .mayor{color:var(--muted)}
-.vitrina.theme-light .vbuy .price.pending{color:var(--faint) !important}
 
-@media (max-width:640px){ .vrow{grid-template-columns:1fr} }
+/* ---- Layout B3 · Plano técnico (blueprint ilustrado) ---- */
+.plano{display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:18px}
+.plcard{position:relative; background:#EFF2F6; border-radius:16px; overflow:hidden; box-shadow:var(--shadow);
+  aspect-ratio:4/5; min-height:340px;
+  background-image:
+    repeating-linear-gradient(0deg,rgba(30,45,70,.055) 0 1px,transparent 1px 22px),
+    repeating-linear-gradient(90deg,rgba(30,45,70,.055) 0 1px,transparent 1px 22px);
+}
+.plcard::before,.plcard::after,.plcard .bl,.plcard .br{content:""; position:absolute; width:20px; height:20px}
+.plcard::before{left:12px; top:12px; border-left:2px solid #B9C2D0; border-top:2px solid #B9C2D0}
+.plcard::after{right:12px; top:12px; border-right:2px solid #B9C2D0; border-top:2px solid #B9C2D0}
+.plcard .bl{left:12px; bottom:12px; border-left:2px solid #B9C2D0; border-bottom:2px solid #B9C2D0}
+.plcard .br{right:12px; bottom:12px; border-right:2px solid #B9C2D0; border-bottom:2px solid #B9C2D0}
+.plcard .stage{position:absolute; inset:0; bottom:64px; display:grid; place-items:center}
+.plcard .stage img{width:56%; object-fit:contain; filter:drop-shadow(0 16px 16px rgba(20,30,50,.18))}
+.plcard .stage .helm-illu{width:46%; filter:drop-shadow(0 14px 14px rgba(20,30,50,.2))}
+.plcard svg{position:absolute; inset:0; bottom:64px; width:100%; height:calc(100% - 64px)}
+.plcard .lline{stroke:var(--brand2); stroke-width:1.4; fill:none}
+.plcard .ldot{fill:var(--brand2)}
+.plcard .callout{position:absolute; font-size:10.5px; font-weight:800; color:#2B3542; background:rgba(255,255,255,.92);
+  padding:3px 8px; border-radius:5px; border:1px solid #D3D9E2; white-space:nowrap}
+.plcard .callout.pending{color:#8891A0; font-style:italic; font-weight:700}
+.plcard .cTop{top:14%; right:8%}
+.plcard .cLeft{left:6%; top:46%}
+.plcard .complete{position:absolute; left:6%; bottom:70px; font-size:10.5px; font-weight:800; color:#7a3a00;
+  background:#ffd28a; border:none; padding:4px 9px; border-radius:99px; box-shadow:var(--shadow); z-index:2}
+.plcard .editmini{position:absolute; top:12px; left:44px; z-index:2; width:26px; height:26px; border-radius:50%;
+  background:rgba(255,255,255,.9); border:1px solid #D3D9E2; font-size:12px; display:grid; place-items:center;
+  box-shadow:var(--shadow)}
+.plcard .idplate{position:absolute; left:14px; bottom:14px; right:14px; height:50px;
+  background:rgba(255,255,255,.94); border:1px solid #D3D9E2; border-radius:10px; padding:0 14px;
+  display:flex; align-items:center; justify-content:space-between}
+.plcard .idplate h4{margin:0; font-size:13.5px; font-weight:820; color:#1B2430; line-height:1.15}
+.plcard .idplate .code{font-size:10px; color:#7B8394; margin-top:1px}
+.plcard .idplate .price{font-size:16px; font-weight:850; color:#1B2430; font-variant-numeric:tabular-nums}
+.plcard .idplate .price small{font-size:10.5px; color:#7B8394; font-weight:700; margin-right:2px}
+.plcard .idplate .price.pending{color:#8891A0 !important; font-size:12px !important}
+.plano.upper .idplate h4{text-transform:uppercase}
 
 /* ---- Layout C · Compacto ---- */
 .compacto{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line);
@@ -962,8 +994,7 @@ function defaultStyle(){
     priceMode:"both",   // both = venta+mayor · retail = solo venta · wholesale = solo mayor · none = sin precio
     accent:null,        // null = colores de marca según el tema; o una clave de ACCENTS
     pdfGrid:3,          // columnas por fila: 1 (lista) · 2 · 3 · 4
-    helmetLayout:"vitrina", // catálogo de cascos: "vitrina" (B) · "compacto" (C)
-    vitrinaTheme:"dark"     // fondo de la vitrina: "dark" · "light"
+    helmetLayout:"pedestal" // catálogo de cascos: "pedestal" · "revista" · "plano" · "compacto"
   };
 }
 let state = {
@@ -1656,12 +1687,10 @@ function catalogHTML(){
       <option value="priceDesc" ${ui.sort==="priceDesc"?"selected":""}>Precio: mayor a menor</option>
     </select>
     ${isHelmets() ? `<div class="layout-toggle" role="group" aria-label="Diseño del catálogo">
-      <button class="${state.style.helmetLayout!=='compacto'?'sel':''}" onclick="setHelmetLayout('vitrina')" title="Vitrina premium">🖼 Vitrina</button>
+      <button class="${(state.style.helmetLayout||'pedestal')==='pedestal'||state.style.helmetLayout==='vitrina'?'sel':''}" onclick="setHelmetLayout('pedestal')" title="Cuadrícula con luz cálida">🏮 Pedestal</button>
+      <button class="${state.style.helmetLayout==='revista'?'sel':''}" onclick="setHelmetLayout('revista')" title="Un casco por fila, editorial">📖 Revista</button>
+      <button class="${state.style.helmetLayout==='plano'?'sel':''}" onclick="setHelmetLayout('plano')" title="Ficha estilo plano técnico">📐 Plano técnico</button>
       <button class="${state.style.helmetLayout==='compacto'?'sel':''}" onclick="setHelmetLayout('compacto')" title="Compacto para imprimir">▦ Compacto</button>
-    </div>` : ""}
-    ${isHelmets() && state.style.helmetLayout!=='compacto' ? `<div class="layout-toggle" role="group" aria-label="Fondo de la vitrina">
-      <button class="${state.style.vitrinaTheme!=='light'?'sel':''}" onclick="setVitrinaTheme('dark')" title="Fondo oscuro">🌙 Oscura</button>
-      <button class="${state.style.vitrinaTheme==='light'?'sel':''}" onclick="setVitrinaTheme('light')" title="Fondo claro">☀️ Clara</button>
     </div>` : ""}
     <button class="btn" onclick="openStyleModal()">🎨 Personalizar</button>
     <button class="btn primary" onclick="exportPDF()">📄 Catálogo PDF</button>
@@ -1696,45 +1725,109 @@ function gridHTML(ps){
     </div>`;
   }
   if(isHelmets()){
-    return (state.style.helmetLayout === "compacto") ? compactoHTML(ps) : vitrinaHTML(ps);
+    const l = state.style.helmetLayout;
+    if(l === "compacto") return compactoHTML(ps);
+    if(l === "revista") return revistaHTML(ps);
+    if(l === "plano") return planoHTML(ps);
+    return pedestalHTML(ps);  // "pedestal" y el antiguo "vitrina" (migración)
   }
   return `<div class="grid">${ps.map(p=>cardHTML(p)).join("")}</div>`;
 }
 
-/* ----- Layout B · Vitrina premium (un casco por fila) ----- */
-function vitrinaHTML(ps){
+// Valor de precio a una sola línea (para tarjetas compactas): respeta el
+// modo de precio elegido (venta/mayor/ambos/ninguno) igual que priceCardHTML.
+function primaryPriceValue(p){
+  const mode = state.style.priceMode || "both";
+  const hasPrice = Number(p.price) > 0, hasMayor = Number(p.mayor) > 0;
+  if(mode === "none") return {hide:true};
+  if(mode === "retail") return {hide:false, value: hasPrice ? p.price : null};
+  if(mode === "wholesale") return {hide:false, value: hasMayor ? p.mayor : null};
+  if(!hasPrice && !hasMayor) return {hide:false, value:null};
+  return {hide:false, value: hasPrice ? p.price : p.mayor};
+}
+function isIncomplete(p){ return !p.htype || !(p.sizes||[]).length || !(Number(p.price)>0); }
+
+/* ----- Layout Pedestal · cuadrícula con luz cálida (varias tarjetas por fila) ----- */
+function pedestalHTML(ps){
   const st = state.style;
-  const theme = st.vitrinaTheme === "light" ? "theme-light" : "";
-  const spec = (k,v)=> v ? `<div class="spec"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>` : "";
-  return `<div class="vitrina ${theme} ${st.upperCase?"upper":""}">${ps.map(p=>{
-    const hasSizes = (p.sizes||[]).length > 0;
-    const sizes = hasSizes ? HELMET_SIZES.map(([sz,cm])=>{
-      const on = (p.sizes||[]).includes(sz);
-      return `<span class="sz ${on?"":"off"}">${sz}${on?` · ${cm.split("–")[0]}`:""}</span>`;
-    }).join("") : `<span class="vsz-pending">Tallas por definir</span>`;
-    const incomplete = !p.htype || !hasSizes || !(Number(p.price)>0);
-    return `<div class="vrow">
-      <div class="vstage" style="--hc:${esc(p.colorHex||"#22262e")}">
-        ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}">` : helmetSVG(p.colorHex||"#22262e")}
-        ${incomplete ? `<button class="vcomplete no-print" onclick="openProduct('${p.id}')" title="Completa la ficha">✏️ Completar ficha</button>` : ""}
+  return `<div class="pedestal ${st.upperCase?"upper":""}">${ps.map(p=>{
+    const incomplete = isIncomplete(p);
+    const chips = [];
+    (p.certs||[]).forEach(c=> chips.push(`<span>${esc(c)}</span>`));
+    if(p.color) chips.push(`<span>${esc(p.color)}</span>`);
+    if(!chips.length) chips.push(`<span class="miss">Sin detalles aún</span>`);
+    return `<article class="pedcard">
+      <div class="stage" style="--hc:${esc(p.colorHex||"#c0392b")}">
+        <div class="glow"></div><div class="shelf"></div>
+        ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}">` : helmetSVG(p.colorHex||"#c0392b")}
+        ${incomplete
+          ? `<button class="complete no-print" onclick="openProduct('${p.id}')">✏️ Completar</button>`
+          : `<button class="editmini no-print" onclick="openProduct('${p.id}')" title="Editar" aria-label="Editar">✏️</button>`}
       </div>
-      <div class="vinfo">
-        ${p.htype ? `<span class="vkick">${esc(p.htype)}</span>` : `<span class="vkick pending">Tipo por definir</span>`}
+      <div class="body">
+        ${p.htype ? `<span class="kick">${esc(p.htype)}</span>` : `<span class="kick pending">Tipo por definir</span>`}
         <h3>${esc(p.name)}</h3>
-        ${p.desc ? `<p class="vlead">${esc(p.desc)}</p>` : ""}
-        <div class="vspecs">
-          ${spec("Certificación",(p.certs||[]).join(" · "))}
-          ${spec("Color",p.color)}
-          <div class="spec"><span class="k">Código</span><span class="v mono">${esc(p.code)}</span></div>
-          <div class="spec"><span class="k">Stock</span><span class="v">${Number(p.qty)||0} u.</span></div>
-        </div>
-        <div class="vsizes">${sizes}</div>
-        <div class="vbuy">
-          <div>${priceCardHTML(p)}</div>
-          <button class="btn sm ghost no-print" onclick="openProduct('${p.id}')">✏️ Editar</button>
-        </div>
+        <div class="chips">${chips.join("")}</div>
+        <div class="foot"><div>${priceCardHTML(p)}</div><span class="stock">${Number(p.qty)||0} en stock</span></div>
       </div>
+    </article>`;
+  }).join("")}</div>`;
+}
+
+/* ----- Layout Revista · editorial, un casco por fila ----- */
+function revistaHTML(ps){
+  const st = state.style;
+  return `<div class="revista ${st.upperCase?"upper":""}">${ps.map(p=>{
+    const incomplete = isIncomplete(p);
+    const hasSizes = (p.sizes||[]).length > 0;
+    const szTxt = hasSizes ? "Tallas " + HELMET_SIZES.filter(([sz])=>p.sizes.includes(sz)).map(([sz])=>sz).join("-") : "Tallas por definir";
+    const certTxt = (p.certs||[]).length ? p.certs.join(" · ") : "Certificación por definir";
+    return `<div class="rrow">
+      <div class="rstage" style="--hc:${esc(p.colorHex||"#c0392b")}">
+        ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}">` : helmetSVG(p.colorHex||"#c0392b")}
+      </div>
+      <div class="rinfo">
+        ${p.htype ? `<span class="kick">${esc(p.htype)}</span>` : `<span class="kick pending">Tipo por definir</span>`}
+        <h3>${esc(p.name)}</h3>
+        <div class="feat"><b>${esc(certTxt)}</b> &nbsp;·&nbsp; ${esc(szTxt)}${p.color?` &nbsp;·&nbsp; ${esc(p.color)}`:""}</div>
+        ${incomplete
+          ? `<button class="complete no-print" onclick="openProduct('${p.id}')">✏️ Completar ficha</button>`
+          : `<button class="editmini no-print" onclick="openProduct('${p.id}')" title="Editar" aria-label="Editar">✏️</button>`}
+      </div>
+      <div class="rprice"><span class="lbl">Precio</span><div>${priceCardHTML(p)}</div></div>
     </div>`;
+  }).join("")}</div>`;
+}
+
+/* ----- Layout Plano técnico · ficha estilo blueprint con líneas guía ----- */
+function planoHTML(ps){
+  const st = state.style;
+  return `<div class="plano ${st.upperCase?"upper":""}">${ps.map(p=>{
+    const incomplete = isIncomplete(p);
+    const hasSizes = (p.sizes||[]).length > 0;
+    const hasCerts = (p.certs||[]).length > 0;
+    const certTxt = hasCerts ? p.certs.join(" · ") : "Por definir";
+    const szTxt = hasSizes ? "Talla " + HELMET_SIZES.filter(([sz])=>p.sizes.includes(sz)).map(([sz])=>sz).join("–") : "Por definir";
+    const pv = primaryPriceValue(p);
+    return `<article class="plcard" style="--hc:${esc(p.colorHex||"#c0392b")}">
+      <div class="bl"></div><div class="br"></div>
+      <div class="stage">${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}">` : helmetSVG(p.colorHex||"#c0392b")}</div>
+      <svg viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true">
+        <line class="lline" x1="205" y1="76" x2="255" y2="46"/><circle class="ldot" cx="205" cy="76" r="3"/>
+        <line class="lline" x1="95" y1="150" x2="35" y2="160"/><circle class="ldot" cx="95" cy="150" r="3"/>
+      </svg>
+      <span class="callout cTop ${hasCerts?"":"pending"}">${esc(certTxt)}</span>
+      <span class="callout cLeft ${hasSizes?"":"pending"}">${esc(szTxt)}</span>
+      ${incomplete
+        ? `<button class="complete no-print" onclick="openProduct('${p.id}')">✏️ Completar</button>`
+        : `<button class="editmini no-print" onclick="openProduct('${p.id}')" title="Editar" aria-label="Editar">✏️</button>`}
+      <div class="idplate">
+        <div><h4>${esc(p.name)}</h4><div class="code mono">${esc(p.code)}</div></div>
+        ${pv.hide ? "" : pv.value!=null
+          ? `<div class="price"><small>${esc(cur())}</small>${fmtNum(pv.value)}</div>`
+          : `<div class="price pending">Pendiente</div>`}
+      </div>
+    </article>`;
   }).join("")}</div>`;
 }
 
@@ -1742,7 +1835,8 @@ function vitrinaHTML(ps){
 function compactoHTML(ps){
   const st = state.style;
   return `<div class="compacto ${st.upperCase?"upper":""}">${ps.map(p=>{
-    const szRange = (p.sizes||[]).length ? p.sizes[0] + "–" + p.sizes[p.sizes.length-1] : "—";
+    const szList = (p.sizes||[]);
+    const szRange = szList.length > 1 ? szList[0] + "–" + szList[szList.length-1] : (szList[0] || "—");
     return `<div class="ccell">
       <div class="cmini" style="--hc:${esc(p.colorHex||"#22262e")}">
         ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}">` : helmetSVG(p.colorHex||"#22262e")}
@@ -1948,7 +2042,6 @@ function deleteContainer(){
 }
 function switchContainer(id){ state.active = id; wiz = {step:0, data:{}}; save(); render(); }
 function setHelmetLayout(v){ state.style.helmetLayout = v; save(); refreshCatalog(); }
-function setVitrinaTheme(v){ state.style.vitrinaTheme = v; save(); refreshCatalog(); }
 function setTab(t){ ui.tab = t; ui.search=""; ui.filterCat=""; render(); }
 
 /* ================= PERSONALIZAR CATÁLOGO ================= */
