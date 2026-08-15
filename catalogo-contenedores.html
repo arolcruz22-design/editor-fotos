@@ -315,18 +315,26 @@ kbd{
 /* ---- Layout B · Vitrina ---- */
 .vitrina{display:flex; flex-direction:column; gap:12px}
 .vrow{
-  display:grid; grid-template-columns:minmax(200px,40%) 1fr; gap:2px;
+  display:grid; grid-template-columns:minmax(220px,42%) 1fr; gap:2px;
   background:#14171d; border-radius:18px; overflow:hidden; box-shadow:var(--shadow-lg);
 }
+/* Fondo con degradados de color + textura de puntos: le da profundidad al
+   panel de la foto sin necesitar otra caja/fondo — la foto (ya recortada
+   con transparencia real) flota directo encima, sin costuras. */
 .vstage{
-  background:radial-gradient(130% 100% at 30% 22%,#ffffff,#e7e9ee 78%);
-  display:grid; place-items:center; min-height:220px; padding:16px; position:relative;
+  background:
+    radial-gradient(circle at 78% 14%, rgba(255,106,0,.20), transparent 42%),
+    radial-gradient(circle at 14% 88%, rgba(43,87,168,.16), transparent 46%),
+    radial-gradient(rgba(255,255,255,.055) 1px, transparent 1px) 0 0/20px 20px,
+    linear-gradient(160deg,#1c2028,#101317);
+  display:grid; place-items:center; min-height:250px; padding:20px; position:relative;
 }
-.vstage img{max-width:94%; max-height:250px; object-fit:contain; position:relative}
-.vstage .helm-illu{width:66%; position:relative; filter:drop-shadow(0 14px 18px rgba(20,22,28,.28))}
+.vstage img{max-width:82%; max-height:280px; object-fit:contain; position:relative; z-index:1;
+  filter:drop-shadow(0 18px 22px rgba(0,0,0,.38))}
+.vstage .helm-illu{width:62%; position:relative; z-index:1; filter:drop-shadow(0 14px 18px rgba(20,22,28,.35))}
 .vcomplete{
   position:absolute; bottom:10px; right:10px; font-size:11.5px; font-weight:800; color:#7a3a00;
-  background:#ffd28a; border:none; padding:6px 11px; border-radius:99px; box-shadow:var(--shadow);
+  background:#ffd28a; border:none; padding:6px 11px; border-radius:99px; box-shadow:var(--shadow); z-index:2;
 }
 .vinfo{background:linear-gradient(180deg,#20242b,#181b21); padding:24px 26px; color:#ECEAE5;
   display:flex; flex-direction:column; justify-content:center; gap:12px}
@@ -350,6 +358,33 @@ kbd{
 .vbuy .mayor{color:#9aa0a8; font-size:11.5px}
 .vbuy .price.pending{color:#B4B8BF !important}
 .vitrina.upper .vinfo h3, .vitrina.upper .vlead{text-transform:uppercase}
+
+/* Tema claro de la vitrina: mismo esqueleto, paleta invertida */
+.vitrina.theme-light .vrow{background:#eeece7}
+.vitrina.theme-light .vstage{
+  background:
+    radial-gradient(circle at 78% 14%, rgba(226,74,27,.12), transparent 42%),
+    radial-gradient(circle at 14% 88%, rgba(43,87,168,.10), transparent 46%),
+    radial-gradient(rgba(20,22,28,.05) 1px, transparent 1px) 0 0/20px 20px,
+    linear-gradient(160deg,#ffffff,#f0efe9);
+}
+.vitrina.theme-light .vstage img{filter:drop-shadow(0 16px 20px rgba(28,30,36,.16))}
+.vitrina.theme-light .vstage .helm-illu{filter:drop-shadow(0 12px 16px rgba(28,30,36,.18))}
+.vitrina.theme-light .vinfo{background:linear-gradient(180deg,#ffffff,#f7f5f1); color:var(--text)}
+.vitrina.theme-light .vkick{color:var(--accent)}
+.vitrina.theme-light .vkick.pending{color:var(--faint)}
+.vitrina.theme-light .vinfo h3{color:var(--text)}
+.vitrina.theme-light .vlead{color:var(--muted)}
+.vitrina.theme-light .vspecs{border-color:var(--line)}
+.vitrina.theme-light .vspecs .spec .k{color:var(--faint)}
+.vitrina.theme-light .vspecs .spec .v{color:var(--text)}
+.vitrina.theme-light .vsizes .sz{background:var(--chip); border-color:var(--line2); color:var(--text)}
+.vitrina.theme-light .vsz-pending{color:var(--faint)}
+.vitrina.theme-light .vbuy .price{color:var(--accent)}
+.vitrina.theme-light .vbuy .price small{color:var(--muted)}
+.vitrina.theme-light .vbuy .mayor{color:var(--muted)}
+.vitrina.theme-light .vbuy .price.pending{color:var(--faint) !important}
+
 @media (max-width:640px){ .vrow{grid-template-columns:1fr} }
 
 /* ---- Layout C · Compacto ---- */
@@ -927,7 +962,8 @@ function defaultStyle(){
     priceMode:"both",   // both = venta+mayor · retail = solo venta · wholesale = solo mayor · none = sin precio
     accent:null,        // null = colores de marca según el tema; o una clave de ACCENTS
     pdfGrid:3,          // columnas por fila: 1 (lista) · 2 · 3 · 4
-    helmetLayout:"vitrina"  // catálogo de cascos: "vitrina" (B) · "compacto" (C)
+    helmetLayout:"vitrina", // catálogo de cascos: "vitrina" (B) · "compacto" (C)
+    vitrinaTheme:"dark"     // fondo de la vitrina: "dark" · "light"
   };
 }
 let state = {
@@ -1460,11 +1496,11 @@ async function processStudio(src){
     const out = document.createElement("canvas"); out.width = OUT; out.height = OUT;
     const ox = out.getContext("2d");
     ox.imageSmoothingEnabled = true; ox.imageSmoothingQuality = "high";
-    const g = ox.createRadialGradient(OUT/2, OUT*0.40, OUT*0.12, OUT/2, OUT*0.55, OUT*0.9);
-    g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#eaecef");
-    ox.fillStyle = g; ox.fillRect(0, 0, OUT, OUT);
 
     if(mask){
+      // Se recortó de verdad: se guarda CON TRANSPARENCIA (PNG), sin fondo
+      // blanco pegado, para que cada estilo de catálogo pueda ponerle su
+      // propio fondo sin que se note una "costura" rectangular.
       featherMask(mask, w, h);
       for(let p=0; p<N; p++) d[p*4+3] = mask[p];
       cx.putImageData(id, 0, 0);
@@ -1477,23 +1513,29 @@ async function processStudio(src){
       }
       if(maxX < 0) return src;
       const bw = maxX-minX+1, bh = maxY-minY+1;
-      const scale = Math.min(OUT*0.78/bw, OUT*0.70/bh);
+      const scale = Math.min(OUT*0.82/bw, OUT*0.76/bh);
       const dw = bw*scale, dh = bh*scale;
       const dx = (OUT-dw)/2, dy = (OUT-dh)/2 - OUT*0.015;
-      // sombra suave en el piso (degradado radial achatado)
+      // sombra suave en el piso (degradado radial achatado, semitransparente:
+      // se ve bien tanto sobre fondo claro como oscuro)
       const scx = OUT/2, scy = dy + dh + OUT*0.03, srx = Math.max(60, dw*0.44), sry = Math.max(12, dh*0.055);
       const sg = ox.createRadialGradient(scx, scy, 0, scx, scy, srx);
-      sg.addColorStop(0, "rgba(22,24,32,.22)"); sg.addColorStop(0.7, "rgba(22,24,32,.08)"); sg.addColorStop(1, "rgba(22,24,32,0)");
+      sg.addColorStop(0, "rgba(0,0,0,.30)"); sg.addColorStop(0.7, "rgba(0,0,0,.10)"); sg.addColorStop(1, "rgba(0,0,0,0)");
       ox.save(); ox.translate(scx, scy); ox.scale(1, sry/srx); ox.translate(-scx, -scy);
       ox.fillStyle = sg; ox.beginPath(); ox.arc(scx, scy, srx, 0, Math.PI*2); ox.fill(); ox.restore();
       ox.drawImage(cv, minX, minY, bw, bh, dx, dy, dw, dh);
+      return out.toDataURL("image/png");
     }else{
-      // fondo complejo: encuadre limpio centrado sobre el fondo de estudio
+      // No se pudo recortar (fondo complejo): se deja la foto completa sobre
+      // un fondo de estudio claro — no hay transparencia que ofrecer.
+      const g = ox.createRadialGradient(OUT/2, OUT*0.40, OUT*0.12, OUT/2, OUT*0.55, OUT*0.9);
+      g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#eaecef");
+      ox.fillStyle = g; ox.fillRect(0, 0, OUT, OUT);
       const scale = Math.min(OUT*0.86/w, OUT*0.86/h);
       const dw = w*scale, dh = h*scale;
       ox.drawImage(cv, (OUT-dw)/2, (OUT-dh)/2, dw, dh);
+      return out.toDataURL("image/jpeg", 0.9);
     }
-    return out.toDataURL("image/jpeg", 0.9);
   }catch(e){ return src; }
 }
 /* Se queda solo con el objeto principal (componente conexo más grande),
@@ -1612,6 +1654,10 @@ function catalogHTML(){
       <button class="${state.style.helmetLayout!=='compacto'?'sel':''}" onclick="setHelmetLayout('vitrina')" title="Vitrina premium">🖼 Vitrina</button>
       <button class="${state.style.helmetLayout==='compacto'?'sel':''}" onclick="setHelmetLayout('compacto')" title="Compacto para imprimir">▦ Compacto</button>
     </div>` : ""}
+    ${isHelmets() && state.style.helmetLayout!=='compacto' ? `<div class="layout-toggle" role="group" aria-label="Fondo de la vitrina">
+      <button class="${state.style.vitrinaTheme!=='light'?'sel':''}" onclick="setVitrinaTheme('dark')" title="Fondo oscuro">🌙 Oscura</button>
+      <button class="${state.style.vitrinaTheme==='light'?'sel':''}" onclick="setVitrinaTheme('light')" title="Fondo claro">☀️ Clara</button>
+    </div>` : ""}
     <button class="btn" onclick="openStyleModal()">🎨 Personalizar</button>
     <button class="btn primary" onclick="exportPDF()">📄 Catálogo PDF</button>
     <button class="btn" onclick="openAdsModal()">📢 Publicidad</button>
@@ -1653,8 +1699,9 @@ function gridHTML(ps){
 /* ----- Layout B · Vitrina premium (un casco por fila) ----- */
 function vitrinaHTML(ps){
   const st = state.style;
+  const theme = st.vitrinaTheme === "light" ? "theme-light" : "";
   const spec = (k,v)=> v ? `<div class="spec"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>` : "";
-  return `<div class="vitrina ${st.upperCase?"upper":""}">${ps.map(p=>{
+  return `<div class="vitrina ${theme} ${st.upperCase?"upper":""}">${ps.map(p=>{
     const hasSizes = (p.sizes||[]).length > 0;
     const sizes = hasSizes ? HELMET_SIZES.map(([sz,cm])=>{
       const on = (p.sizes||[]).includes(sz);
@@ -1896,6 +1943,7 @@ function deleteContainer(){
 }
 function switchContainer(id){ state.active = id; wiz = {step:0, data:{}}; save(); render(); }
 function setHelmetLayout(v){ state.style.helmetLayout = v; save(); refreshCatalog(); }
+function setVitrinaTheme(v){ state.style.vitrinaTheme = v; save(); refreshCatalog(); }
 function setTab(t){ ui.tab = t; ui.search=""; ui.filterCat=""; render(); }
 
 /* ================= PERSONALIZAR CATÁLOGO ================= */
