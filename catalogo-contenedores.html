@@ -2394,7 +2394,138 @@ function buildPdf(c, items, images){
     return s;
   };
 
-  if(L.list){
+  const helmetPdfStyle = (isHelmets() && ["pedestal","revista","plano"].includes(st.helmetLayout)) ? st.helmetLayout : null;
+
+  if(helmetPdfStyle === "pedestal"){
+    // ----- versión PDF de "Pedestal": cuadrícula cálida, tarjeta con marco crema -----
+    const CREAM = "0.980 0.972 0.957", CREAM_LN = "0.929 0.906 0.855",
+          INKW = "0.133 0.114 0.086", MUTEDW = "0.541 0.482 0.388", OKG = "0.118 0.624 0.353";
+    const cols2 = Math.max(2, cols);
+    const cardW = (W - mx*2 - gx*(cols2-1)) / cols2;
+    const imgSize = cardW - 26;
+    const cardH = 14 + imgSize + 12 + lh(szCat) + lh(szName)*2 + lh(szCompat) + (mode==="none"?10:szPrice*0.82+18);
+    const rowsPerPage = Math.max(1, Math.floor((H - headerH - 30) / (cardH + gy)));
+    const perPage = cols2 * rowsPerPage;
+    for(let start = 0; start < items.length; start += perPage){
+      const slice = items.slice(start, start + perPage);
+      let s = pageHeader();
+      slice.forEach((p, j)=>{
+        const col = j % cols2, row = (j/cols2)|0;
+        const x = mx + col*(cardW+gx), yT = (H-headerH) - row*(cardH+gy), gi = start + j;
+        s += rect(x, yT-cardH, cardW, cardH, CREAM, true);
+        s += rect(x, yT-cardH, cardW, cardH, CREAM_LN, false);
+        const im = images[gi];
+        if(im){
+          const k = Math.min(imgSize/im.w, imgSize/im.h);
+          const iw = im.w*k, ih = im.h*k;
+          s += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${(x+(cardW-iw)/2).toFixed(2)} ${(yT-13-imgSize+(imgSize-ih)/2).toFixed(2)} cm /Im${gi} Do Q\n`;
+        }else{
+          s += rect(x+13, yT-13-imgSize, cardW-26, imgSize, "0.953 0.937 0.902", true);
+        }
+        s += line(x+cardW*0.16, yT-13-imgSize-3, x+cardW*0.84, yT-13-imgSize-3, 0.6, CREAM_LN);
+        let ty = yT-13-imgSize-18, tw = cardW-26;
+        if(p.htype) { s += T(x+13, ty, szCat, "F2", ORANGE, pdfEllip(String(p.htype).toUpperCase(), szCat, true, tw)); ty -= lh(szCat); }
+        else { s += T(x+13, ty, szCat, "F1", MUTEDW, "TIPO POR DEFINIR"); ty -= lh(szCat); }
+        pdfWrap(U(p.name), szName, true, tw, 2).forEach(ln=>{ s += T(x+13, ty, szName, "F2", INKW, ln); ty -= lh(szName); });
+        const chipTxt = [ (p.certs||[]).join(" · "), p.color ].filter(Boolean).join("   ·   ");
+        s += T(x+13, ty, szCompat, "F1", MUTEDW, chipTxt ? pdfEllip(chipTxt, szCompat, false, tw) : "Sin detalles aun");
+        const priceY = yT-cardH+16;
+        if(mode !== "none"){
+          const pv = mode === "wholesale" ? p.mayor : p.price;
+          const hasPv = mode === "wholesale" ? Number(p.mayor)>0 : Number(p.price)>0;
+          s += hasPv ? T(x+13, priceY, szPrice*0.82, "F2", ORANGE, fmt(pv)) : T(x+13, priceY, 9, "F1", MUTEDW, "Precio pendiente");
+        }
+        s += TR(x+cardW-13, priceY+3, 8, "F1", OKG, (Number(p.qty)||0)+" en stock");
+      });
+      pages.push(s);
+    }
+  }else if(helmetPdfStyle === "revista"){
+    // ----- versión PDF de "Revista": un casco grande por fila, panel oscuro -----
+    const DARKBG = "0.043 0.047 0.055", WHITE = "1 1 1", MUTEDC = "0.573 0.588 0.612";
+    const cardW = W - mx*2, rowH = 195;
+    const perPage = Math.max(1, Math.floor((H - headerH - 30) / (rowH + gy)));
+    for(let start = 0; start < items.length; start += perPage){
+      const slice = items.slice(start, start + perPage);
+      let s = pageHeader();
+      slice.forEach((p, j)=>{
+        const x = mx, yT = (H-headerH) - j*(rowH+gy), gi = start + j;
+        s += rect(x, yT-rowH, cardW, rowH, DARKBG, true);
+        const imgS = rowH-26, imgColW = cardW*0.42;
+        const im = images[gi];
+        if(im){
+          const k = Math.min(imgColW/im.w, imgS/im.h);
+          const iw = im.w*k, ih = im.h*k;
+          s += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${(x+13+(imgColW-iw)/2).toFixed(2)} ${(yT-13-imgS+(imgS-ih)/2).toFixed(2)} cm /Im${gi} Do Q\n`;
+        }
+        const tx = x + cardW*0.46;
+        let ty = yT-42, tw = cardW*0.4;
+        s += T(tx, ty, szCat+1, "F2", ORANGE, p.htype ? String(p.htype).toUpperCase() : "TIPO POR DEFINIR"); ty -= lh(szCat+1)+2;
+        pdfWrap(U(p.name), szName+4, true, tw, 2).forEach(ln=>{ s += T(tx, ty, szName+4, "F2", WHITE, ln); ty -= lh(szName+4); });
+        const feat = [ (p.certs||[]).join(" · "), (p.sizes||[]).length?("Tallas "+p.sizes.join("-")):"", p.color ].filter(Boolean).join("   ·   ");
+        if(feat) s += T(tx, ty, szCompat, "F1", MUTEDC, pdfEllip(feat, szCompat, false, tw));
+        if(mode !== "none"){
+          const pv = mode === "wholesale" ? p.mayor : p.price;
+          const hasPv = mode === "wholesale" ? Number(p.mayor)>0 : Number(p.price)>0;
+          s += TR(x+cardW-16, yT-rowH+34, 8, "F1", MUTEDC, "PRECIO");
+          s += hasPv ? TR(x+cardW-16, yT-rowH+16, szPrice+2, "F2", WHITE, fmt(pv))
+                     : TR(x+cardW-16, yT-rowH+16, 11, "F1", MUTEDC, "Precio pendiente");
+        }
+      });
+      pages.push(s);
+    }
+  }else if(helmetPdfStyle === "plano"){
+    // ----- versión PDF de "Plano técnico": tarjeta clara con marcas de esquina y ficha inferior -----
+    const BLUEBG = "0.937 0.949 0.965", BLUELN = "0.725 0.761 0.816",
+          INKC = "0.106 0.141 0.188", MUTEDC2 = "0.482 0.514 0.565";
+    const cols2 = Math.max(2, cols);
+    const cardW = (W - mx*2 - gx*(cols2-1)) / cols2;
+    const cardH = cardW * 1.2;
+    const rowsPerPage = Math.max(1, Math.floor((H - headerH - 30) / (cardH + gy)));
+    const perPage = cols2 * rowsPerPage;
+    const plateH = 46;
+    for(let start = 0; start < items.length; start += perPage){
+      const slice = items.slice(start, start + perPage);
+      let s = pageHeader();
+      slice.forEach((p, j)=>{
+        const col = j % cols2, row = (j/cols2)|0;
+        const x = mx + col*(cardW+gx), yT = (H-headerH) - row*(cardH+gy), gi = start + j;
+        s += rect(x, yT-cardH, cardW, cardH, BLUEBG, true);
+        s += rect(x, yT-cardH, cardW, cardH, BLUELN, false);
+        const tick = 9;
+        [[x+6,yT-6,1,-1],[x+cardW-6,yT-6,-1,-1],[x+6,yT-cardH+6,1,1],[x+cardW-6,yT-cardH+6,-1,1]].forEach(([cx,cy,hdx,vdy])=>{
+          s += line(cx, cy, cx+hdx*tick, cy, 1, BLUELN);
+          s += line(cx, cy, cx, cy+vdy*tick, 1, BLUELN);
+        });
+        const stageH = cardH - plateH - 14;
+        const im = images[gi];
+        if(im){
+          const k = Math.min((cardW-40)/im.w, stageH/im.h);
+          const iw = im.w*k, ih = im.h*k;
+          s += `q ${iw.toFixed(2)} 0 0 ${ih.toFixed(2)} ${(x+(cardW-iw)/2).toFixed(2)} ${(yT-8-stageH+(stageH-ih)/2).toFixed(2)} cm /Im${gi} Do Q\n`;
+        }
+        const certTxt = (p.certs||[]).length ? p.certs.join(" · ") : "Por definir";
+        const szTxt = (p.sizes||[]).length ? "Talla " + p.sizes.join("-") : "Por definir";
+        const l1x = x+cardW*0.66, l1y = yT-8-stageH*0.32;
+        s += line(l1x, l1y, x+cardW-18, l1y+18, 1, ORANGE);
+        s += TR(x+cardW-16, l1y+22, 8.5, "F2", INKC, certTxt);
+        const l2x = x+cardW*0.30, l2y = yT-8-stageH*0.55;
+        s += line(l2x, l2y, x+18, l2y-14, 1, ORANGE);
+        s += T(x+16, l2y-22, 8.5, "F2", INKC, szTxt);
+        s += rect(x+12, yT-cardH+8, cardW-24, plateH-8, "1 1 1", true);
+        s += rect(x+12, yT-cardH+8, cardW-24, plateH-8, BLUELN, false);
+        let py = yT-cardH+plateH-14;
+        s += T(x+22, py, szName*0.72, "F2", INKC, pdfEllip(U(p.name), szName*0.72, true, cardW-44));
+        s += T(x+22, py-11, 7.5, "F1", MUTEDC2, p.code);
+        if(mode !== "none"){
+          const pv = mode === "wholesale" ? p.mayor : p.price;
+          const hasPv = mode === "wholesale" ? Number(p.mayor)>0 : Number(p.price)>0;
+          s += hasPv ? TR(x+cardW-22, yT-cardH+18, szPrice*0.62, "F2", INKC, fmt(pv))
+                     : TR(x+cardW-22, yT-cardH+18, 9, "F1", MUTEDC2, "Pendiente");
+        }
+      });
+      pages.push(s);
+    }
+  }else if(L.list){
     // ----- lista grande: una fila por producto (foto a la izquierda, precio a la derecha) -----
     const { rowH, cardW, perPage } = L;
     const imgS = rowH - 16;
