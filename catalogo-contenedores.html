@@ -1065,7 +1065,13 @@ function wizFieldHTML(s){
       </label>
       <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13.5px; cursor:pointer">
         <input type="checkbox" ${studioOn() ? "checked" : ""} onchange="setStudio(this.checked)" style="width:auto">
-        ✨ Editar como foto de estudio (recortar fondo, fondo blanco profesional y sombra)
+        ✨ Mejorar calidad (balance de blancos, nitidez, fondo de estudio) — recomendado
+      </label>
+      <label style="display:flex; align-items:flex-start; gap:8px; margin-top:8px; font-size:13.5px; cursor:pointer">
+        <input type="checkbox" ${cutoutOn() ? "checked" : ""} onchange="setCutout(this.checked)" style="width:auto; margin-top:3px">
+        <span>✂️ Recortar el fondo automáticamente<br>
+          <span style="font-size:12px; color:var(--muted)">Funciona bien solo si la foto tiene fondo liso (blanco/plano). Si la foto es compleja, no se recorta para no dañarla.</span>
+        </span>
       </label>`;
     case "code":
       return `<input id="wizIn" class="mono" placeholder="${esc(suggestCode())}" value="${esc(d.code||"")}"
@@ -1261,6 +1267,8 @@ function loadImgEl(src){
 }
 function studioOn(){ return state.studioPref !== false; }
 function setStudio(v){ state.studioPref = !!v; save(); }
+function cutoutOn(){ return state.cutoutPref === true; }   // recorte de fondo: opcional, apagado por defecto
+function setCutout(v){ state.cutoutPref = !!v; save(); }
 function loadPhoto(file, cb){
   photoFromBlob(file).then(cb).catch(()=> toast("No se pudo leer la imagen"));
 }
@@ -1337,10 +1345,12 @@ async function processStudio(src){
     let hasAlpha = false;
     for(let i=3; i<d.length; i+=4){ if(d[i] < 245){ hasAlpha = true; break; } }
     if(hasAlpha){
-      mask = new Uint8Array(N);
-      for(let p=0; p<N; p++) mask[p] = d[p*4+3] > 60 ? 255 : 0;
-    }else{
-      // color del fondo = mediana de los bordes; si el borde es homogéneo, inundar desde los bordes
+      // la imagen ya trae transparencia: úsala directamente
+      const fg = new Uint8Array(N);
+      for(let p=0; p<N; p++) fg[p] = d[p*4+3] > 60 ? 1 : 0;
+      mask = finalizeMask(fg, w, h, N);
+    }else if(cutoutOn()){
+      // recorte solo si el fondo es claramente liso; si no, no se recorta
       const border = [];
       const grab = (x,y)=>{ const i=(y*w+x)*4; border.push([d[i], d[i+1], d[i+2]]); };
       for(let x=0; x<w; x+=2){ grab(x,0); grab(x,h-1); }
@@ -1348,8 +1358,8 @@ async function processStudio(src){
       const n = border.length;
       const mean = [0,1,2].map(c => border.reduce((a,p)=>a+p[c], 0)/n);
       const sd = Math.sqrt([0,1,2].map(c => border.reduce((a,p)=>a+(p[c]-mean[c])**2, 0)/n).reduce((a,b)=>a+b)/3);
-      if(sd < 42){
-        const tol = Math.max(40, sd*2.6);
+      if(sd < 30){   // fondo liso (más estricto que antes)
+        const tol = Math.max(30, sd*2.2);
         const bg = new Uint8Array(N); const stack = [];
         const tryP = p => {
           if(bg[p]) return;
@@ -1363,11 +1373,9 @@ async function processStudio(src){
           if(x > 0) tryP(p-1); if(x < w-1) tryP(p+1);
           if(y > 0) tryP(p-w); if(y < h-1) tryP(p+w);
         }
-        let fg = 0; for(let p=0; p<N; p++) if(!bg[p]) fg++;
-        if(fg > N*0.02 && fg < N*0.97){
-          mask = new Uint8Array(N);
-          for(let p=0; p<N; p++) mask[p] = bg[p] ? 0 : 255;
-        }
+        const fg = new Uint8Array(N); let fgCount = 0;
+        for(let p=0; p<N; p++){ if(!bg[p]){ fg[p] = 1; fgCount++; } }
+        mask = finalizeMask(fg, w, h, N, fgCount);
       }
     }
 
@@ -1410,6 +1418,55 @@ async function processStudio(src){
     }
     return out.toDataURL("image/jpeg", 0.9);
   }catch(e){ return src; }
+}
+/* Se queda solo con el objeto principal (componente conexo más grande),
+   descartando las manchas sueltas que el recorte deja flotando. */
+function largestComponent(fg, w, h, N){
+  const lab = new Int32Array(N); let cur = 0; const areas = [0]; const st = [];
+  for(let s=0; s<N; s++){
+    if(fg[s] && !lab[s]){
+      cur++; areas[cur] = 0; lab[s] = cur; st.length = 0; st.push(s);
+      while(st.length){
+        const p = st.pop(); areas[cur]++; const x = p % w;
+        if(x>0     && fg[p-1] && !lab[p-1]){ lab[p-1] = cur; st.push(p-1); }
+        if(x<w-1   && fg[p+1] && !lab[p+1]){ lab[p+1] = cur; st.push(p+1); }
+        if(p>=w    && fg[p-w] && !lab[p-w]){ lab[p-w] = cur; st.push(p-w); }
+        if(p<N-w   && fg[p+w] && !lab[p+w]){ lab[p+w] = cur; st.push(p+w); }
+      }
+    }
+  }
+  let bl = 0, ba = 0; for(let i=1; i<=cur; i++) if(areas[i] > ba){ ba = areas[i]; bl = i; }
+  const m = new Uint8Array(N); if(bl) for(let p=0; p<N; p++) if(lab[p] === bl) m[p] = 1;
+  return { mask:m, area:ba };
+}
+/* Rellena los huecos interiores del objeto (reflejos claros que el recorte
+   marcó como fondo pero que están rodeados por el producto). */
+function fillHoles(m, w, h, N){
+  const outside = new Uint8Array(N); const st = [];
+  const push = p => { if(!outside[p] && !m[p]){ outside[p] = 1; st.push(p); } };
+  for(let x=0; x<w; x++){ push(x); push((h-1)*w + x); }
+  for(let y=0; y<h; y++){ push(y*w); push(y*w + w - 1); }
+  while(st.length){ const p = st.pop(), x = p % w;
+    if(x>0) push(p-1); if(x<w-1) push(p+1);
+    if(p>=w) push(p-w); if(p<N-w) push(p+w);
+  }
+  for(let p=0; p<N; p++) if(!m[p] && !outside[p]) m[p] = 1;
+}
+/* Decide si el recorte es confiable. Si el objeto queda fragmentado, muy
+   pequeño/grande o descentrado, devuelve null y NO se recorta (se conserva
+   la foto completa, solo mejorada). */
+function finalizeMask(fg, w, h, N, fgCount){
+  const { mask:big, area } = largestComponent(fg, w, h, N);
+  if(area < N*0.10 || area > N*0.94) return null;
+  if(fgCount && area < fgCount*0.78) return null;
+  let sx = 0, sy = 0, c = 0;
+  for(let p=0; p<N; p++) if(big[p]){ sx += p % w; sy += (p/w)|0; c++; }
+  const cxm = sx/c/w, cym = sy/c/h;
+  if(cxm < 0.25 || cxm > 0.75 || cym < 0.20 || cym > 0.84) return null;
+  fillHoles(big, w, h, N);
+  const out = new Uint8Array(N);
+  for(let p=0; p<N; p++) out[p] = big[p] ? 255 : 0;
+  return out;
 }
 function featherMask(mask, w, h){
   const out = new Uint8Array(mask.length);
