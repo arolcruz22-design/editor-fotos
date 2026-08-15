@@ -254,6 +254,116 @@ kbd{
 .card .edit{margin-left:auto}
 .card.upper h3, .card.upper .cmp, .card.upper .dsc{text-transform:uppercase}
 
+/* ============ CASCOS: selector de tipo de catálogo ============ */
+.kind-pick{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.kind-pick .kind{
+  display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left;
+  padding:12px 14px; border:1.5px solid var(--line2); border-radius:12px; background:var(--panel2);
+  transition:border-color .12s, background .12s;
+}
+.kind-pick .kind .ic{font-size:22px}
+.kind-pick .kind b{font-size:14px}
+.kind-pick .kind small{font-size:11.5px; color:var(--muted); line-height:1.3}
+.kind-pick .kind.sel{border-color:var(--brand2); background:var(--accent-bg)}
+@media (max-width:480px){ .kind-pick{grid-template-columns:1fr} }
+
+/* chips de color en el asistente */
+.color-presets{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px}
+.color-presets .cp{
+  display:inline-flex; align-items:center; gap:7px; padding:6px 11px 6px 7px; border-radius:99px;
+  background:var(--chip); border:1.5px solid transparent; font-size:12.5px; font-weight:600; color:var(--muted);
+}
+.color-presets .cp .sw{width:16px; height:16px; border-radius:50%; border:1px solid rgba(0,0,0,.18)}
+.color-presets .cp.sel{background:var(--accent-bg); border-color:var(--brand2); color:var(--text)}
+
+/* tarjeta de casco (ficha) */
+.card.helmet .ph{background:radial-gradient(120% 90% at 50% 20%,var(--panel2),var(--panel) 72%)}
+.card.helmet .ph img{object-fit:contain; padding:6px}
+.type-chip{
+  position:absolute; bottom:8px; left:8px; background:var(--panel); color:var(--text);
+  font-size:10.5px; font-weight:800; letter-spacing:.03em; text-transform:uppercase;
+  padding:3px 8px; border-radius:99px; border:1px solid var(--line); box-shadow:var(--shadow);
+}
+.card .ph .certs{position:absolute; bottom:8px; right:8px; display:flex; gap:4px}
+.badge{
+  font-size:10px; font-weight:850; letter-spacing:.02em; color:var(--ok);
+  background:var(--ok-bg); border:1px solid color-mix(in srgb,var(--ok) 32%,transparent);
+  padding:2px 6px; border-radius:5px;
+}
+.color-line{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted); margin:2px 0 8px}
+.color-line .dot{width:12px; height:12px; border-radius:50%; border:1px solid rgba(0,0,0,.18); flex:none}
+.sizes{display:flex; gap:5px; flex-wrap:wrap; margin-bottom:6px}
+.sizes .sz{
+  font-size:11.5px; font-weight:800; min-width:24px; text-align:center; padding:2px 6px; border-radius:6px;
+  background:var(--chip); color:var(--text); border:1px solid var(--line);
+}
+.sizes .sz.off{opacity:.34; text-decoration:line-through}
+
+/* casco dibujado sin foto */
+.helm-illu{width:70%; max-width:150px; height:auto}
+.helm-illu .sh{fill:var(--hc,#20242b)}
+.helm-illu .ch{fill:var(--hc,#20242b); filter:brightness(.82)}
+.helm-illu .vi{fill:#0e1116; opacity:.92}
+
+/* switch de layout */
+.layout-toggle{display:inline-flex; background:var(--chip); border:1px solid var(--line); border-radius:99px; padding:3px}
+.layout-toggle button{padding:6px 13px; border-radius:99px; font-size:13px; font-weight:700; color:var(--muted)}
+.layout-toggle button.sel{background:var(--panel); color:var(--text); box-shadow:var(--shadow)}
+
+/* ---- Layout B · Vitrina ---- */
+.vitrina{display:flex; flex-direction:column; gap:12px}
+.vrow{
+  display:grid; grid-template-columns:minmax(200px,40%) 1fr; gap:2px;
+  background:#14171d; border-radius:18px; overflow:hidden; box-shadow:var(--shadow-lg);
+}
+.vstage{
+  background:radial-gradient(130% 100% at 30% 22%,#ffffff,#e7e9ee 78%);
+  display:grid; place-items:center; min-height:220px; padding:16px; position:relative;
+}
+.vstage img{max-width:94%; max-height:250px; object-fit:contain; position:relative}
+.vstage .helm-illu{width:66%; position:relative; filter:drop-shadow(0 14px 18px rgba(20,22,28,.28))}
+.vinfo{background:linear-gradient(180deg,#20242b,#181b21); padding:24px 26px; color:#ECEAE5;
+  display:flex; flex-direction:column; justify-content:center; gap:12px}
+.vkick{font-size:11.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--brand2)}
+.vinfo h3{margin:0; font-size:clamp(19px,2.6vw,26px); font-weight:850; color:#fff; line-height:1.1}
+.vlead{margin:0; color:#B4B8BF; font-size:13.5px; max-width:48ch}
+.vspecs{display:flex; flex-wrap:wrap; gap:10px 26px; padding:12px 0;
+  border-top:1px solid rgba(255,255,255,.09); border-bottom:1px solid rgba(255,255,255,.09)}
+.vspecs .spec{display:flex; flex-direction:column; gap:2px}
+.vspecs .spec .k{font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#7f858e}
+.vspecs .spec .v{font-size:13.5px; font-weight:800; color:#F2EFE9}
+.vsizes{display:flex; gap:6px; flex-wrap:wrap}
+.vsizes .sz{font-size:11.5px; font-weight:800; padding:3px 9px; border-radius:7px;
+  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.13); color:#D6D9DE}
+.vsizes .sz.off{opacity:.32; text-decoration:line-through}
+.vbuy{display:flex; align-items:center; gap:16px; margin-top:2px}
+.vbuy .price{color:#fff; font-size:24px; font-weight:850; font-variant-numeric:tabular-nums}
+.vbuy .price small{color:#9aa0a8; font-size:12px; font-weight:700; margin-right:2px}
+.vbuy .mayor{color:#9aa0a8; font-size:11.5px}
+.vitrina.upper .vinfo h3, .vitrina.upper .vlead{text-transform:uppercase}
+@media (max-width:640px){ .vrow{grid-template-columns:1fr} }
+
+/* ---- Layout C · Compacto ---- */
+.compacto{display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line);
+  border:1px solid var(--line); border-radius:14px; overflow:hidden}
+.ccell{display:grid; grid-template-columns:72px 1fr; gap:12px; align-items:center; padding:13px; background:var(--panel)}
+.cmini{aspect-ratio:1; background:var(--panel2); border-radius:11px; display:grid; place-items:center; overflow:hidden}
+.cmini img{width:100%; height:100%; object-fit:contain; padding:6px}
+.cmini .helm-illu{width:86%}
+.cmeta{min-width:0}
+.ccode{font-size:10.5px; font-weight:800; color:var(--muted)}
+.cmeta h4{margin:2px 0 4px; font-size:13.5px; font-weight:800; line-height:1.15}
+.cline{font-size:11px; color:var(--muted); display:flex; gap:5px; flex-wrap:wrap; align-items:center}
+.tinybadge{font-size:9px; font-weight:850; color:var(--ok); background:var(--ok-bg); padding:1px 5px; border-radius:4px}
+.cpc{margin-top:6px; display:flex; align-items:baseline; justify-content:space-between; gap:8px}
+.cpc .price{font-size:15px; font-weight:850; color:var(--accent); font-variant-numeric:tabular-nums}
+.cpc .price small{font-size:10.5px; color:var(--muted); font-weight:700; margin-right:1px}
+.cpc .mayor{display:none}
+.cszc{font-size:10.5px; font-weight:700; color:var(--muted); white-space:nowrap}
+.compacto.upper h4{text-transform:uppercase}
+@media (max-width:820px){ .compacto{grid-template-columns:repeat(2,1fr)} }
+@media (max-width:520px){ .compacto{grid-template-columns:1fr} }
+
 /* ============ CATALOG ============ */
 .cat-toolbar{
   display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px;
@@ -653,6 +763,15 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
     <div class="mod-head"><h2 id="dlgContTitle">Nuevo contenedor</h2><button class="x" onclick="dlgCont.close()" aria-label="Cerrar">✕</button></div>
     <div class="mod-body">
       <div>
+        <label>Tipo de catálogo</label>
+        <div class="kind-pick" id="cKind">
+          <button type="button" class="kind sel" data-kind="parts" onclick="pickKind('parts')">
+            <span class="ic">🔧</span><b>Repuestos y accesorios</b><small>Código, motos compatibles, categoría</small></button>
+          <button type="button" class="kind" data-kind="helmets" onclick="pickKind('helmets')">
+            <span class="ic">🪖</span><b>Cascos</b><small>Tipo, tallas, certificación DOT/ECE, color</small></button>
+        </div>
+      </div>
+      <div>
         <label for="cName">Nombre del contenedor</label>
         <input id="cName" placeholder="ej: Contenedor Julio 2026">
       </div>
@@ -777,7 +896,8 @@ function defaultStyle(){
     upperCase:true,     // todo el texto en MAYÚSCULAS
     priceMode:"both",   // both = venta+mayor · retail = solo venta · wholesale = solo mayor · none = sin precio
     accent:null,        // null = colores de marca según el tema; o una clave de ACCENTS
-    pdfGrid:3           // columnas por fila: 1 (lista) · 2 · 3 · 4
+    pdfGrid:3,          // columnas por fila: 1 (lista) · 2 · 3 · 4
+    helmetLayout:"vitrina"  // catálogo de cascos: "vitrina" (B) · "compacto" (C)
   };
 }
 let state = {
@@ -803,7 +923,14 @@ function toast(msg){
 }
 
 /* ================= PASOS DEL ASISTENTE ================= */
-const STEPS = [
+const isHelmets = ()=> (activeCont()?.kind === "helmets");
+const HELMET_TYPES = ["Integral","Abatible","Cross","Abierto (Jet)","Off-Road"];
+const HELMET_SIZES = [["S","55–56 cm"],["M","57–58 cm"],["L","59–60 cm"],["XL","61–62 cm"]];
+const CERTS = ["DOT","ECE","NTC"];
+const COLOR_PRESETS = [["Negro mate","#1b1e24"],["Negro brillante","#0c0e12"],["Gris titanio","#6b7078"],
+  ["Blanco perla","#eef0f2"],["Rojo","#d23b28"],["Azul","#2b57a8"],["Verde","#2f7d4f"],["Amarillo","#e7b527"]];
+
+const PARTS_STEPS = [
   {key:"photo",  q:"Foto del producto",            hint:"Arrastra la imagen, tócala para elegir del archivo, o pásala después desde el catálogo.", optional:true},
   {key:"code",   q:"¿Cuál es el código?",           hint:"La referencia única con la que lo vas a identificar y vender."},
   {key:"name",   q:"¿Cómo se llama el producto?",   hint:"Nombre corto y claro, como aparecerá en el catálogo."},
@@ -813,6 +940,19 @@ const STEPS = [
   {key:"price",  q:"Precios",                       hint:"El precio de venta al público es obligatorio; el de por mayor es opcional."},
   {key:"qty",    q:"¿Cuántas unidades llegaron?",   hint:"Cantidad que trae este contenedor."}
 ];
+const HELMET_STEPS = [
+  {key:"photo",  q:"Foto del casco",                hint:"Arrástrala o tócala para elegirla. La app la mejora sola: recorta el fondo, la pone en fondo de estudio y realza la nitidez.", optional:true},
+  {key:"code",   q:"¿Cuál es el código?",           hint:"La referencia única con la que lo vas a identificar y vender."},
+  {key:"name",   q:"Marca y modelo del casco",      hint:"ej: MT Thunder 4 SV · LS2 Valiant II"},
+  {key:"htype",  q:"¿Qué tipo de casco es?",        hint:"Integral, abatible, cross, abierto…"},
+  {key:"desc",   q:"Características",                 hint:"ej: Doble visor, forro removible, antivaho…", optional:true},
+  {key:"color",  q:"Color",                         hint:"Color principal del casco."},
+  {key:"sizes",  q:"Tallas disponibles",            hint:"Marca todas las que tienes en stock."},
+  {key:"certs",  q:"Certificación",                 hint:"Los sellos de seguridad que trae el casco.", optional:true},
+  {key:"price",  q:"Precios",                       hint:"El precio de venta al público es obligatorio; el de por mayor es opcional."},
+  {key:"qty",    q:"¿Cuántas unidades llegaron?",   hint:"Cantidad que trae este contenedor."}
+];
+const curSteps = ()=> isHelmets() ? HELMET_STEPS : PARTS_STEPS;
 
 function suggestCode(){
   const c = activeCont(); if(!c) return "";
@@ -871,6 +1011,7 @@ function statsHTML(){
 
 /* ================= ASISTENTE (WIZARD) ================= */
 function wizardHTML(){
+  const STEPS = curSteps();
   const s = STEPS[wiz.step];
   const dots = STEPS.map((_,i)=>`<i class="${i<=wiz.step?"on":""}"></i>`).join("");
   return `<div class="bulk-bar no-print">
@@ -937,6 +1078,25 @@ function wizFieldHTML(s){
     case "category":
       return `<div class="cat-chips">${CATEGORIES.map(c=>
         `<button class="${d.category===c?"sel":""}" onclick="pickCat('${esc(c)}')">${esc(c)}</button>`).join("")}</div>`;
+    case "htype":
+      return `<div class="cat-chips">${HELMET_TYPES.map(t=>
+        `<button class="${d.htype===t?"sel":""}" onclick="pickHtype('${esc(t)}')">${esc(t)}</button>`).join("")}</div>`;
+    case "color":
+      return `<input id="wizIn" placeholder="ej: Negro mate" value="${esc(d.color||"")}">
+        <div class="color-presets">${COLOR_PRESETS.map(([nm,hx])=>
+          `<button type="button" class="cp ${d.color===nm?"sel":""}" onclick="pickColor('${esc(nm)}','${hx}')" title="${esc(nm)}">
+            <span class="sw" style="background:${hx}"></span>${esc(nm)}</button>`).join("")}</div>`;
+    case "sizes":
+      return `<div class="cat-chips">${HELMET_SIZES.map(([sz,cm])=>{
+        const on = (d.sizes||[]).includes(sz);
+        return `<button class="${on?"sel":""}" onclick="toggleSize('${sz}')">${sz} <span style="opacity:.6;font-weight:600">${cm}</span></button>`;
+      }).join("")}</div>
+      <p class="wiz-hint" style="margin-top:10px">Toca las tallas que tienes. Las que no marques saldrán agotadas en el catálogo.</p>`;
+    case "certs":
+      return `<div class="cat-chips">${CERTS.map(ct=>{
+        const on = (d.certs||[]).includes(ct);
+        return `<button class="${on?"sel":""}" onclick="toggleCert('${ct}')">🛡 ${ct}</button>`;
+      }).join("")}</div>`;
     case "compat":
       return `<input id="wizIn" placeholder="ej: Honda CG125 · Yamaha YBR · Universal" value="${esc(d.compat||"")}">`;
     case "price":
@@ -955,10 +1115,15 @@ function wizFieldHTML(s){
 
 function previewProduct(){
   const d = wiz.data;
+  const helmet = isHelmets();
   return {
     code: d.code || suggestCode() || "COD-000",
-    name: d.name || "Nombre del producto",
-    desc: d.desc || "", category: d.category || "", compat: d.compat || "",
+    name: d.name || (helmet ? "Marca y modelo" : "Nombre del producto"),
+    desc: d.desc || "",
+    category: helmet ? (d.htype || "") : (d.category || ""),
+    compat: d.compat || "",
+    htype: d.htype || "", color: d.color || "", colorHex: d.colorHex || "",
+    sizes: d.sizes || [], certs: d.certs || [],
     price: d.price || 0, mayor: d.mayor || 0, qty: d.qty ?? 1, photo: d.photo || null
   };
 }
@@ -980,9 +1145,9 @@ function recentHTML(){
 }
 
 function afterWizardRender(){
-  const s = STEPS[wiz.step];
+  const s = curSteps()[wiz.step];
   const inp = $("wizIn");
-  if(inp && s.key!=="category"){ inp.focus(); if(inp.select && inp.type!=="number") inp.setSelectionRange?.(inp.value.length, inp.value.length); }
+  if(inp && !["category","htype","sizes","certs"].includes(s.key)){ inp.focus(); if(inp.select && inp.type!=="number") inp.setSelectionRange?.(inp.value.length, inp.value.length); }
   if(inp){
     inp.addEventListener("keydown", e=>{
       if(e.key==="Enter" && !(inp.tagName==="TEXTAREA" && !e.ctrlKey)){ e.preventDefault(); wizNext(); }
@@ -1008,7 +1173,7 @@ function afterWizardRender(){
 }
 
 function refreshWizStep(){
-  $("wizField").innerHTML = wizFieldHTML(STEPS[wiz.step]);
+  $("wizField").innerHTML = wizFieldHTML(curSteps()[wiz.step]);
   afterWizardRender();
   renderLive();
 }
@@ -1018,12 +1183,13 @@ function renderLive(){
 }
 
 function captureStep(){
-  const s = STEPS[wiz.step]; const inp = $("wizIn");
+  const s = curSteps()[wiz.step]; const inp = $("wizIn");
   switch(s.key){
     case "code": wiz.data.code = (inp.value.trim() || suggestCode()).toUpperCase(); break;
     case "name": wiz.data.name = inp.value.trim(); break;
     case "desc": wiz.data.desc = inp.value.trim(); break;
     case "compat": wiz.data.compat = inp.value.trim(); break;
+    case "color": if(inp) wiz.data.color = inp.value.trim(); break;
     case "price":
       wiz.data.price = parseFloat(inp.value)||0;
       wiz.data.mayor = parseFloat($("wizIn2").value)||0; break;
@@ -1032,31 +1198,53 @@ function captureStep(){
 }
 
 function wizNext(){
+  const STEPS = curSteps();
   const s = STEPS[wiz.step];
   captureStep();
   if(s.key==="name" && !wiz.data.name){ toast("El nombre es obligatorio"); return; }
   if(s.key==="category" && !wiz.data.category){ toast("Elige una categoría"); return; }
+  if(s.key==="htype" && !wiz.data.htype){ toast("Elige el tipo de casco"); return; }
+  if(s.key==="color" && !wiz.data.color){ toast("Indica el color"); return; }
+  if(s.key==="sizes" && !(wiz.data.sizes||[]).length){ toast("Marca al menos una talla"); return; }
   if(s.key==="price" && !(wiz.data.price>0)){ toast("Ingresa el precio de venta"); return; }
   if(wiz.step === STEPS.length-1){ finishProduct(); return; }
   wiz.step++; render();
 }
 function wizPrev(){ captureStep(); if(wiz.step>0){ wiz.step--; render(); } }
 function wizSkip(){
+  const STEPS = curSteps();
   const k = STEPS[wiz.step].key;
   if(k==="photo") wiz.data.photo = wiz.data.photo || null;
   if(wiz.step === STEPS.length-1){ finishProduct(); return; }
   wiz.step++; render();
 }
 function pickCat(c){ wiz.data.category = c; setTimeout(wizNext, 120); }
+function pickHtype(t){ wiz.data.htype = t; setTimeout(wizNext, 120); }
+function pickColor(name, hex){ wiz.data.color = name; wiz.data.colorHex = hex; refreshWizStep(); }
+function toggleSize(sz){
+  const a = wiz.data.sizes = wiz.data.sizes || [];
+  const i = a.indexOf(sz); if(i<0) a.push(sz); else a.splice(i,1);
+  refreshWizStep();
+}
+function toggleCert(ct){
+  const a = wiz.data.certs = wiz.data.certs || [];
+  const i = a.indexOf(ct); if(i<0) a.push(ct); else a.splice(i,1);
+  refreshWizStep();
+}
 function useSuggested(){ $("wizIn").value = suggestCode(); $("wizIn").focus(); }
 
 function finishProduct(){
   const d = wiz.data;
-  if(!d.name){ toast("Falta el nombre del producto"); wiz.step = STEPS.findIndex(s=>s.key==="name"); render(); return; }
+  if(!d.name){ toast("Falta el nombre del producto"); wiz.step = curSteps().findIndex(s=>s.key==="name"); render(); return; }
+  const helmet = isHelmets();
   state.products.push({
     id: uid(), containerId: state.active,
     code: d.code || suggestCode(), name: d.name, desc: d.desc||"",
-    category: d.category||"Otros", compat: d.compat||"",
+    category: helmet ? (d.htype || "Cascos") : (d.category||"Otros"),
+    compat: d.compat||"",
+    htype: helmet ? (d.htype||"") : "", color: helmet ? (d.color||"") : "",
+    colorHex: helmet ? (d.colorHex||"") : "",
+    sizes: helmet ? (d.sizes||[]) : [], certs: helmet ? (d.certs||[]) : [],
     price: d.price||0, mayor: d.mayor||0, qty: d.qty??1,
     photo: d.photo||null, created: Date.now()
   });
@@ -1076,12 +1264,44 @@ function setStudio(v){ state.studioPref = !!v; save(); }
 function loadPhoto(file, cb){
   photoFromBlob(file).then(cb).catch(()=> toast("No se pudo leer la imagen"));
 }
+/* Realce tipo estudio: balance de blancos (gray-world), auto-niveles por
+   percentiles de luminancia y nitidez (unsharp mask). Deja la foto más limpia,
+   con blancos neutros y bordes definidos, sin quemar el color. */
+function enhancePixels(d, N){
+  const hist = new Uint32Array(256);
+  for(let i=0;i<d.length;i+=4){ const y=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0; hist[y]++; }
+  const clip = N*0.006; let lo=0, hi=255, acc=0;
+  for(let v=0; v<256; v++){ acc+=hist[v]; if(acc>clip){ lo=v; break; } }
+  acc=0; for(let v=255; v>=0; v--){ acc+=hist[v]; if(acc>clip){ hi=v; break; } }
+  if(hi-lo < 40){ lo=0; hi=255; }
+  const scale = 255/Math.max(1,(hi-lo));
+  let sr=0,sg=0,sb=0; for(let i=0;i<d.length;i+=4){ sr+=d[i]; sg+=d[i+1]; sb+=d[i+2]; }
+  const ar=sr/N, ag=sg/N, ab=sb/N, avg=(ar+ag+ab)/3;
+  const cl=x=>Math.max(.9,Math.min(1.1,x));
+  const wr=cl(avg/(ar||1)), wg=cl(avg/(ag||1)), wb=cl(avg/(ab||1)), wts=[wr,wg,wb];
+  for(let i=0;i<d.length;i+=4){
+    for(let c=0;c<3;c++){ let v=d[i+c]*wts[c]; v=(v-lo)*scale; d[i+c]=v<0?0:v>255?255:v; }
+  }
+}
+function sharpenPixels(d, w, h, amount){
+  const src = new Uint8ClampedArray(d);
+  for(let y=1;y<h-1;y++){
+    for(let x=1;x<w-1;x++){
+      const i=(y*w+x)*4;
+      for(let c=0;c<3;c++){
+        const j=i+c, cen=src[j];
+        const blur=(src[j-4]+src[j+4]+src[j-w*4]+src[j+w*4])*0.25;
+        let v=cen+amount*(cen-blur); d[j]=v<0?0:v>255?255:v;
+      }
+    }
+  }
+}
 async function photoFromBlob(blob){
   if(!blob.type.startsWith("image/")) throw new Error("no es imagen");
   const url = URL.createObjectURL(blob);
   try{
     const img = await loadImgEl(url);
-    const MAX = 1000;
+    const MAX = 1600;
     let w = img.width, h = img.height;
     if(Math.max(w,h) > MAX){ const k = MAX/Math.max(w,h); w = Math.round(w*k); h = Math.round(h*k); }
     const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
@@ -1101,12 +1321,17 @@ async function processStudio(src){
   try{
     const img = await loadImgEl(src);
     let w = img.naturalWidth, h = img.naturalHeight;
-    const k = Math.min(1, 1000/Math.max(w,h));
+    const k = Math.min(1, 1400/Math.max(w,h));
     w = Math.max(2, Math.round(w*k)); h = Math.max(2, Math.round(h*k));
     const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
     const cx = cv.getContext("2d", {willReadFrequently:true});
     cx.drawImage(img, 0, 0, w, h);
     const id = cx.getImageData(0, 0, w, h), d = id.data, N = w*h;
+
+    // realce de calidad (balance de blancos + niveles + nitidez)
+    enhancePixels(d, N);
+    sharpenPixels(d, w, h, 0.55);
+    cx.putImageData(id, 0, 0);
 
     let mask = null;
     let hasAlpha = false;
@@ -1146,9 +1371,10 @@ async function processStudio(src){
       }
     }
 
-    const OUT = 1000;
+    const OUT = 1400;
     const out = document.createElement("canvas"); out.width = OUT; out.height = OUT;
     const ox = out.getContext("2d");
+    ox.imageSmoothingEnabled = true; ox.imageSmoothingQuality = "high";
     const g = ox.createRadialGradient(OUT/2, OUT*0.40, OUT*0.12, OUT/2, OUT*0.55, OUT*0.9);
     g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#eaecef");
     ox.fillStyle = g; ox.fillRect(0, 0, OUT, OUT);
@@ -1182,7 +1408,7 @@ async function processStudio(src){
       const dw = w*scale, dh = h*scale;
       ox.drawImage(cv, (OUT-dw)/2, (OUT-dh)/2, dw, dh);
     }
-    return out.toDataURL("image/jpeg", 0.82);
+    return out.toDataURL("image/jpeg", 0.9);
   }catch(e){ return src; }
 }
 function featherMask(mask, w, h){
@@ -1239,6 +1465,10 @@ function catalogHTML(){
       <option value="priceAsc" ${ui.sort==="priceAsc"?"selected":""}>Precio: menor a mayor</option>
       <option value="priceDesc" ${ui.sort==="priceDesc"?"selected":""}>Precio: mayor a menor</option>
     </select>
+    ${isHelmets() ? `<div class="layout-toggle" role="group" aria-label="Diseño del catálogo">
+      <button class="${state.style.helmetLayout!=='compacto'?'sel':''}" onclick="setHelmetLayout('vitrina')" title="Vitrina premium">🖼 Vitrina</button>
+      <button class="${state.style.helmetLayout==='compacto'?'sel':''}" onclick="setHelmetLayout('compacto')" title="Compacto para imprimir">▦ Compacto</button>
+    </div>` : ""}
     <button class="btn" onclick="openStyleModal()">🎨 Personalizar</button>
     <button class="btn primary" onclick="exportPDF()">📄 Catálogo PDF</button>
     <button class="btn" onclick="openAdsModal()">📢 Publicidad</button>
@@ -1255,9 +1485,9 @@ function catalogHTML(){
 
   <div class="print-only print-cover">
     <div class="display h">HESED</div>
-    <div class="sub">Todomotos · Repuestos y accesorios</div>
+    <div class="sub">Todomotos · ${isHelmets()?"Cascos y seguridad":"Repuestos y accesorios"}</div>
     <div class="cn">${esc(c?.name||"")}</div>
-    <div class="meta">${esc(dateStr)} · ${total} productos · Precios en ${esc(cur())}</div>
+    <div class="meta">${esc(dateStr)} · ${total} ${isHelmets()?"cascos":"productos"} · Precios en ${esc(cur())}</div>
   </div>
 
   <div id="catGrid">${gridHTML(ps)}</div>
@@ -1271,12 +1501,106 @@ function gridHTML(ps){
         : `Este contenedor todavía no tiene productos.<br><br><button class="btn primary" onclick="setTab('reg')">➕ Registrar el primero</button>`}
     </div>`;
   }
+  if(isHelmets()){
+    return (state.style.helmetLayout === "compacto") ? compactoHTML(ps) : vitrinaHTML(ps);
+  }
   return `<div class="grid">${ps.map(p=>cardHTML(p)).join("")}</div>`;
 }
 
+/* ----- Layout B · Vitrina premium (un casco por fila) ----- */
+function vitrinaHTML(ps){
+  const st = state.style;
+  const spec = (k,v)=> v ? `<div class="spec"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>` : "";
+  return `<div class="vitrina ${st.upperCase?"upper":""}">${ps.map(p=>{
+    const sizes = HELMET_SIZES.map(([sz,cm])=>{
+      const on = (p.sizes||[]).includes(sz);
+      return `<span class="sz ${on?"":"off"}">${sz}${on?` · ${cm.split("–")[0]}`:""}</span>`;
+    }).join("");
+    return `<div class="vrow">
+      <div class="vstage" style="--hc:${esc(p.colorHex||"#22262e")}">
+        ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}">` : helmetSVG(p.colorHex||"#22262e")}
+      </div>
+      <div class="vinfo">
+        ${p.htype ? `<span class="vkick">${esc(p.htype)}</span>` : ""}
+        <h3>${esc(p.name)}</h3>
+        ${p.desc ? `<p class="vlead">${esc(p.desc)}</p>` : ""}
+        <div class="vspecs">
+          ${spec("Certificación",(p.certs||[]).join(" · "))}
+          ${spec("Color",p.color)}
+          <div class="spec"><span class="k">Código</span><span class="v mono">${esc(p.code)}</span></div>
+          <div class="spec"><span class="k">Stock</span><span class="v">${Number(p.qty)||0} u.</span></div>
+        </div>
+        <div class="vsizes">${sizes}</div>
+        <div class="vbuy">
+          <div>${priceCardHTML(p)}</div>
+          <button class="btn sm ghost no-print" onclick="openProduct('${p.id}')">✏️ Editar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+/* ----- Layout C · Compacto imprimible (3 por fila) ----- */
+function compactoHTML(ps){
+  const st = state.style;
+  return `<div class="compacto ${st.upperCase?"upper":""}">${ps.map(p=>{
+    const szRange = (p.sizes||[]).length ? p.sizes[0] + "–" + p.sizes[p.sizes.length-1] : "—";
+    return `<div class="ccell">
+      <div class="cmini" style="--hc:${esc(p.colorHex||"#22262e")}">
+        ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}">` : helmetSVG(p.colorHex||"#22262e")}
+      </div>
+      <div class="cmeta">
+        <div class="ccode mono">${esc(p.code)}</div>
+        <h4>${esc(p.name)}</h4>
+        <div class="cline">${esc(p.htype||"")} ${(p.certs||[]).map(c=>`<span class="tinybadge">${esc(c)}</span>`).join("")}</div>
+        <div class="cpc"><div>${priceCardHTML(p)}</div><span class="cszc">${esc(szRange)}</span></div>
+      </div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+/* casco dibujado (cuando no hay foto) */
+function helmetSVG(hc){
+  return `<svg class="helm-illu" viewBox="0 0 200 190" style="--hc:${esc(hc)}" aria-hidden="true">
+    <path class="ch" d="M40 126 C40 120 46 118 55 118 L145 118 C154 118 160 120 160 126 L156 150 C153 162 143 170 129 170 L71 170 C57 170 47 162 44 150 Z"/>
+    <path class="sh" d="M100 20 C154 20 184 58 184 114 C184 140 176 156 156 160 C150 138 128 128 100 128 C72 128 50 138 44 160 C24 156 16 140 16 114 C16 58 46 20 100 20 Z"/>
+    <path class="vi" d="M48 78 C48 66 60 60 76 60 L140 60 C154 60 160 66 160 78 L160 98 C160 110 150 116 136 116 L66 116 C54 116 48 110 48 98 Z"/>
+  </svg>`;
+}
+
+function isHelmetProduct(p){ return !!(p.htype || (p.sizes && p.sizes.length) || (p.certs && p.certs.length)); }
+function sizesHTML(p){
+  return `<div class="sizes">${HELMET_SIZES.map(([sz])=>
+    `<span class="sz ${(p.sizes||[]).includes(sz)?"":"off"}">${sz}</span>`).join("")}</div>`;
+}
+function certsHTML(p){
+  if(!(p.certs||[]).length) return "";
+  return `<div class="certs">${p.certs.map(ct=>`<span class="badge">${esc(ct)}</span>`).join("")}</div>`;
+}
 function cardHTML(p, opts={}){
   const qty = Number(p.qty)||0;
   const st = state.style;
+  if(isHelmetProduct(p) || (opts.preview && isHelmets())){
+    return `<article class="card helmet ${st.upperCase?"upper":""}">
+      <div class="ph">
+        ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}" loading="lazy">` : `<span class="noimg">🪖</span>`}
+        <span class="code-chip mono">${esc(p.code)}</span>
+        <span class="qty-chip ${qty===0?"zero":""}">×${qty}</span>
+        ${p.htype ? `<span class="type-chip">${esc(p.htype)}</span>` : ""}
+        ${certsHTML(p)}
+      </div>
+      <div class="bd">
+        <h3>${esc(p.name)}</h3>
+        ${p.color ? `<p class="color-line"><span class="dot" style="background:${esc(p.colorHex||"#888")}"></span>${esc(p.color)}</p>` : ""}
+        ${sizesHTML(p)}
+        ${st.showDesc && p.desc ? `<p class="dsc">${esc(p.desc)}</p>` : ""}
+      </div>
+      <div class="ft">
+        <div>${priceCardHTML(p)}</div>
+        ${opts.preview ? "" : `<button class="btn sm ghost edit no-print" onclick="openProduct('${p.id}')">✏️ Editar</button>`}
+      </div>
+    </article>`;
+  }
   return `<article class="card ${st.upperCase?"upper":""}">
     <div class="ph">
       ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}" loading="lazy">` : `<span class="noimg">📷</span>`}
@@ -1365,10 +1689,16 @@ function duplicateProduct(){
 
 /* ================= CONTENEDORES ================= */
 let contEditingNew = false;
+let contEditingKind = "parts";
+function pickKind(k){
+  contEditingKind = k;
+  document.querySelectorAll("#cKind .kind").forEach(b=> b.classList.toggle("sel", b.dataset.kind===k));
+}
 function openContainerModal(isNew){
   contEditingNew = !!isNew || !state.containers.length;
   const c = contEditingNew ? null : activeCont();
   $("dlgContTitle").textContent = contEditingNew ? "Nuevo contenedor" : "Editar contenedor";
+  pickKind(c?.kind || "parts");
   $("cName").value = c?.name || "";
   $("cDate").value = c?.date || new Date().toISOString().slice(0,10);
   $("cExp").value = c?.expected ?? 60;
@@ -1382,7 +1712,7 @@ function saveContainer(){
   const name = $("cName").value.trim();
   if(!name){ toast("Ponle un nombre al contenedor"); return; }
   const data = {
-    name, date: $("cDate").value,
+    name, kind: contEditingKind, date: $("cDate").value,
     expected: Math.max(0, parseInt($("cExp").value)||0),
     prefix: $("cPrefix").value.trim().toUpperCase() || autoPrefix(name),
     currency: $("cCur").value.trim() || "$"
@@ -1411,6 +1741,7 @@ function deleteContainer(){
   save(); $("dlgCont").close(); render(); toast("Contenedor eliminado");
 }
 function switchContainer(id){ state.active = id; wiz = {step:0, data:{}}; save(); render(); }
+function setHelmetLayout(v){ state.style.helmetLayout = v; save(); refreshCatalog(); }
 function setTab(t){ ui.tab = t; ui.search=""; ui.filterCat=""; render(); }
 
 /* ================= PERSONALIZAR CATÁLOGO ================= */
@@ -1645,17 +1976,26 @@ function pdfEllip(s, size, bold, maxW){
 }
 async function exportPDF(){
   const c = activeCont();
-  const items = contProducts().slice().sort((a,b)=>
+  let items = contProducts().slice().sort((a,b)=>
     a.category.localeCompare(b.category,"es") || String(a.code).localeCompare(String(b.code),"es",{numeric:true}));
   if(!items.length){ toast("El contenedor no tiene productos aún"); return; }
   toast("📄 Generando catálogo PDF…");
   const images = {};
   for(let i=0; i<items.length; i++){
     if(items[i].photo){
-      try{ images[i] = await imgToJpeg(items[i].photo, 560); }catch(e){}
+      try{ images[i] = await imgToJpeg(items[i].photo, 640); }catch(e){}
       if(i % 8 === 7) toast(`📄 Preparando fotos… ${i+1}/${items.length}`);
     }
   }
+  // para cascos: llevar tallas / certificación / color a las líneas del PDF
+  items = items.map(p=>{
+    if(!isHelmetProduct(p)) return p;
+    const sizes = (p.sizes||[]);
+    return {...p,
+      compat: sizes.length ? ("Tallas: " + HELMET_SIZES.filter(([sz])=>sizes.includes(sz)).map(([sz])=>sz).join(" · ")) : "",
+      desc: [ (p.certs||[]).length ? (p.certs.join(" · ")) : "", p.color ].filter(Boolean).join("   ·   ")
+    };
+  });
   const bytes = buildPdf(c, items, images);
   const blob = new Blob([bytes], {type:"application/pdf"});
   openExportModal(blob, (c?.name || "catalogo").replace(/[^\wÁ-ú\- ]/g,"") + ".pdf");
@@ -1712,7 +2052,7 @@ function buildPdf(c, items, images){
   let cover = "";
   cover += rect(0, H-14, W, 14, RED, true);
   cover += TC(H-300, 58, "F2", RED, "HESED");
-  cover += TC(H-322, 11, "F1", GRAY, "T O D O M O T O S   ·   R E P U E S T O S   Y   A C C E S O R I O S");
+  cover += TC(H-322, 11, "F1", GRAY, isHelmets() ? "T O D O M O T O S   ·   C A S C O S   Y   S E G U R I D A D" : "T O D O M O T O S   ·   R E P U E S T O S   Y   A C C E S O R I O S");
   cover += line(W/2-110, H-352, W/2+110, H-352, 1.2, RED);
   cover += TC(H-400, 24, "F2", DARK, c?.name || "Catálogo");
   const units = items.reduce((a,p)=>a+(Number(p.qty)||0),0);
