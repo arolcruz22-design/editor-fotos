@@ -1063,14 +1063,21 @@ function wizFieldHTML(s){
         <span style="font-size:12.5px">En el celular puedes tomarla con la cámara</span>
         <input type="file" id="wizPhotoFile" accept="image/*">
       </label>
-      <label style="display:flex; align-items:center; gap:8px; margin-top:12px; font-size:13.5px; cursor:pointer">
-        <input type="checkbox" ${studioOn() ? "checked" : ""} onchange="setStudio(this.checked)" style="width:auto">
-        ✨ Mejorar calidad (balance de blancos, nitidez, fondo de estudio) — recomendado
+      <label class="ai-opt" style="display:flex; align-items:flex-start; gap:9px; margin-top:14px; font-size:13.5px; cursor:pointer;
+        background:var(--accent-bg); border:1.5px solid var(--brand2); border-radius:12px; padding:11px 13px">
+        <input type="checkbox" ${aiOn() ? "checked" : ""} onchange="setAi(this.checked)" style="width:auto; margin-top:3px">
+        <span><b>🤖 Quitar el fondo con IA — GRATIS</b><br>
+          <span style="font-size:12px; color:var(--muted)">Recorte de estudio de verdad, ideal para fotos de celular. Corre en tu dispositivo, sin pagar y sin cuenta. La <b>primera</b> foto descarga el modelo (~40 MB) y tarda un poco; las siguientes son rápidas.</span>
+        </span>
       </label>
-      <label style="display:flex; align-items:flex-start; gap:8px; margin-top:8px; font-size:13.5px; cursor:pointer">
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:13.5px; cursor:pointer">
+        <input type="checkbox" ${studioOn() ? "checked" : ""} onchange="setStudio(this.checked)" style="width:auto">
+        ✨ Mejorar calidad (balance de blancos, nitidez, fondo de estudio)
+      </label>
+      <label style="display:flex; align-items:flex-start; gap:8px; margin-top:8px; font-size:13px; cursor:pointer; opacity:.9">
         <input type="checkbox" ${cutoutOn() ? "checked" : ""} onchange="setCutout(this.checked)" style="width:auto; margin-top:3px">
-        <span>✂️ Recortar el fondo automáticamente<br>
-          <span style="font-size:12px; color:var(--muted)">Funciona bien solo si la foto tiene fondo liso (blanco/plano). Si la foto es compleja, no se recorta para no dañarla.</span>
+        <span>✂️ Recorte sin IA (solo si apagas la IA)<br>
+          <span style="font-size:12px; color:var(--muted)">Alternativa sin internet. Funciona bien solo con fondo liso; si la foto es compleja, no recorta para no dañarla.</span>
         </span>
       </label>`;
     case "code":
@@ -1267,8 +1274,30 @@ function loadImgEl(src){
 }
 function studioOn(){ return state.studioPref !== false; }
 function setStudio(v){ state.studioPref = !!v; save(); }
-function cutoutOn(){ return state.cutoutPref === true; }   // recorte de fondo: opcional, apagado por defecto
+function cutoutOn(){ return state.cutoutPref === true; }   // recorte clásico (sin IA): opcional
 function setCutout(v){ state.cutoutPref = !!v; save(); }
+function aiOn(){ return state.aiPref !== false; }          // recorte con IA gratis en el navegador (por defecto sí)
+function setAi(v){ state.aiPref = !!v; save(); }
+
+/* ---- IA gratis de recorte de fondo (open-source, corre en el navegador) ----
+   Se descarga una sola vez (~40 MB) desde un CDN y luego queda en caché. No
+   usa cuenta ni cobra. Si no está disponible (sin internet, CDN bloqueado),
+   se cae con gracia al procesamiento normal. */
+let __bgRemovalFn = null, __bgRemovalLoading = null;
+const AI_CDN = "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.5.5/+esm";
+function loadBgRemoval(){
+  if(__bgRemovalFn) return Promise.resolve(__bgRemovalFn);
+  if(__bgRemovalLoading) return __bgRemovalLoading;
+  __bgRemovalLoading = import(/* @vite-ignore */ AI_CDN)
+    .then(m=>{ __bgRemovalFn = m.removeBackground || (m.default && m.default.removeBackground); return __bgRemovalFn; })
+    .catch(e=>{ __bgRemovalLoading = null; throw e; });
+  return __bgRemovalLoading;
+}
+async function aiRemoveBg(blob){
+  const rb = await loadBgRemoval();
+  if(!rb) throw new Error("IA no disponible");
+  return await rb(blob, { output: { format: "image/png", quality: 0.9 } });  // PNG con fondo transparente
+}
 function loadPhoto(file, cb){
   photoFromBlob(file).then(cb).catch(()=> toast("No se pudo leer la imagen"));
 }
@@ -1276,18 +1305,23 @@ function loadPhoto(file, cb){
    percentiles de luminancia y nitidez (unsharp mask). Deja la foto más limpia,
    con blancos neutros y bordes definidos, sin quemar el color. */
 function enhancePixels(d, N){
-  const hist = new Uint32Array(256);
-  for(let i=0;i<d.length;i+=4){ const y=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0; hist[y]++; }
-  const clip = N*0.006; let lo=0, hi=255, acc=0;
+  const hist = new Uint32Array(256); let cnt = 0, sr = 0, sg = 0, sb = 0;
+  for(let i=0;i<d.length;i+=4){
+    if(d[i+3] < 10) continue;                 // ignora píxeles transparentes (recorte IA)
+    const y=(d[i]*0.299+d[i+1]*0.587+d[i+2]*0.114)|0; hist[y]++; cnt++;
+    sr+=d[i]; sg+=d[i+1]; sb+=d[i+2];
+  }
+  if(cnt < 16) return;
+  const clip = cnt*0.006; let lo=0, hi=255, acc=0;
   for(let v=0; v<256; v++){ acc+=hist[v]; if(acc>clip){ lo=v; break; } }
   acc=0; for(let v=255; v>=0; v--){ acc+=hist[v]; if(acc>clip){ hi=v; break; } }
   if(hi-lo < 40){ lo=0; hi=255; }
   const scale = 255/Math.max(1,(hi-lo));
-  let sr=0,sg=0,sb=0; for(let i=0;i<d.length;i+=4){ sr+=d[i]; sg+=d[i+1]; sb+=d[i+2]; }
-  const ar=sr/N, ag=sg/N, ab=sb/N, avg=(ar+ag+ab)/3;
+  const ar=sr/cnt, ag=sg/cnt, ab=sb/cnt, avg=(ar+ag+ab)/3;
   const cl=x=>Math.max(.9,Math.min(1.1,x));
   const wr=cl(avg/(ar||1)), wg=cl(avg/(ag||1)), wb=cl(avg/(ab||1)), wts=[wr,wg,wb];
   for(let i=0;i<d.length;i+=4){
+    if(d[i+3] < 10) continue;
     for(let c=0;c<3;c++){ let v=d[i+c]*wts[c]; v=(v-lo)*scale; d[i+c]=v<0?0:v>255?255:v; }
   }
 }
@@ -1318,6 +1352,19 @@ async function photoFromBlob(blob){
     if(!isPng){ cx.fillStyle = "#ffffff"; cx.fillRect(0,0,w,h); }
     cx.drawImage(img, 0, 0, w, h);
     const raw = isPng ? cv.toDataURL("image/png") : cv.toDataURL("image/jpeg", 0.8);
+    // 1) IA gratis de recorte de fondo (si está activada): recorte limpio de
+    //    verdad + fondo de estudio. Si falla, se usa la mejora normal.
+    if(studioOn() && aiOn()){
+      try{
+        toast("🤖 Mejorando con IA… (la 1ª vez descarga el modelo, ~40 MB)");
+        const png = await aiRemoveBg(blob);
+        const purl = URL.createObjectURL(png);
+        try{ const r = await processStudio(purl); toast("✨ Foto lista con IA"); return r; }
+        finally{ URL.revokeObjectURL(purl); }
+      }catch(e){
+        toast("IA no disponible ahora — se usó la mejora normal");
+      }
+    }
     return studioOn() ? await processStudio(raw) : raw;
   } finally { URL.revokeObjectURL(url); }
 }
@@ -1348,7 +1395,7 @@ async function processStudio(src){
       // la imagen ya trae transparencia: úsala directamente
       const fg = new Uint8Array(N);
       for(let p=0; p<N; p++) fg[p] = d[p*4+3] > 60 ? 1 : 0;
-      mask = finalizeMask(fg, w, h, N);
+      mask = finalizeMask(fg, w, h, N, null, true);
     }else if(cutoutOn()){
       // recorte solo si el fondo es claramente liso; si no, no se recorta
       const border = [];
@@ -1455,14 +1502,18 @@ function fillHoles(m, w, h, N){
 /* Decide si el recorte es confiable. Si el objeto queda fragmentado, muy
    pequeño/grande o descentrado, devuelve null y NO se recorta (se conserva
    la foto completa, solo mejorada). */
-function finalizeMask(fg, w, h, N, fgCount){
+function finalizeMask(fg, w, h, N, fgCount, trusted){
   const { mask:big, area } = largestComponent(fg, w, h, N);
-  if(area < N*0.10 || area > N*0.94) return null;
-  if(fgCount && area < fgCount*0.78) return null;
-  let sx = 0, sy = 0, c = 0;
-  for(let p=0; p<N; p++) if(big[p]){ sx += p % w; sy += (p/w)|0; c++; }
-  const cxm = sx/c/w, cym = sy/c/h;
-  if(cxm < 0.25 || cxm > 0.75 || cym < 0.20 || cym > 0.84) return null;
+  if(area < N*0.006) return null;                       // prácticamente vacío
+  if(!trusted){
+    // recorte clásico: solo si es confiable (si no, no se recorta)
+    if(area < N*0.10 || area > N*0.94) return null;
+    if(fgCount && area < fgCount*0.78) return null;
+    let sx = 0, sy = 0, c = 0;
+    for(let p=0; p<N; p++) if(big[p]){ sx += p % w; sy += (p/w)|0; c++; }
+    const cxm = sx/c/w, cym = sy/c/h;
+    if(cxm < 0.25 || cxm > 0.75 || cym < 0.20 || cym > 0.84) return null;
+  }
   fillHoles(big, w, h, N);
   const out = new Uint8Array(N);
   for(let p=0; p<N; p++) out[p] = big[p] ? 255 : 0;
