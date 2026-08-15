@@ -734,18 +734,33 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
     <div class="mod-head"><h2>📸 Fotos en lote</h2><button class="x" onclick="dlgPhotos.close()" aria-label="Cerrar">✕</button></div>
     <div class="mod-body">
       <div class="hint-box">
-        💡 <b>Truco para que se asignen solas:</b> nombra cada foto con el código del producto
-        (ej: <span class="mono">C07-014.jpg</span>). Las que no coincidan las asignas a mano aquí mismo.
+        💡 Sube <b>toda la carpeta</b> de fotos. Se editan solas con IA (fondo de estudio) y, si el nombre del
+        archivo trae el código (ej: <span class="mono">C07-014.jpg</span>), se asignan solas; las demás crean un
+        producto nuevo o las asignas a mano.
       </div>
-      <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer">
+      <label class="ai-opt" style="display:flex; align-items:flex-start; gap:9px; font-size:13.5px; cursor:pointer;
+        background:var(--accent-bg); border:1.5px solid var(--brand2); border-radius:12px; padding:11px 13px">
+        <input type="checkbox" id="photosAi" onchange="setAi(this.checked)" style="width:auto; margin-top:3px">
+        <span><b>🤖 Quitar el fondo con IA — GRATIS</b><br>
+          <span style="font-size:12px; color:var(--muted)">Se procesan de una en una. La 1ª descarga el modelo (~40 MB) y tarda; luego van rápidas.</span>
+        </span>
+      </label>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13.5px; cursor:pointer">
         <input type="checkbox" id="photosStudio" checked onchange="setStudio(this.checked)" style="width:auto">
-        ✨ Editar como foto de estudio (recortar fondo, fondo blanco profesional y sombra)
+        ✨ Mejorar calidad (nitidez, balance de blancos, fondo de estudio)
       </label>
-      <label class="drop" id="photosDrop">
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
+        <button class="btn primary" type="button" onclick="$('photosFolder').click()">📁 Subir carpeta entera</button>
+        <button class="btn" type="button" onclick="$('photosFile').click()">📷 Elegir fotos sueltas</button>
+      </div>
+      <label class="drop" id="photosDrop" style="margin-top:10px">
         <span class="big">📸</span>
-        <b>Arrastra todas las fotos aquí</b> o haz clic para elegirlas
-        <input type="file" id="photosFile" accept="image/*" multiple>
+        <b>O arrastra las fotos aquí</b>
+        <input type="file" id="photosFile" accept="image/*" multiple hidden>
+        <input type="file" id="photosFolder" accept="image/*" webkitdirectory hidden>
       </label>
+      <div id="photoProgress" class="ads-progress" style="display:none; margin-top:12px"><i></i></div>
+      <div id="photoProgressTxt" style="font-size:13px; color:var(--muted); margin-top:6px"></div>
       <div id="photoResults" class="photo-rows"></div>
     </div>
     <div class="mod-foot">
@@ -1338,7 +1353,7 @@ function sharpenPixels(d, w, h, amount){
     }
   }
 }
-async function photoFromBlob(blob){
+async function photoFromBlob(blob, silent){
   if(!blob.type.startsWith("image/")) throw new Error("no es imagen");
   const url = URL.createObjectURL(blob);
   try{
@@ -1356,13 +1371,13 @@ async function photoFromBlob(blob){
     //    verdad + fondo de estudio. Si falla, se usa la mejora normal.
     if(studioOn() && aiOn()){
       try{
-        toast("🤖 Mejorando con IA… (la 1ª vez descarga el modelo, ~40 MB)");
+        if(!silent) toast("🤖 Mejorando con IA… (la 1ª vez descarga el modelo, ~40 MB)");
         const png = await aiRemoveBg(blob);
         const purl = URL.createObjectURL(png);
-        try{ const r = await processStudio(purl); toast("✨ Foto lista con IA"); return r; }
+        try{ const r = await processStudio(purl); if(!silent) toast("✨ Foto lista con IA"); return r; }
         finally{ URL.revokeObjectURL(purl); }
       }catch(e){
-        toast("IA no disponible ahora — se usó la mejora normal");
+        if(!silent) toast("IA no disponible ahora — se usó la mejora normal");
       }
     }
     return studioOn() ? await processStudio(raw) : raw;
@@ -2801,52 +2816,79 @@ function applyAiItems(){
 
 /* ===== Fotos en lote ===== */
 const normCode = s => String(s??"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+let bulkBusy = false;
 function openBulkPhotos(){
-  if(!contProducts().length){ toast("Primero importa o registra los productos"); return; }
+  if(!state.active){ toast("Primero crea un contenedor"); return; }
   bulkPhotos = [];
   $("photosStudio").checked = studioOn();
+  $("photosAi").checked = aiOn();
   $("photoResults").innerHTML = "";
   $("photoSummary").textContent = "";
+  $("photoProgress").style.display = "none";
+  $("photoProgressTxt").textContent = "";
   $("photosApplyBtn").style.display = "none";
   $("dlgPhotos").showModal();
 }
 $("photosFile").addEventListener("change", function(){ handlePhotoFiles(this.files); this.value=""; });
+$("photosFolder").addEventListener("change", function(){ handlePhotoFiles(this.files); this.value=""; });
 (function(){
   const dz = $("photosDrop");
   ["dragover","dragenter"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.add("over"); }));
   ["dragleave","drop"].forEach(ev=> dz.addEventListener(ev, e=>{ e.preventDefault(); dz.classList.remove("over"); }));
   dz.addEventListener("drop", e=> handlePhotoFiles(e.dataTransfer.files));
 })();
-function handlePhotoFiles(files){
+function cleanFileName(base){
+  return String(base||"").replace(/[_\-]+/g," ").replace(/\s+/g," ").trim().slice(0,60) || "Producto";
+}
+// Procesa las fotos UNA POR UNA (la IA no puede correr muchas a la vez) y va
+// mostrando el progreso. Cada foto se edita y se intenta asignar por su nombre.
+async function handlePhotoFiles(files){
+  if(bulkBusy){ toast("Espera a que termine el lote actual"); return; }
   const imgs = [...files].filter(f => f.type.startsWith("image/"));
   if(!imgs.length){ toast("No se encontraron imágenes"); return; }
-  let pending = imgs.length;
-  imgs.forEach(f => loadPhoto(f, url => {
-    const base = f.name.replace(/\.[^.]+$/, "");
-    const nb = normCode(base);
-    // buscar el producto cuyo código coincida (el código más largo contenido en el nombre)
-    let best = null;
-    for(const p of contProducts()){
-      const nc = normCode(p.code);
-      if(nc.length >= 3 && (nb === nc || nb.includes(nc))){
-        if(!best || nc.length > normCode(best.code).length) best = p;
+  bulkBusy = true;
+  const prog = $("photoProgress"), bar = prog.querySelector("i"), ptxt = $("photoProgressTxt");
+  prog.style.display = ""; bar.style.width = "0%";
+  const usingAI = studioOn() && aiOn();
+  for(let k=0; k<imgs.length; k++){
+    const f = imgs[k];
+    ptxt.textContent = `Editando ${k+1} de ${imgs.length}…` + (usingAI && k===0 ? "  (la 1ª descarga la IA, tarda un poco)" : "");
+    bar.style.width = Math.round(k/imgs.length*100) + "%";
+    try{
+      const url = await photoFromBlob(f, true);
+      const base = f.name.replace(/\.[^.]+$/, "");
+      const nb = normCode(base);
+      let best = null;
+      for(const p of contProducts()){
+        const nc = normCode(p.code);
+        if(nc.length >= 3 && (nb === nc || nb.includes(nc))){
+          if(!best || nc.length > normCode(best.code).length) best = p;
+        }
       }
-    }
-    bulkPhotos.push({ name: f.name, url, productId: best ? best.id : "" });
-    if(--pending === 0) renderPhotoRows();
-  }));
+      bulkPhotos.push({ name: f.name, url, newName: cleanFileName(base),
+        productId: best ? best.id : "__new__" });
+      renderPhotoRows();
+    }catch(e){ /* salta la foto que falle */ }
+  }
+  bar.style.width = "100%"; ptxt.textContent = `✓ ${bulkPhotos.length} fotos editadas — revisa y aplica`;
+  bulkBusy = false;
 }
 function renderPhotoRows(){
   const ps = contProducts();
   $("photoResults").innerHTML = bulkPhotos.map((bp,i)=>{
+    const isNew = bp.productId === "__new__";
     const matched = ps.find(p=>p.id===bp.productId);
+    const st = isNew ? `➕ Producto nuevo: <b>${esc(bp.newName)}</b>`
+      : matched ? "✓ " + esc(matched.code) + " · " + esc(matched.name)
+      : "Sin usar";
     return `<div class="photo-row">
       <img src="${bp.url}" alt="">
       <div style="min-width:0">
         <div class="fn mono">${esc(bp.name)}</div>
-        <div class="st ${matched?"ok":"no"}">${matched ? "✓ " + esc(matched.code) + " · " + esc(matched.name) : "Sin coincidencia — asígnala:"}</div>
+        <div class="st ${isNew||matched?"ok":"no"}">${st}</div>
       </div>
       <select onchange="bulkPhotos[${i}].productId=this.value; renderPhotoSummary()">
+        <option value="__new__" ${isNew?"selected":""}>➕ Crear producto nuevo</option>
         <option value="">— No usar —</option>
         ${ps.map(p=>`<option value="${p.id}" ${p.id===bp.productId?"selected":""}>${esc(p.code)} · ${esc(p.name.slice(0,30))}</option>`).join("")}
       </select>
@@ -2855,20 +2897,33 @@ function renderPhotoRows(){
   renderPhotoSummary();
 }
 function renderPhotoSummary(){
-  const n = bulkPhotos.filter(bp=>bp.productId).length;
-  $("photoSummary").textContent = `${n} de ${bulkPhotos.length} fotos asignadas`;
-  $("photosApplyBtn").style.display = n ? "" : "none";
+  const nNew = bulkPhotos.filter(bp=>bp.productId==="__new__").length;
+  const nAsg = bulkPhotos.filter(bp=>bp.productId && bp.productId!=="__new__").length;
+  $("photoSummary").textContent = `${nAsg} asignadas · ${nNew} nuevas · de ${bulkPhotos.length}`;
+  $("photosApplyBtn").style.display = (nNew+nAsg) ? "" : "none";
 }
 function applyBulkPhotos(){
+  const helmet = isHelmets();
   let n = 0;
   bulkPhotos.forEach(bp => {
-    const p = state.products.find(x => x.id === bp.productId);
-    if(p){ p.photo = bp.url; n++; }
+    if(bp.productId === "__new__"){
+      state.products.push({
+        id: uid(), containerId: state.active,
+        code: suggestCode(), name: bp.newName || "Producto", desc: "",
+        category: helmet ? "Cascos" : "Otros", compat: "",
+        htype: "", color: "", colorHex: "", sizes: [], certs: [],
+        price: 0, mayor: 0, qty: 1, photo: bp.url, created: Date.now()
+      });
+      n++;
+    }else{
+      const p = state.products.find(x => x.id === bp.productId);
+      if(p){ p.photo = bp.url; n++; }
+    }
   });
   save();
   $("dlgPhotos").close();
   render();
-  toast(`📸 ${n} fotos asignadas a sus productos`);
+  toast(`📸 ${n} fotos aplicadas${isHelmets()?" — completa tipo/tallas de los cascos nuevos":""}`);
 }
 
 /* ================= PUBLICIDAD (imágenes para redes) ================= */
