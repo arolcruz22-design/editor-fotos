@@ -1458,7 +1458,7 @@ async function photoFromBlob(blob, silent){
   const url = URL.createObjectURL(blob);
   try{
     const img = await loadImgEl(url);
-    const MAX = 1600;
+    const MAX = 2000;   // suficiente detalle para publicidad en 4K
     let w = img.width, h = img.height;
     if(Math.max(w,h) > MAX){ const k = MAX/Math.max(w,h); w = Math.round(w*k); h = Math.round(h*k); }
     const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
@@ -1541,7 +1541,7 @@ async function processStudio(src){
       }
     }
 
-    const OUT = 1400;
+    const OUT = 2000;   // suficiente detalle para publicidad en 4K
     const out = document.createElement("canvas"); out.width = OUT; out.height = OUT;
     const ox = out.getContext("2d");
     ox.imageSmoothingEnabled = true; ox.imageSmoothingQuality = "high";
@@ -3379,7 +3379,10 @@ function wrapCanvasText(cx, text, maxW, maxLines){
   }
   return lines;
 }
-const AD_RATIOS = { "1:1":[1080,1080], "4:5":[1080,1350], "9:16":[1080,1920], "16:9":[1920,1080] };
+// Resolución x2 sobre el tamaño estándar de redes (todo el dibujo usa un
+// factor "u" relativo a 1080, así que esto sube nítidamente texto, fondo y
+// producto sin tocar el resto del código). 16:9 y 9:16 quedan en 4K real.
+const AD_RATIOS = { "1:1":[2160,2160], "4:5":[2160,2700], "9:16":[2160,3840], "16:9":[3840,2160] };
 const AD_RATIO_LABELS = { "1:1":"1:1 · Post", "4:5":"4:5 · Feed", "9:16":"9:16 · Historia", "16:9":"16:9 · Ancho" };
 const AD_BGS = { studio:"Blanco estudio", light:"Gris claro", brandgrad:"Degradado marca", dark:"Estudio oscuro", black:"Negro", solid:"Color de marca", transparent:"Transparente (PNG)" };
 function defaultAdOpts(){
@@ -3400,7 +3403,7 @@ function roundRectPath(cx,x,y,w,h,r){
 // bordes o usa la transparencia existente, y devuelve un lienzo con el producto
 // recortado (fondo transparente), o null si el fondo es demasiado complejo.
 function cutoutCanvas(img){
-  const MAX = 760; let w = img.naturalWidth, h = img.naturalHeight;
+  const MAX = 1800; let w = img.naturalWidth, h = img.naturalHeight;   // suficiente para publicidad en 4K
   const k = Math.min(1, MAX/Math.max(w,h)); w = Math.max(2,Math.round(w*k)); h = Math.max(2,Math.round(h*k));
   const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
   const cx = cv.getContext("2d",{willReadFrequently:true});
@@ -3584,7 +3587,7 @@ async function adBlobFor(p){
   if(adCache[p.id]) return adCache[p.id];
   const cv = await renderAd(p);
   const png = adIsPng();
-  const blob = await new Promise(res=> cv.toBlob(b=>res(b), png?"image/png":"image/jpeg", png?undefined:0.9));
+  const blob = await new Promise(res=> cv.toBlob(b=>res(b), png?"image/png":"image/jpeg", png?undefined:0.95));
   adCache[p.id] = blob;
   return blob;
 }
