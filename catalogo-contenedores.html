@@ -920,11 +920,28 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
       </div>
       <div class="f2">
         <div><label for="pCode">Código</label><input id="pCode" class="mono"></div>
-        <div><label for="pCat">Categoría</label><select id="pCat"></select></div>
+        <div><label for="pCat" id="pCatLabel">Categoría</label><select id="pCat"></select></div>
       </div>
       <div><label for="pName">Nombre</label><input id="pName"></div>
-      <div><label for="pDesc">Descripción</label><textarea id="pDesc" rows="2"></textarea></div>
-      <div><label for="pCompat">Compatibilidad (motos)</label><input id="pCompat" placeholder="ej: Honda CG125 · Yamaha YBR"></div>
+      <div><label for="pDesc" id="pDescLabel">Descripción</label><textarea id="pDesc" rows="2"></textarea></div>
+      <div id="pCompatRow"><label for="pCompat">Compatibilidad (motos)</label><input id="pCompat" placeholder="ej: Honda CG125 · Yamaha YBR"></div>
+      <div id="pHelmetFields" style="display:none; flex-direction:column; gap:14px">
+        <div>
+          <label for="pColor">Color</label>
+          <div style="display:flex; gap:8px">
+            <input id="pColor" placeholder="ej: Negro mate" style="flex:1">
+            <input id="pColorHex" type="color" value="#c0392b" style="width:44px; padding:2px; height:auto">
+          </div>
+        </div>
+        <div>
+          <label>Tallas disponibles</label>
+          <div class="cat-chips" id="pSizes"></div>
+        </div>
+        <div>
+          <label>Certificación</label>
+          <div class="cat-chips" id="pCerts"></div>
+        </div>
+      </div>
       <div class="f2">
         <div><label for="pPrice">Precio venta</label><input id="pPrice" type="number" step="0.01" min="0"></div>
         <div><label for="pMayor">Precio por mayor</label><input id="pMayor" type="number" step="0.01" min="0"></div>
@@ -1949,12 +1966,49 @@ function refreshCatalog(){
 function openProduct(id){
   const p = state.products.find(x=>x.id===id); if(!p) return;
   ui.editingId = id; ui.editPhoto = undefined;
+  ui.editSizes = (p.sizes||[]).slice();
+  ui.editCerts = (p.certs||[]).slice();
   $("pCode").value = p.code; $("pName").value = p.name; $("pDesc").value = p.desc;
   $("pCompat").value = p.compat; $("pPrice").value = p.price||""; $("pMayor").value = p.mayor||"";
   $("pQty").value = p.qty;
-  $("pCat").innerHTML = CATEGORIES.map(c=>`<option ${c===p.category?"selected":""}>${esc(c)}</option>`).join("");
+  const helmet = isHelmets();
+  $("pCatLabel").textContent = helmet ? "Tipo de casco" : "Categoría";
+  $("pDescLabel").textContent = helmet ? "Características" : "Descripción";
+  if(helmet){
+    $("pCat").innerHTML = `<option value="">— Sin definir —</option>` +
+      HELMET_TYPES.map(c=>`<option ${c===p.htype?"selected":""}>${esc(c)}</option>`).join("");
+    $("pCompatRow").style.display = "none";
+    $("pHelmetFields").style.display = "flex";
+    $("pColor").value = p.color || "";
+    $("pColorHex").value = p.colorHex || "#c0392b";
+    renderPSizes(); renderPCerts();
+  }else{
+    $("pCat").innerHTML = CATEGORIES.map(c=>`<option ${c===p.category?"selected":""}>${esc(c)}</option>`).join("");
+    $("pCompatRow").style.display = "";
+    $("pHelmetFields").style.display = "none";
+  }
   $("pPhotoBox").innerHTML = p.photo ? `<img src="${p.photo}" alt="">` : `<span class="noph">📷</span>`;
   $("dlgProd").showModal();
+}
+function renderPSizes(){
+  $("pSizes").innerHTML = HELMET_SIZES.map(([sz,cm])=>{
+    const on = ui.editSizes.includes(sz);
+    return `<button type="button" class="${on?"sel":""}" onclick="togglePSize('${sz}')">${sz} <span style="opacity:.6;font-weight:600">${cm}</span></button>`;
+  }).join("");
+}
+function togglePSize(sz){
+  const i = ui.editSizes.indexOf(sz); if(i<0) ui.editSizes.push(sz); else ui.editSizes.splice(i,1);
+  renderPSizes();
+}
+function renderPCerts(){
+  $("pCerts").innerHTML = CERTS.map(ct=>{
+    const on = ui.editCerts.includes(ct);
+    return `<button type="button" class="${on?"sel":""}" onclick="togglePCert('${ct}')">🛡 ${ct}</button>`;
+  }).join("");
+}
+function togglePCert(ct){
+  const i = ui.editCerts.indexOf(ct); if(i<0) ui.editCerts.push(ct); else ui.editCerts.splice(i,1);
+  renderPCerts();
 }
 $("pPhotoFile").addEventListener("change", function(){
   if(this.files[0]) loadPhoto(this.files[0], url=>{
@@ -1968,12 +2022,22 @@ function saveProduct(){
   p.code = $("pCode").value.trim().toUpperCase() || p.code;
   p.name = $("pName").value.trim() || p.name;
   p.desc = $("pDesc").value.trim();
-  p.category = $("pCat").value;
-  p.compat = $("pCompat").value.trim();
   p.price = parseFloat($("pPrice").value)||0;
   p.mayor = parseFloat($("pMayor").value)||0;
   p.qty = Math.max(0, parseInt($("pQty").value)||0);
   if(ui.editPhoto !== undefined) p.photo = ui.editPhoto;
+  if(isHelmets()){
+    p.htype = $("pCat").value;
+    p.category = p.htype || "Cascos";
+    p.color = $("pColor").value.trim();
+    p.colorHex = p.color ? $("pColorHex").value : "";
+    p.sizes = ui.editSizes.slice();
+    p.certs = ui.editCerts.slice();
+    p.compat = "";
+  }else{
+    p.category = $("pCat").value;
+    p.compat = $("pCompat").value.trim();
+  }
   save(); $("dlgProd").close(); render(); toast("✅ Producto actualizado");
 }
 function deleteProduct(){
