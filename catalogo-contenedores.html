@@ -777,12 +777,14 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
         </p>
         <textarea id="bulkText" placeholder="CÓDIGO&#9;PRODUCTO&#9;PRECIO&#9;CANT&#10;C07-001&#9;Kit de arrastre 428H&#9;35.50&#9;12&#10;C07-002&#9;Foco LED H4&#9;18.00&#9;30&#10;…"></textarea>
         <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap">
-          <button class="btn primary" onclick="bulkFile.click()">🚢 Subir proforma (.xlsx / CSV)</button>
+          <button class="btn primary" id="bulkFileBtn" onclick="bulkFile.click()">🚢 Subir proforma (.xlsx / CSV)</button>
           <input type="file" id="bulkFile" accept=".csv,.tsv,.txt,.xlsx,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none">
           <button class="btn" id="bulkAiBtn" style="display:none" onclick="aiParseBulk()">🤖 Detectar con IA (texto desordenado)</button>
           <span class="spacer" style="flex:1"></span>
           <button class="btn" onclick="analyzeBulk()">Analizar lo pegado →</button>
         </div>
+        <div id="xlsxProgress" class="ads-progress" style="display:none; margin-top:12px"><i></i></div>
+        <div id="xlsxProgressTxt" style="font-size:13px; color:var(--muted); margin-top:6px"></div>
       </div>
       <div id="bulkStepMap" style="display:none">
         <p style="margin:0 0 8px; color:var(--muted); font-size:13.5px">Revisa qué es cada columna — la app ya hizo su mejor intento:</p>
@@ -2784,20 +2786,30 @@ function resetBulk(){
   $("bulkStepPrev").style.display = "none";
   $("bulkImportBtn").style.display = "none";
 }
+function xlsxProgress(show, text, pct){
+  $("xlsxProgress").style.display = show ? "" : "none";
+  $("xlsxProgressTxt").textContent = text || "";
+  if(show) $("xlsxProgress").querySelector("i").style.width = (pct!=null ? pct : 8) + "%";
+}
 $("bulkFile").addEventListener("change", async function(){
   const f = this.files[0]; this.value = ""; if(!f) return;
   const isXlsx = /\.xlsx$/i.test(f.name) || f.type.includes("spreadsheetml");
   if(isXlsx){
-    toast("📄 Leyendo la proforma (datos y fotos)…");
+    $("bulkFileBtn").disabled = true;
+    xlsxProgress(true, "📄 Leyendo la proforma…", 8);
     try{
       const src = await parseXlsx(f);
-      if(!src.rows.length){ toast("La proforma no tiene filas con datos"); return; }
+      if(!src.rows.length){ xlsxProgress(false); toast("La proforma no tiene filas con datos"); return; }
       analyzeSource(src);
       const nImg = Object.keys(src.imgs).length;
+      xlsxProgress(false);
       toast(nImg ? `✅ Proforma leída: ${bulk.items.length} ítems y ${nImg} fotos encontradas` : `✅ Proforma leída: ${bulk.items.length} ítems`);
     }catch(e){
       console.error(e);
+      xlsxProgress(false);
       toast("⚠️ No se pudo leer el .xlsx — guárdalo como CSV e inténtalo de nuevo");
+    }finally{
+      $("bulkFileBtn").disabled = false;
     }
     return;
   }
@@ -2903,9 +2915,11 @@ async function parseXlsx(file){
       if(!blob) continue;
       const type = /\.png$/i.test(a.target) ? "image/png" : "image/jpeg";
       try{
-        imgs[a.row] = await photoFromBlob(new Blob([blob], {type}));
+        xlsxProgress(true, `🖼 Editando fotos con IA… ${done+1}/${anchors.length}`
+          + (done===0 && studioOn() && aiOn() ? "  (la 1ª descarga el modelo, ~40 MB — puede tardar)" : ""),
+          10 + Math.round((done/anchors.length)*85));
+        imgs[a.row] = await photoFromBlob(new Blob([blob], {type}), true);
         done++;
-        if(done % 5 === 0) toast(`🖼 Procesando fotos… ${done}/${anchors.length}`);
       }catch(e){ /* imagen ilegible: continuar */ }
     }
   }
