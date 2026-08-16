@@ -338,7 +338,6 @@ kbd{
 .pedcard .price small{font-size:12px; color:#8A7D63; font-weight:700; margin-right:2px}
 .pedcard .price.pending{color:#A69A85 !important}
 .pedcard .mayor{font-size:11px; color:#8A7D63; font-variant-numeric:tabular-nums}
-.pedcard .stock{font-size:11px; font-weight:700; color:var(--ok); white-space:nowrap}
 .pedcard .editmini{position:absolute; top:8px; right:8px; z-index:2; width:28px; height:28px; border-radius:50%;
   background:rgba(255,255,255,.88); border:1px solid #EDE7DA; font-size:13px; display:grid; place-items:center;
   box-shadow:var(--shadow)}
@@ -1787,7 +1786,7 @@ function pedestalHTML(ps){
         ${p.htype ? `<span class="kick">${esc(p.htype)}</span>` : `<span class="kick pending">Tipo por definir</span>`}
         <h3>${esc(p.name)}</h3>
         <div class="chips">${chips.join("")}</div>
-        <div class="foot"><div>${priceCardHTML(p)}</div><span class="stock">${Number(p.qty)||0} en stock</span></div>
+        <div class="foot"><div>${priceCardHTML(p)}</div></div>
       </div>
     </article>`;
   }).join("")}</div>`;
@@ -1897,7 +1896,6 @@ function cardHTML(p, opts={}){
       <div class="ph">
         ${p.photo ? `<img src="${p.photo}" alt="${esc(p.name)}" loading="lazy">` : `<span class="noimg">🪖</span>`}
         <span class="code-chip mono">${esc(p.code)}</span>
-        <span class="qty-chip ${qty===0?"zero":""}">×${qty}</span>
         ${p.htype ? `<span class="type-chip">${esc(p.htype)}</span>` : ""}
         ${certsHTML(p)}
       </div>
@@ -2465,7 +2463,7 @@ function buildPdf(c, items, images){
   if(helmetPdfStyle === "pedestal"){
     // ----- versión PDF de "Pedestal": cuadrícula cálida, tarjeta con marco crema -----
     const CREAM = "0.980 0.972 0.957", CREAM_LN = "0.929 0.906 0.855",
-          INKW = "0.133 0.114 0.086", MUTEDW = "0.541 0.482 0.388", OKG = "0.118 0.624 0.353";
+          INKW = "0.133 0.114 0.086", MUTEDW = "0.541 0.482 0.388";
     const cols2 = Math.max(2, cols);
     const cardW = (W - mx*2 - gx*(cols2-1)) / cols2;
     const imgSize = cardW - 26;
@@ -2501,7 +2499,6 @@ function buildPdf(c, items, images){
           const hasPv = mode === "wholesale" ? Number(p.mayor)>0 : Number(p.price)>0;
           s += hasPv ? T(x+13, priceY, szPrice*0.82, "F2", ORANGE, fmt(pv)) : T(x+13, priceY, 9, "F1", MUTEDW, "Precio pendiente");
         }
-        s += TR(x+cardW-13, priceY+3, 8, "F1", OKG, (Number(p.qty)||0)+" en stock");
       });
       pages.push(s);
     }
