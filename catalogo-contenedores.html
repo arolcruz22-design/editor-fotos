@@ -769,8 +769,16 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
       <div id="bulkStepIn">
         <div class="hint-box" style="margin-bottom:12px">
           🚢 <b>Sube directamente tu proforma Excel (.xlsx)</b> — la app saca sola los códigos, descripciones,
-          modelos, cantidades, precios <b>y hasta las fotos que vienen dentro del archivo</b>, ya editadas estilo estudio.
+          modelos, cantidades, precios <b>y hasta las fotos que vienen dentro del archivo</b>.
         </div>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer; margin-bottom:6px">
+          <input type="checkbox" id="bulkStudioChk" onchange="setStudio(this.checked)" style="width:auto">
+          ✨ Mejorar las fotos (nitidez, fondo de estudio) — desactívalo si las fotos del proveedor ya son profesionales
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer; margin-bottom:12px">
+          <input type="checkbox" id="bulkAiChk" onchange="setAi(this.checked)" style="width:auto">
+          🤖 Recortar fondo con IA (más lento, no siempre queda perfecto)
+        </label>
         <p style="margin:0 0 10px; color:var(--muted); font-size:13.5px">
           O pega aquí la lista <b>copiada directo desde Excel</b> / factura / packing list:
         </p>
@@ -2762,6 +2770,8 @@ let bulkPhotos = [];
 function openBulk(){
   resetBulk();
   $("bulkAiBtn").style.display = (typeof window.claude?.complete === "function") ? "" : "none";
+  $("bulkStudioChk").checked = studioOn();
+  $("bulkAiChk").checked = aiOn();
   $("dlgBulk").showModal();
   $("bulkText").focus();
 }
@@ -2791,7 +2801,9 @@ $("bulkFile").addEventListener("change", async function(){
       analyzeSource(src);
       const nImg = Object.keys(src.imgs).length;
       xlsxProgress(false);
-      toast(nImg ? `✅ Proforma leída: ${bulk.items.length} ítems y ${nImg} fotos encontradas` : `✅ Proforma leída: ${bulk.items.length} ítems`);
+      let msg = nImg ? `✅ Proforma leída: ${bulk.items.length} ítems y ${nImg} fotos encontradas` : `✅ Proforma leída: ${bulk.items.length} ítems`;
+      if(src.failedImgs) msg += ` — ${src.failedImgs} foto${src.failedImgs===1?"":"s"} no se ${src.failedImgs===1?"pudo":"pudieron"} leer, agrégala${src.failedImgs===1?"":"s"} a mano`;
+      toast(msg);
     }catch(e){
       console.error(e);
       xlsxProgress(false);
@@ -2872,17 +2884,18 @@ async function parseXlsx(file){
   }
   // fotos incrustadas, ancladas a su fila
   const imgs = {};
+  let failedImgs = 0;
   const relsDoc = await xml(sheetPath.replace("worksheets/", "worksheets/_rels/") + ".rels");
   let drawingPath = null;
   if(relsDoc) for(const rel of relsDoc.getElementsByTagNameNS("*","Relationship")){
-    if(/drawing/i.test(rel.getAttribute("Type"))) drawingPath = rel.getAttribute("Target").replace(/^(\.\.\/|\/xl\/)/, "xl/").replace(/^(?!xl\/)/, "xl/");
+    if(/drawing/i.test(rel.getAttribute("Type"))) drawingPath = zipResolve(sheetPath, rel.getAttribute("Target"));
   }
   if(drawingPath){
     const dDoc = await xml(drawingPath);
-    const dRels = await xml(drawingPath.replace("drawings/", "drawings/_rels/") + ".rels");
+    const dRels = await xml(drawingPath.replace(/([^/]+)$/, "_rels/$1") + ".rels");
     const relMap = {};
     if(dRels) for(const rel of dRels.getElementsByTagNameNS("*","Relationship")){
-      relMap[rel.getAttribute("Id")] = rel.getAttribute("Target").replace(/^\.\.\//, "xl/");
+      relMap[rel.getAttribute("Id")] = zipResolve(drawingPath, rel.getAttribute("Target"));
     }
     const anchors = [];
     for(const tag of ["twoCellAnchor","oneCellAnchor"]){
@@ -2893,25 +2906,66 @@ async function parseXlsx(file){
         const row = parseInt(from.getElementsByTagNameNS("*","row")[0]?.textContent ?? "-1");
         const rid = blip.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships","embed") || blip.getAttribute("r:embed");
         const target = relMap[rid];
-        if(row >= 0 && target) anchors.push({row: row + 1, target});
+        // rotación/espejo que la persona haya aplicado a mano dentro de Excel
+        // (si no se lee, la foto queda "de lado" aunque el archivo esté bien)
+        const xfrm = an.getElementsByTagNameNS("*","xfrm")[0];
+        const rot = xfrm ? (parseInt(xfrm.getAttribute("rot")||"0",10) / 60000) : 0;
+        const flipH = xfrm?.getAttribute("flipH") === "1", flipV = xfrm?.getAttribute("flipV") === "1";
+        if(row >= 0 && target) anchors.push({row: row + 1, target, rot, flipH, flipV});
       }
     }
     let done = 0;
     for(const a of anchors){
       if(imgs[a.row]) continue;
-      const blob = await zip.read(a.target);
-      if(!blob) continue;
-      const type = /\.png$/i.test(a.target) ? "image/png" : "image/jpeg";
       try{
+        const blob = await zip.read(a.target);
+        if(!blob) throw new Error("no se encontró la imagen en el archivo");
+        const type = /\.png$/i.test(a.target) ? "image/png" : "image/jpeg";
         xlsxProgress(true, `🖼 Editando fotos con IA… ${done+1}/${anchors.length}`
           + (done===0 && studioOn() && aiOn() ? "  (la 1ª descarga el modelo, ~40 MB — puede tardar)" : ""),
           10 + Math.round((done/anchors.length)*85));
-        imgs[a.row] = await photoFromBlob(new Blob([blob], {type}), true);
+        let photoBlob = new Blob([blob], {type});
+        if(a.rot || a.flipH || a.flipV) photoBlob = await rotateFlipBlob(photoBlob, a.rot, a.flipH, a.flipV);
+        imgs[a.row] = await photoFromBlob(photoBlob, true);
         done++;
-      }catch(e){ /* imagen ilegible: continuar */ }
+      }catch(e){ failedImgs++; }
     }
   }
-  return {rows, imgs};
+  return {rows, imgs, failedImgs};
+}
+// Resuelve una ruta relativa de OPC/Excel (../, ./, subcarpetas) contra la
+// carpeta del archivo que la referencia — más robusto que asumir un único
+// formato de ruta, que es lo que hacía que algunas fotos no se encontraran.
+function zipResolve(basePath, rel){
+  if(!rel) return null;
+  if(/^https?:/i.test(rel)) return null;
+  if(rel.startsWith("/")) return rel.slice(1);
+  const stack = basePath.split("/").slice(0, -1);
+  for(const part of rel.split("/")){
+    if(part === "" || part === ".") continue;
+    if(part === "..") stack.pop();
+    else stack.push(part);
+  }
+  return stack.join("/");
+}
+// Aplica la rotación/espejo que Excel guardó para la imagen (gira → mismo
+// orden que usa PowerPoint/Excel: espejo primero, luego rotación).
+async function rotateFlipBlob(blob, degrees, flipH, flipV){
+  const url = URL.createObjectURL(blob);
+  try{
+    const img = await loadImgEl(url);
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const norm = ((Math.round(degrees/90)*90) % 360 + 360) % 360;
+    const swap = norm === 90 || norm === 270;
+    const cv = document.createElement("canvas");
+    cv.width = swap ? ih : iw; cv.height = swap ? iw : ih;
+    const cx = cv.getContext("2d");
+    cx.translate(cv.width/2, cv.height/2);
+    cx.rotate(degrees * Math.PI/180);
+    cx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
+    cx.drawImage(img, -iw/2, -ih/2);
+    return await new Promise(res=> cv.toBlob(b=>res(b), blob.type||"image/png", 0.95));
+  }finally{ URL.revokeObjectURL(url); }
 }
 
 function parseTable(text){
