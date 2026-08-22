@@ -71,6 +71,20 @@ def _foreground_mask(np_img):
         coverage = soft.mean() / 255.0
         if coverage < 0.05 or coverage > 0.97:
             return None
+        # Also reject masks that only cover a small fragment of the seed
+        # rectangle (e.g. a low-contrast product against a similarly light
+        # background can make GrabCut latch onto a single high-contrast
+        # detail - like a dark visor - and drop the rest of the product).
+        # A real product silhouette should span most of the rect on both
+        # axes; a mask that doesn't is more likely a bad segmentation than
+        # a genuinely tiny product, so we fall back to the uncropped photo.
+        ys, xs = np.where(soft > 0)
+        if len(xs) == 0:
+            return None
+        bbox_w = (xs.max() - xs.min()) / rect[2]
+        bbox_h = (ys.max() - ys.min()) / rect[3]
+        if bbox_w < 0.4 or bbox_h < 0.4:
+            return None
         soft = cv2.GaussianBlur(soft, (9, 9), 0)
         return soft
     except cv2.error:
@@ -117,10 +131,18 @@ def _crop_to_mask(img, mask_arr, padding_ratio=0.12):
     return img.crop((x0, y0, x1, y1))
 
 
-def _square_canvas(img, size, background_rgb=None):
-    """Center `img` (RGB or RGBA) on a square canvas of `size`x`size`."""
+def _square_canvas(img, size, background_rgb=None, fill_ratio=0.9):
+    """Center `img` (RGB or RGBA) on a square canvas of `size`x`size`,
+    scaling it (up OR down, unlike PIL's shrink-only .thumbnail) so its
+    longest side fills `fill_ratio` of the canvas. Without this, a photo
+    that was tightly cropped to the helmet (a small pixel region) would
+    stay at its native crop size and end up as a tiny island surrounded
+    by background instead of a properly framed product shot."""
     img = img.copy()
-    img.thumbnail((size, size), Image.LANCZOS)
+    target = max(1, int(size * fill_ratio))
+    scale = target / max(img.width, img.height)
+    new_size = (max(1, round(img.width * scale)), max(1, round(img.height * scale)))
+    img = img.resize(new_size, Image.LANCZOS)
     mode = "RGBA" if img.mode == "RGBA" else "RGB"
     if mode == "RGBA":
         canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
