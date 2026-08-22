@@ -1560,6 +1560,7 @@ async function processStudio(src){
       // Se recortó de verdad: se guarda CON TRANSPARENCIA (PNG), sin fondo
       // blanco pegado, para que cada estilo de catálogo pueda ponerle su
       // propio fondo sin que se note una "costura" rectangular.
+      decontaminateEdges(d, mask, w, h, 2);
       featherMask(mask, w, h);
       for(let p=0; p<N; p++) d[p*4+3] = mask[p];
       cx.putImageData(id, 0, 0);
@@ -1649,6 +1650,42 @@ function finalizeMask(fg, w, h, N, fgCount, trusted){
   const out = new Uint8Array(N);
   for(let p=0; p<N; p++) out[p] = big[p] ? 255 : 0;
   return out;
+}
+/* Antes de difuminar el borde de la máscara, "expande" el color del producto
+   hacia afuera unos píxeles para que el anillo semitransparente muestre el
+   color real del casco y no el del fondo original (evita el aura/halo de
+   color que se ve al recortar sobre un fondo de estudio azulado o gris). */
+function decontaminateEdges(d, mask, w, h, radius){
+  const N = w*h;
+  const filled = new Uint8Array(N);
+  for(let p=0; p<N; p++) filled[p] = mask[p] > 200 ? 1 : 0;
+  const r = new Float32Array(N), g = new Float32Array(N), b = new Float32Array(N);
+  for(let p=0; p<N; p++){ r[p]=d[p*4]; g[p]=d[p*4+1]; b[p]=d[p*4+2]; }
+  for(let it=0; it<radius; it++){
+    const nf = filled.slice();
+    for(let y=0; y<h; y++){
+      for(let x=0; x<w; x++){
+        const p = y*w+x;
+        if(filled[p]) continue;
+        let sr=0, sg=0, sb=0, c=0;
+        const tryN = (xx,yy)=>{
+          if(xx<0||xx>=w||yy<0||yy>=h) return;
+          const q = yy*w+xx;
+          if(filled[q]){ sr+=r[q]; sg+=g[q]; sb+=b[q]; c++; }
+        };
+        tryN(x-1,y); tryN(x+1,y); tryN(x,y-1); tryN(x,y+1);
+        if(c){ r[p]=sr/c; g[p]=sg/c; b[p]=sb/c; nf[p]=1; }
+      }
+    }
+    filled.set(nf);
+  }
+  for(let p=0; p<N; p++){
+    // era fondo, pero queda a "radius" píxeles del objeto: es justo el aro
+    // que featherMask() va a volver semitransparente a continuación.
+    if(mask[p] <= 200 && filled[p]){
+      d[p*4]=r[p]; d[p*4+1]=g[p]; d[p*4+2]=b[p];
+    }
+  }
 }
 function featherMask(mask, w, h){
   const out = new Uint8Array(mask.length);
@@ -3644,6 +3681,7 @@ function cutoutCanvas(img){
     }
   }
   if(!mask) return null;
+  decontaminateEdges(d, mask, w, h, 2);
   featherMask(mask,w,h);
   for(let q=0;q<N;q++) d[q*4+3] = mask[q];
   cx.putImageData(id,0,0);
