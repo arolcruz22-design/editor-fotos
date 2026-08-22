@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TODOMOTOS · Catalog Studio</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>&#127942;</text></svg>">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="logo">TM</div>
+    <div class="brand-text">
+      <b>TODOMOTOS</b>
+      <span>CATALOG STUDIO</span>
+    </div>
+  </div>
+  <div class="topbar-project">
+    <span id="projectName" class="project-name">Sin proyecto</span>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn btn-ghost" id="btnNewProject">Nuevo</button>
+  <button class="btn btn-ghost" id="btnOpenProject">Abrir</button>
+  <button class="btn btn-ghost" id="btnSaveProject">Guardar</button>
+  <button class="btn btn-ghost" id="btnConfig">Configuracion</button>
+</div>
+
+<div class="steps-nav" id="stepsNav">
+  <div class="step-pill" data-step="0">1. Excel</div>
+  <div class="step-pill" data-step="1">2. Datos</div>
+  <div class="step-pill" data-step="2">3. Fotos</div>
+  <div class="step-pill" data-step="3">4. Asociacion</div>
+  <div class="step-pill" data-step="4">5. Mejora</div>
+  <div class="step-pill" data-step="5">6. Edicion</div>
+  <div class="step-pill" data-step="6">7. Validacion</div>
+  <div class="step-pill" data-step="7">8. PDF</div>
+</div>
+
+<main class="app-main">
+
+  <!-- STEP 0: Excel upload -->
+  <section class="view" data-view="0">
+    <div class="hero-panel">
+      <h1>EXCEL <span class="accent">+</span> FOTOS <span class="accent">=</span> CATALOGO</h1>
+      <p class="lead">Selecciona tu archivo Excel de cascos. El sistema detecta las columnas automaticamente.</p>
+      <div class="dropzone" id="excelDrop">
+        <input type="file" id="excelInput" accept=".xlsx,.xls,.csv" hidden>
+        <div class="dropzone-icon">&#128196;</div>
+        <div class="dropzone-text">Arrastra tu Excel aqui o haz clic para seleccionar</div>
+        <div class="dropzone-sub" id="excelFileName">Ningun archivo seleccionado</div>
+      </div>
+      <div class="actions-row">
+        <button class="btn btn-accent btn-lg" id="btnAnalyzeExcel" disabled>ANALIZAR EXCEL</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 1: Column mapping -->
+  <section class="view" data-view="1">
+    <div class="panel">
+      <h2>DATOS DETECTADOS</h2>
+      <p class="lead" id="productCountLine">Productos encontrados: <b>0</b></p>
+      <div id="mappingGrid" class="mapping-grid"></div>
+      <div class="actions-row">
+        <button class="btn btn-accent btn-lg" id="btnConfirmData">CONFIRMAR DATOS</button>
+      </div>
+      <div class="preview-table-wrap">
+        <table class="preview-table" id="previewTable"></table>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 2: Photos upload -->
+  <section class="view" data-view="2">
+    <div class="panel">
+      <h2>FOTOGRAFIAS</h2>
+      <p class="lead">Selecciona la carpeta completa con las fotografias de los cascos.</p>
+      <div class="dropzone" id="photosDrop">
+        <input type="file" id="photosInput" webkitdirectory directory multiple hidden>
+        <div class="dropzone-icon">&#128247;</div>
+        <div class="dropzone-text">Selecciona la carpeta de fotografias</div>
+        <div class="dropzone-sub" id="photosCount">0 fotografias seleccionadas</div>
+      </div>
+      <div class="actions-row">
+        <button class="btn btn-accent btn-lg" id="btnUploadPhotos" disabled>SUBIR Y ASOCIAR</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 3: Association review -->
+  <section class="view" data-view="3">
+    <div class="panel">
+      <h2>REVISION DE ASOCIACION</h2>
+      <div id="assocSummary" class="lead"></div>
+      <div id="missingPhotosBox" class="warning-box" hidden>
+        <h3>&#9888; PRODUCTOS SIN FOTOGRAFIA</h3>
+        <div id="missingPhotosList" class="missing-list"></div>
+      </div>
+      <div class="actions-row">
+        <button class="btn btn-accent btn-lg" id="btnGoEnhance">CONTINUAR</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 4: Enhancement -->
+  <section class="view" data-view="4">
+    <div class="panel">
+      <h2>MEJORA AUTOMATICA DE FOTOGRAFIAS</h2>
+      <p class="lead">Selecciona el estilo de fondo para el catalogo.</p>
+      <div class="bg-mode-grid" id="bgModeGrid">
+        <div class="bg-mode-card" data-mode="PREMIUM_DARK"><div class="swatch swatch-dark"></div>PREMIUM DARK</div>
+        <div class="bg-mode-card" data-mode="STUDIO_WHITE"><div class="swatch swatch-white"></div>STUDIO WHITE</div>
+        <div class="bg-mode-card" data-mode="GRAPHITE"><div class="swatch swatch-graphite"></div>GRAPHITE</div>
+        <div class="bg-mode-card" data-mode="TRANSPARENT"><div class="swatch swatch-transparent"></div>TRANSPARENT</div>
+      </div>
+      <div class="actions-row">
+        <button class="btn btn-accent btn-lg" id="btnStartEnhance">MEJORAR FOTOGRAFIAS</button>
+      </div>
+      <div class="progress-block" id="enhanceProgressBlock" hidden>
+        <div class="progress-label" id="enhanceProgressLabel">Procesando fotografias...</div>
+        <div class="progress-bar"><div class="progress-fill" id="enhanceProgressFill"></div></div>
+        <div class="progress-pct" id="enhanceProgressPct">0%</div>
+        <div id="enhanceErrors" class="error-list"></div>
+      </div>
+      <div class="actions-row" id="enhanceContinueRow" hidden>
+        <button class="btn btn-accent btn-lg" id="btnGoEdit">CONTINUAR A EDICION</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 5: Edit / review -->
+  <section class="view" data-view="5">
+    <div class="panel panel-wide">
+      <h2>EDICION Y REVISION</h2>
+      <p class="lead">Revisa cada producto antes de generar el catalogo. Los cambios se guardan automaticamente.</p>
+      <div id="productEditList" class="product-edit-list"></div>
+      <div class="actions-row">
+        <button class="btn btn-accent btn-lg" id="btnGoValidate">CONTINUAR A VALIDACION</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 6: Validation -->
+  <section class="view" data-view="6">
+    <div class="panel">
+      <h2>REVISION DEL CATALOGO</h2>
+      <div id="validationBox" class="validation-box"></div>
+      <div class="actions-row">
+        <button class="btn btn-ghost btn-lg" id="btnBackToEdit">VOLVER A CORREGIR</button>
+        <button class="btn btn-accent btn-lg" id="btnGoGenerate">GENERAR CATALOGO</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- STEP 7: Generate + preview -->
+  <section class="view" data-view="7">
+    <div class="panel">
+      <h2>GENERACION DEL PDF</h2>
+      <div class="actions-row">
+        <button class="btn btn-accent btn-lg" id="btnGenerateBoth">GENERAR PDF DIGITAL + IMPRESION</button>
+      </div>
+      <div class="progress-block" id="genProgressBlock" hidden>
+        <div class="progress-label" id="genProgressLabel">Generando PDF...</div>
+        <div class="progress-bar"><div class="progress-fill" id="genProgressFill"></div></div>
+        <div class="progress-pct" id="genProgressPct">0%</div>
+      </div>
+      <div id="genResult" class="gen-result" hidden>
+        <h3>CATALOGO COMPLETADO</h3>
+        <div class="download-row">
+          <a class="btn btn-accent" id="downloadDigital" href="#" target="_blank">Descargar PDF Digital</a>
+          <a class="btn btn-accent" id="downloadPrint" href="#" target="_blank">Descargar PDF Impresion</a>
+        </div>
+        <div class="preview-frame-wrap">
+          <iframe id="previewFrame" title="Vista previa del catalogo"></iframe>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- Modal: config -->
+<div class="modal-overlay" id="configModal" hidden>
+  <div class="modal">
+    <h3>CONFIGURACION</h3>
+    <label>Moneda
+      <input type="text" id="cfgCurrency" maxlength="4" value="L">
+    </label>
+    <label>Color de acento
+      <input type="color" id="cfgAccent" value="#F26A1B">
+    </label>
+    <label>Anio de coleccion
+      <input type="number" id="cfgYear" value="2026">
+    </label>
+    <div class="actions-row">
+      <button class="btn btn-ghost" id="cfgCancel">Cancelar</button>
+      <button class="btn btn-accent" id="cfgSave">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: open project -->
+<div class="modal-overlay" id="openModal" hidden>
+  <div class="modal">
+    <h3>ABRIR PROYECTO</h3>
+    <div id="projectListBox" class="project-list-box"></div>
+    <div class="actions-row">
+      <button class="btn btn-ghost" id="openCancel">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: photo picker -->
+<div class="modal-overlay" id="photoPickerModal" hidden>
+  <div class="modal modal-wide">
+    <h3>SELECCIONAR FOTOGRAFIA</h3>
+    <div id="photoPickerGrid" class="photo-picker-grid"></div>
+    <div class="actions-row">
+      <button class="btn btn-ghost" id="photoPickerCancel">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
