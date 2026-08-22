@@ -881,6 +881,11 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
         <label for="cName">Nombre del contenedor</label>
         <input id="cName" placeholder="ej: Contenedor Julio 2026">
       </div>
+      <div>
+        <label for="cBrand">Marca a resaltar en portada y publicidad</label>
+        <input id="cBrand" placeholder="HESED">
+        <p class="wiz-hint" style="margin:6px 0 0">Déjalo vacío para usar «HESED». Cámbialo si este catálogo es de otra marca (ej: SOMAN) para no mezclarlas.</p>
+      </div>
       <div class="f2">
         <div>
           <label for="cDate">Fecha de ingreso</label>
@@ -1038,6 +1043,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const uid = ()=> Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const activeCont = ()=> state.containers.find(c=>c.id===state.active) || null;
+const catBrand = c => (c?.brand || "").trim() || "HESED";
 const contProducts = ()=> state.products.filter(p=>p.containerId===state.active);
 const cur = ()=> (activeCont()?.currency || "$");
 const money = n => cur() + " " + (Number(n)||0).toLocaleString("es", {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -2110,6 +2116,7 @@ function openContainerModal(isNew){
   $("dlgContTitle").textContent = contEditingNew ? "Nuevo contenedor" : "Editar contenedor";
   pickKind(c?.kind || "parts");
   $("cName").value = c?.name || "";
+  $("cBrand").value = c?.brand || "";
   $("cDate").value = c?.date || new Date().toISOString().slice(0,10);
   $("cExp").value = c?.expected ?? 60;
   $("cPrefix").value = c?.prefix || "";
@@ -2125,7 +2132,8 @@ function saveContainer(){
     name, kind: contEditingKind, date: $("cDate").value,
     expected: Math.max(0, parseInt($("cExp").value)||0),
     prefix: $("cPrefix").value.trim().toUpperCase() || autoPrefix(name),
-    currency: $("cCur").value.trim() || "$"
+    currency: $("cCur").value.trim() || "$",
+    brand: $("cBrand").value.trim()
   };
   if(contEditingNew){
     const c = {id:uid(), ...data};
@@ -2668,7 +2676,9 @@ function buildPdf(c, items, images){
   // ----- portada -----
   let cover = "";
   cover += rect(0, H-14, W, 14, RED, true);
-  cover += TC(H-300, 58, "F2", RED, "HESED");
+  const brand = catBrand(c);
+  const brandSz = pdfW(brand, 58, true) > W - 60 ? Math.max(28, 58 * (W-60) / pdfW(brand, 58, true)) : 58;
+  cover += TC(H-300, brandSz, "F2", RED, brand);
   cover += TC(H-322, 11, "F1", GRAY, isHelmets() ? "T O D O M O T O S   ·   C A S C O S   Y   S E G U R I D A D" : "T O D O M O T O S   ·   R E P U E S T O S   Y   A C C E S O R I O S");
   cover += line(W/2-110, H-352, W/2+110, H-352, 1.2, RED);
   cover += TC(H-400, 24, "F2", DARK, c?.name || "Catálogo");
@@ -2703,7 +2713,7 @@ function buildPdf(c, items, images){
   const pages = [];
   const pageHeader = () => {
     let s = "";
-    s += T(mx, H-38, 10, "F2", RED, "HESED · TODOMOTOS");
+    s += T(mx, H-38, 10, "F2", RED, `${brand} · TODOMOTOS`);
     let sub = c?.name || "";
     if(mode === "wholesale") sub += "  ·  PRECIOS DE MAYORISTA";
     s += TR(W-mx, H-38, 9, "F1", GRAY, sub);
@@ -3771,7 +3781,7 @@ async function renderAd(p){
     cx.fillStyle = strip; cx.fillRect(0,0,W,16*u);
     cx.font = `900 ${72*u}px Arial`;
     const hg = cx.createLinearGradient(60*u,0,360*u,0); hg.addColorStop(0,acc.brand); hg.addColorStop(1,acc.brand2);
-    cx.fillStyle = hg; cx.fillText("HESED", 60*u, 104*u);
+    cx.fillStyle = hg; cx.fillText(catBrand(activeCont()), 60*u, 104*u);
     cx.font = `700 ${21*u}px Arial`; cx.fillStyle = dark ? "#c9cfda" : "#5d6470";
     cx.fillText("T O D O M O T O S", 64*u, 132*u);
   }
