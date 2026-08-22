@@ -2730,7 +2730,7 @@ function buildPdf(c, items, images){
     const cols2 = [2,3,4].includes(cols) ? cols : 3;
     const colW = (W - mx*2) / cols2;
     const imgSize = colW - 40;
-    const cardH = 22 + imgSize + 16 + lh(szName)*2 + lh(9)*2 + 8 + (mode==="none"?4:szPrice);
+    const cardH = 22 + imgSize + 16 + lh(szName)*2 + lh(8) + lh(9)*2 + 8 + (mode==="none"?4:szPrice);
     const sectionH = 30, bottomY = 30;
     const TCcol = (y, size, font, color, txt, cx0) => T(cx0 + (colW - pdfW(txt,size,font==="F2"))/2, y, size, font, color, txt);
 
@@ -2759,6 +2759,7 @@ function buildPdf(c, items, images){
       }
       let ty = py-imgSize-22, tw = colW-32;
       pdfWrap(U(p.name), szName, true, tw, 2).forEach(ln=>{ s += TCcol(ty, szName, "F2", DARK, ln, cx0); ty -= lh(szName); });
+      if(p.code){ s += TCcol(ty, 8, "F1", GRAY, p.code, cx0); ty -= lh(8); }
       const specTxt = (p.certs||[]).length ? p.certs.join(" · ") : "Certificación por definir";
       s += TCcol(ty, 9, "F1", GRAY, pdfEllip(specTxt, 9, false, tw), cx0); ty -= lh(9);
       const szTxt = (p.sizes||[]).length ? "Tallas " + p.sizes.join("-") : "Tallas por definir";
