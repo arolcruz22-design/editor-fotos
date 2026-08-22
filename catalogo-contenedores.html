@@ -960,6 +960,7 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
     <div class="mod-foot">
       <button class="btn danger sm" onclick="deleteProduct()">🗑 Eliminar</button>
       <button class="btn sm" onclick="duplicateProduct()">⧉ Duplicar</button>
+      <button class="btn wa sm" onclick="orderWhatsApp(ui.editingId)">📱 Pedir por WhatsApp</button>
       <span class="spacer"></span>
       <button class="btn" onclick="dlgProd.close()">Cancelar</button>
       <button class="btn primary" onclick="saveProduct()">Guardar cambios</button>
@@ -1020,7 +1021,8 @@ function defaultStyle(){
     priceMode:"both",   // both = venta+mayor · retail = solo venta · wholesale = solo mayor · none = sin precio
     accent:null,        // null = colores de marca según el tema; o una clave de ACCENTS
     pdfGrid:3,          // columnas por fila: 1 (lista) · 2 · 3 · 4
-    helmetLayout:"pedestal" // catálogo de cascos: "pedestal" · "revista" · "plano" · "compacto"
+    helmetLayout:"pedestal", // catálogo de cascos: "pedestal" · "revista" · "plano" · "compacto"
+    waNumber:""         // número de WhatsApp del negocio (con código de país, solo dígitos); vacío = compartir genérico
   };
 }
 let state = {
@@ -2191,6 +2193,12 @@ function renderStyleModal(){
       </div>
     </div>
     <div>
+      <label for="waNumberInput">📱 Número de WhatsApp del negocio</label>
+      <input id="waNumberInput" placeholder="ej: 50499998888 (código de país + número)" value="${esc(st.waNumber||"")}"
+        onchange="setStyleField('waNumber', this.value)">
+      <p class="wiz-hint" style="margin:8px 0 0">Se usa en «Pedir por WhatsApp» de cada producto. Vacío = deja elegir el contacto al compartir.</p>
+    </div>
+    <div>
       <label>📄 Productos por página del PDF</label>
       <div class="szrow">
         ${[[1,"1 · lista grande"],[2,"2 por fila"],[3,"3 por fila"],[4,"4 · muchos"]].map(([n,lb])=>
@@ -2903,6 +2911,28 @@ function buildWaText(){
     });
   lines.push("", "📲 Pide el tuyo por este WhatsApp");
   return lines.join("\n");
+}
+function buildProductWaText(p){
+  const kind = isHelmetProduct(p) ? "el casco" : "el producto";
+  const parts = [`Hola, quiero información sobre ${kind} *${p.name||p.code||"este producto"}*`];
+  if(p.code) parts.push(`código *${p.code}*`);
+  const price = Number(p.mayor) > 0 ? p.mayor : (Number(p.price) > 0 ? p.price : null);
+  if(price != null) parts.push(`precio *${money(price)}*`);
+  return parts.join(", ") + ".";
+}
+async function orderWhatsApp(id){
+  const p = state.products.find(x=>x.id===id);
+  if(!p){ toast("Producto no encontrado"); return; }
+  const text = buildProductWaText(p);
+  const num = (state.style.waNumber||"").replace(/\D/g,"");
+  if(isMobile() && navigator.share){
+    try{ await navigator.share({text}); return; }
+    catch(e){ if(e.name === "AbortError") return; }
+  }
+  const a = document.createElement("a");
+  a.href = (num ? `https://wa.me/${num}` : "https://wa.me/") + "?text=" + encodeURIComponent(text);
+  a.target = "_blank"; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
 }
 async function sendWhatsApp(){
   const text = buildWaText();
