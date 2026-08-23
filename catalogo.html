@@ -775,9 +775,13 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
           <input type="checkbox" id="bulkStudioChk" onchange="setStudio(this.checked)" style="width:auto">
           ✨ Mejorar las fotos (nitidez, fondo de estudio) — desactívalo si las fotos del proveedor ya son profesionales
         </label>
-        <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer; margin-bottom:12px">
+        <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer; margin-bottom:6px">
           <input type="checkbox" id="bulkAiChk" onchange="setAi(this.checked)" style="width:auto">
           🤖 Recortar fondo con IA (más lento, no siempre queda perfecto)
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13.5px; cursor:pointer; margin-bottom:12px">
+          <input type="checkbox" id="bulkShadowChk" onchange="setShadow(this.checked)" style="width:auto">
+          🌑 Sombra debajo del producto (si se recorta el fondo)
         </label>
         <p style="margin:0 0 10px; color:var(--muted); font-size:13.5px">
           O pega aquí la lista <b>copiada directo desde Excel</b> / factura / packing list:
@@ -839,6 +843,10 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
       <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13.5px; cursor:pointer">
         <input type="checkbox" id="photosStudio" checked onchange="setStudio(this.checked)" style="width:auto">
         ✨ Mejorar calidad (nitidez, balance de blancos, fondo de estudio)
+      </label>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:8px; font-size:13.5px; cursor:pointer">
+        <input type="checkbox" id="photosShadow" onchange="setShadow(this.checked)" style="width:auto">
+        🌑 Sombra debajo del producto (si se recorta el fondo)
       </label>
       <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px">
         <button class="btn primary" type="button" onclick="$('photosFolder').click()">📁 Subir carpeta entera</button>
@@ -939,6 +947,10 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
         <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer">
           <input type="checkbox" id="pPhotoAiChk" onchange="setAi(this.checked)" style="width:auto">
           🤖 Recortar fondo con IA (más lento, no siempre queda perfecto)
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer">
+          <input type="checkbox" id="pPhotoShadowChk" onchange="setShadow(this.checked)" style="width:auto">
+          🌑 Sombra debajo del producto (si se recorta el fondo)
         </label>
       </div>
       <div class="f2">
@@ -1216,6 +1228,10 @@ function wizFieldHTML(s){
         <input type="checkbox" ${studioOn() ? "checked" : ""} onchange="setStudio(this.checked)" style="width:auto">
         ✨ Mejorar calidad (balance de blancos, nitidez, fondo de estudio)
       </label>
+      <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:13.5px; cursor:pointer">
+        <input type="checkbox" ${shadowOn() ? "checked" : ""} onchange="setShadow(this.checked)" style="width:auto">
+        🌑 Sombra debajo del producto (si se recorta el fondo)
+      </label>
       <label style="display:flex; align-items:flex-start; gap:8px; margin-top:8px; font-size:13px; cursor:pointer; opacity:.9">
         <input type="checkbox" ${cutoutOn() ? "checked" : ""} onchange="setCutout(this.checked)" style="width:auto; margin-top:3px">
         <span>✂️ Recorte sin IA (solo si apagas la IA)<br>
@@ -1420,6 +1436,8 @@ function cutoutOn(){ return state.cutoutPref === true; }   // recorte clásico (
 function setCutout(v){ state.cutoutPref = !!v; save(); }
 function aiOn(){ return state.aiPref !== false; }          // recorte con IA gratis en el navegador (por defecto sí)
 function setAi(v){ state.aiPref = !!v; save(); }
+function shadowOn(){ return state.shadowPref !== false; }  // sombra bajo el producto recortado (por defecto sí)
+function setShadow(v){ state.shadowPref = !!v; save(); }
 
 /* ---- IA gratis de recorte de fondo (open-source, corre en el navegador) ----
    Se descarga una sola vez (~40 MB) desde un CDN y luego queda en caché. No
@@ -1594,12 +1612,14 @@ async function processStudio(src){
       const dw = bw*scale, dh = bh*scale;
       const dx = (OUT-dw)/2, dy = (OUT-dh)/2 - OUT*0.015;
       // sombra suave en el piso (degradado radial achatado, semitransparente:
-      // se ve bien tanto sobre fondo claro como oscuro)
-      const scx = OUT/2, scy = dy + dh + OUT*0.03, srx = Math.max(60, dw*0.44), sry = Math.max(12, dh*0.055);
-      const sg = ox.createRadialGradient(scx, scy, 0, scx, scy, srx);
-      sg.addColorStop(0, "rgba(0,0,0,.30)"); sg.addColorStop(0.7, "rgba(0,0,0,.10)"); sg.addColorStop(1, "rgba(0,0,0,0)");
-      ox.save(); ox.translate(scx, scy); ox.scale(1, sry/srx); ox.translate(-scx, -scy);
-      ox.fillStyle = sg; ox.beginPath(); ox.arc(scx, scy, srx, 0, Math.PI*2); ox.fill(); ox.restore();
+      // se ve bien tanto sobre fondo claro como oscuro) — opcional
+      if(shadowOn()){
+        const scx = OUT/2, scy = dy + dh + OUT*0.03, srx = Math.max(60, dw*0.44), sry = Math.max(12, dh*0.055);
+        const sg = ox.createRadialGradient(scx, scy, 0, scx, scy, srx);
+        sg.addColorStop(0, "rgba(0,0,0,.30)"); sg.addColorStop(0.7, "rgba(0,0,0,.10)"); sg.addColorStop(1, "rgba(0,0,0,0)");
+        ox.save(); ox.translate(scx, scy); ox.scale(1, sry/srx); ox.translate(-scx, -scy);
+        ox.fillStyle = sg; ox.beginPath(); ox.arc(scx, scy, srx, 0, Math.PI*2); ox.fill(); ox.restore();
+      }
       ox.drawImage(cv, minX, minY, bw, bh, dx, dy, dw, dh);
       return out.toDataURL("image/png");
     }else{
@@ -2051,6 +2071,7 @@ function openProduct(id){
   $("pPhotoBox").innerHTML = p.photo ? `<img src="${p.photo}" alt="">` : `<span class="noph">📷</span>`;
   $("pPhotoStudioChk").checked = studioOn();
   $("pPhotoAiChk").checked = aiOn();
+  $("pPhotoShadowChk").checked = shadowOn();
   $("dlgProd").showModal();
 }
 function renderPSizes(){
@@ -2392,7 +2413,7 @@ async function imgToJpeg(src, max){
   const cx = cv.getContext("2d");
   cx.fillStyle = "#ffffff"; cx.fillRect(0,0,w,h);
   cx.drawImage(img, 0, 0, w, h);
-  const bin = atob(cv.toDataURL("image/jpeg", 0.82).split(",")[1]);
+  const bin = atob(cv.toDataURL("image/jpeg", 0.9).split(",")[1]);
   const bytes = new Uint8Array(bin.length);
   for(let i=0; i<bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return {bytes, w, h};
@@ -2648,7 +2669,7 @@ async function exportPDF(){
   const images = {};
   for(let i=0; i<items.length; i++){
     if(items[i].photo){
-      try{ images[i] = await imgToJpeg(items[i].photo, 640); }catch(e){}
+      try{ images[i] = await imgToJpeg(items[i].photo, 1600); }catch(e){}
       if(i % 8 === 7) toast(`📄 Preparando fotos… ${i+1}/${items.length}`);
     }
   }
@@ -3094,6 +3115,7 @@ function openBulk(){
   $("bulkAiBtn").style.display = (typeof window.claude?.complete === "function") ? "" : "none";
   $("bulkStudioChk").checked = studioOn();
   $("bulkAiChk").checked = aiOn();
+  $("bulkShadowChk").checked = shadowOn();
   $("dlgBulk").showModal();
   $("bulkText").focus();
 }
@@ -3508,6 +3530,7 @@ function openBulkPhotos(){
   bulkPhotos = [];
   $("photosStudio").checked = studioOn();
   $("photosAi").checked = aiOn();
+  $("photosShadow").checked = shadowOn();
   $("photoResults").innerHTML = "";
   $("photoSummary").textContent = "";
   $("photoProgress").style.display = "none";
