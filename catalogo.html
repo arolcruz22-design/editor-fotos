@@ -930,6 +930,16 @@ dialog.wide{width:min(880px, calc(100vw - 32px))}
           <input type="file" id="pPhotoFile" accept="image/*" style="display:none">
         </div>
       </div>
+      <div style="display:flex; flex-direction:column; gap:6px; margin-top:-8px">
+        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer">
+          <input type="checkbox" id="pPhotoStudioChk" onchange="setStudio(this.checked)" style="width:auto">
+          ✨ Mejorar la foto (mismo fondo de estudio que las demás)
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer">
+          <input type="checkbox" id="pPhotoAiChk" onchange="setAi(this.checked)" style="width:auto">
+          🤖 Recortar fondo con IA (más lento, no siempre queda perfecto)
+        </label>
+      </div>
       <div class="f2">
         <div><label for="pCode">Código</label><input id="pCode" class="mono"></div>
         <div><label for="pCat" id="pCatLabel">Categoría</label><select id="pCat"></select></div>
@@ -2038,6 +2048,8 @@ function openProduct(id){
     $("pHelmetFields").style.display = "none";
   }
   $("pPhotoBox").innerHTML = p.photo ? `<img src="${p.photo}" alt="">` : `<span class="noph">📷</span>`;
+  $("pPhotoStudioChk").checked = studioOn();
+  $("pPhotoAiChk").checked = aiOn();
   $("dlgProd").showModal();
 }
 function renderPSizes(){
@@ -2060,11 +2072,18 @@ function togglePCert(ct){
   const i = ui.editCerts.indexOf(ct); if(i<0) ui.editCerts.push(ct); else ui.editCerts.splice(i,1);
   renderPCerts();
 }
-$("pPhotoFile").addEventListener("change", function(){
-  if(this.files[0]) loadPhoto(this.files[0], url=>{
+$("pPhotoFile").addEventListener("change", async function(){
+  const f = this.files[0]; this.value = ""; if(!f) return;
+  const prevHTML = $("pPhotoBox").innerHTML;
+  $("pPhotoBox").innerHTML = `<span class="noph">⏳</span>`;
+  try{
+    const url = await photoFromBlob(f);
     ui.editPhoto = url;
     $("pPhotoBox").innerHTML = `<img src="${url}" alt="">`;
-  });
+  }catch(e){
+    toast("No se pudo leer la imagen");
+    $("pPhotoBox").innerHTML = prevHTML;
+  }
 });
 function clearEditPhoto(){ ui.editPhoto = null; $("pPhotoBox").innerHTML = `<span class="noph">📷</span>`; }
 function saveProduct(){
