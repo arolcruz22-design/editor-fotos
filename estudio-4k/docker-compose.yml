@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: estudio4k-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: estudio4k_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - estudio4k_pgdata:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d estudio4k_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  estudio4k_pgdata:

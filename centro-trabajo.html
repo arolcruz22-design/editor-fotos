@@ -323,6 +323,11 @@
     <button class="nav-btn" data-view="proveedores"><span class="ic">⇄</span> Proveedores</button>
     <button class="nav-btn" data-view="contenedores"><span class="ic">▣</span> Contenedores <span class="badge" id="badge-cont">0</span></button>
     <button class="nav-btn" data-view="archivos"><span class="ic">▤</span> Archivos importantes</button>
+
+    <div class="nav-group">Estudio 4K</div>
+    <a class="nav-btn" href="index.html"><span class="ic">🖼️</span> Editor de fotos</a>
+    <a class="nav-btn" href="catalogo.html"><span class="ic">📦</span> Catálogo de contenedores</a>
+    <a class="nav-btn" href="estudio-4k/frontend/index.html" title="Requiere el servidor de desarrollo corriendo (npm run dev) — ver estudio-4k/README.md"><span class="ic">🎬</span> Panel Estudio 4K</a>
   </aside>
   <div class="scrim" id="scrim"></div>
 
@@ -1402,7 +1407,7 @@
     $("#viewTitle").textContent = titles[view] || "";
     renderCurrent(); closeMenu(); window.scrollTo(0,0);
   }
-  document.querySelectorAll(".nav-btn").forEach(b=> b.addEventListener("click", ()=> go(b.dataset.view)));
+  document.querySelectorAll(".nav-btn[data-view]").forEach(b=> b.addEventListener("click", ()=> go(b.dataset.view)));
 
   // ---------- theme ----------
   const root = document.documentElement;

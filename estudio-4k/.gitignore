@@ -1,0 +1,21 @@
+# Dependencias
+backend/node_modules/
+frontend/node_modules/
+
+# Builds
+backend/dist/
+frontend/dist/
+
+# Variables de entorno (nunca commitear secretos reales)
+backend/.env
+backend/.env.local
+frontend/.env
+frontend/.env.local
+
+# Logs
+*.log
+backend/*.log
+frontend/*.log
+
+# Sistema
+.DS_Store
