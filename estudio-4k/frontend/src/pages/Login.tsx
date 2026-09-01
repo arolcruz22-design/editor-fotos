@@ -12,12 +12,16 @@ export function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (mode === 'login') {
-      await login(email, password);
-    } else {
-      await register(email, password, fullName);
+    try {
+      if (mode === 'login') {
+        await login(email, password);
+      } else {
+        await register(email, password, fullName);
+      }
+      navigate('/');
+    } catch {
+      // el mensaje de error ya queda expuesto vía useAuth().error
     }
-    navigate('/');
   };
 
   return (
