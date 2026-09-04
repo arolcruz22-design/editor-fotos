@@ -1050,7 +1050,8 @@ function defaultStyle(){
     accent:null,        // null = colores de marca según el tema; o una clave de ACCENTS
     pdfGrid:3,          // columnas por fila: 1 (lista) · 2 · 3 · 4
     helmetLayout:"pedestal", // catálogo de cascos: "pedestal" · "revista" · "plano" · "compacto"
-    waNumber:""         // número de WhatsApp del negocio (con código de país, solo dígitos); vacío = compartir genérico
+    waNumber:"",        // número de WhatsApp del negocio (con código de país, solo dígitos); vacío = compartir genérico
+    pdfSort:"category"  // orden del PDF: category · name · code · priceAsc · priceDesc · recent
   };
 }
 let state = {
@@ -2305,6 +2306,18 @@ function renderStyleModal(){
       <p class="wiz-hint" style="margin:8px 0 0">Se usa en «Pedir por WhatsApp» de cada producto. Vacío = deja elegir el contacto al compartir.</p>
     </div>
     <div>
+      <label for="pdfSortSel">🔤 Orden de los productos en el PDF</label>
+      <select id="pdfSortSel" onchange="setStyleField('pdfSort', this.value)">
+        <option value="category" ${(!st.pdfSort || st.pdfSort==="category")?"selected":""}>${isHelmets()?"Por tipo de casco y código":"Por categoría y código"}</option>
+        <option value="name" ${st.pdfSort==="name"?"selected":""}>Alfabético (nombre A-Z)</option>
+        <option value="code" ${st.pdfSort==="code"?"selected":""}>Por código</option>
+        <option value="priceAsc" ${st.pdfSort==="priceAsc"?"selected":""}>Precio: menor a mayor</option>
+        <option value="priceDesc" ${st.pdfSort==="priceDesc"?"selected":""}>Precio: mayor a menor</option>
+        <option value="recent" ${st.pdfSort==="recent"?"selected":""}>Orden en que los registraste</option>
+      </select>
+      ${isHelmets() ? `<p class="wiz-hint" style="margin:8px 0 0">Los cascos siempre se agrupan por tipo con su encabezado de sección; esto define el orden <b>dentro</b> de cada grupo.</p>` : ""}
+    </div>
+    <div>
       <label>📄 Productos por página del PDF</label>
       <div class="szrow">
         ${[[1,"1 · lista grande"],[2,"2 por fila"],[3,"3 por fila"],[4,"4 · muchos"]].map(([n,lb])=>
@@ -2660,10 +2673,26 @@ function pdfEllip(s, size, bold, maxW){
   while(pdfW(s + "...", size, bold) > maxW && s.length > 2) s = s.slice(0,-1);
   return s + "...";
 }
+function pdfSortComparator(key){
+  const cmps = {
+    category: (a,b)=> a.category.localeCompare(b.category,"es") || String(a.code).localeCompare(String(b.code),"es",{numeric:true}),
+    name: (a,b)=> String(a.name).localeCompare(String(b.name),"es"),
+    code: (a,b)=> String(a.code).localeCompare(String(b.code),"es",{numeric:true}),
+    priceAsc: (a,b)=> (Number(a.price)||0) - (Number(b.price)||0),
+    priceDesc: (a,b)=> (Number(b.price)||0) - (Number(a.price)||0),
+    recent: (a,b)=> (a.created||0) - (b.created||0)
+  };
+  return cmps[key] || cmps.category;
+}
 async function exportPDF(){
   const c = activeCont();
-  let items = contProducts().slice().sort((a,b)=>
-    a.category.localeCompare(b.category,"es") || String(a.code).localeCompare(String(b.code),"es",{numeric:true}));
+  const sortKey = state.style.pdfSort || "category";
+  const within = pdfSortComparator(sortKey);
+  let items = contProducts().slice().sort(isHelmets()
+    // los cascos siempre se agrupan por tipo (encabezados de sección); el
+    // orden elegido decide cómo quedan ordenados DENTRO de cada grupo
+    ? (a,b)=> (a.htype||"").localeCompare((b.htype||""),"es") || within(a,b)
+    : within);
   if(!items.length){ toast("El contenedor no tiene productos aún"); return; }
   toast("📄 Generando catálogo PDF…");
   const images = {};
